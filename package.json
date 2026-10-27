@@ -1,0 +1,30 @@
+{
+  "name": "@vpatel9202/glovebox",
+  "version": "0.1.0",
+  "description": "Scriptable, provider-agnostic computer use for coding agents: one persistent JS session, many GUI actions per call, accessibility text by default, screenshots on request.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Vash Patel",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vpatel9202/glovebox.git"
+  },
+  "homepage": "https://github.com/vpatel9202/glovebox#readme",
+  "bugs": "https://github.com/vpatel9202/glovebox/issues",
+  "keywords": ["computer-use", "mcp", "accessibility", "automation", "agents", "gui", "repl", "macos"],
+  "bin": {
+    "glovebox": "bin/glovebox.mjs"
+  },
+  "files": ["bin", "src", "native", "skills", "docs", "README.md", "LICENSE"],
+  "engines": {
+    "node": ">=20.10"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "build:helper": "node bin/glovebox.mjs setup --rebuild",
+    "smoke": "node bin/glovebox.mjs smoke"
+  },
+  "dependencies": {
+    "acorn": "^8.15.0"
+  }
+}
