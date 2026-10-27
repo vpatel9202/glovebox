@@ -28,7 +28,8 @@ The shapes we compared against:
 | Default read | AX text, diffed | screenshot plus AX summary | AX text plus screenshot | AX text, diffed |
 | Model-defined helpers | yes | no | no | yes |
 | Pixel space | screenshot pixels | screenshot frame | window coordinates | window image pixels |
-| Background input | yes | yes | partial | AX presses; keys and mouse front the app (background keys opt-in) |
+| Background input | yes | yes | partial | yes (keys, clicks, drag, scroll; foreground fallback) |
+| Drawn agent cursor | yes | yes | no | yes |
 | Works without vendor app | no | no | no | yes |
 
 Claude's tools and Orca's CLI both make the model pay a round trip per
@@ -96,24 +97,51 @@ transform. The header of every read prints the image size.
 
 ## Input delivery
 
+Input goes to apps in the background, the way Codex computer use does it:
+the user's frontmost app keeps focus and the real cursor never moves.
+
 - A plain left click on a pressable element (button, checkbox, link, menu
-  item) is sent as an accessibility press. That works with the app in the
-  background and cannot land on another window.
-- Any other click, and scroll and drag, bring the app to the front and use
-  the mouse. Background mouse input is unreliable across apps today; see
-  the roadmap.
-- Keys and typing bring the app to the front, then post to the session. The
-  helper re-checks that the target is active for every event and otherwise
-  addresses the event to the target's process, so keys never fall through to
-  whatever app the user switched to. `{background: true}` skips activation
-  and posts to the process (`CGEventPostToPid`). Some apps accept that; others
-  drop it silently (Calculator did when another app was frontmost), which is
-  why it is opt-in.
+  item) is sent as an accessibility press.
+- Keys and typing: the helper makes the target window key *inside its app*
+  without activating the app, using two private SkyLight event records
+  (`SLPSPostEventRecordTo`: a focus record and a make-key pair, 248 bytes
+  each). It confirms through Accessibility that the window is key, then posts
+  the key events to the process (`SLEventPostToPid`). Plain
+  `CGEventPostToPid` is not enough: Calculator dropped those keys when another
+  app was frontmost, because a background app has no key window.
+- Mouse clicks, drags, and scrolls: a focus record for the target window only,
+  then a `mouseMoved` and the button events posted to the process, each
+  stamped with the target pid and window (event fields 40, 51, 58, 91, 92)
+  and a window-local location (`CGEventSetWindowLocation`). AppKit apps get
+  the public `CGEventPostToPid`; Chromium/Electron apps get the SkyLight route
+  plus an off-screen primer click. Scroll events go through both routes.
+  Background events carry no click count unless one is set, and AppKit
+  ignores a mouse-down without it.
+- A focus guard notes the frontmost app before each background action and
+  gives it focus back if the target took it anyway.
+- Each private function is looked up at runtime. If one is missing (a future
+  macOS may remove it), the helper says so and glovebox falls back to the
+  foreground route: bring the app forward once per call, then post events.
+  On that route, switching to another app stops the script. `glovebox ping`
+  data and `lastRoute` show which route ran.
+- The record layouts and event fields come from open-source tools that do the
+  same: yabai, trycua's cua-driver, and Peekaboo (all MIT). Codex's service
+  links only public frameworks and resolves these calls by hashed name at
+  runtime, and Claude desktop's helper references the same calls, so this is
+  the established approach, not a novel hack. It is still private API.
+- A drawn agent cursor (a borderless, click-through window ordered just above
+  the target window, not above everything) animates to each action's point.
+  It is included in screen recordings and hides after a few seconds idle.
 - Pixel targets outside the window image are refused, so a bad coordinate
   cannot click into another app.
 - While any agent is connected the helper shows a menu-bar item listing the
   sessions and their approved apps, with Stop Running Scripts, Revoke Session
-  Approvals, and Quit.
+  Approvals, Hide Agent Cursor, and Quit.
+
+Measured on macOS 27 with Firefox frontmost throughout (`glovebox smoke
+--full`): background keys in Calculator, a pixel click that placed TextEdit's
+caret at the start of the text, a drag that selected a line, and a scroll
+that moved the scroll bar, with the frontmost app unchanged.
 
 ## Approval and safety
 
@@ -141,6 +169,16 @@ Computer use can click anything, so approval is part of the product:
   step title, the app, and the target. Typed text is logged as a length
   unless `log.text` is true.
 - The helper's socket is mode 0600 and checks the peer's uid.
+
+## Signing and permissions
+
+macOS ties Accessibility, Screen Recording, and Input Monitoring grants to the
+helper's designated requirement. An ad-hoc signature's requirement is the
+binary's hash, so every rebuild lost the grants (and stale entries kept
+showing as on). `glovebox signing --create` makes a self-signed code-signing
+certificate in the login keychain; signed with it, the requirement becomes
+"identifier + certificate", and grants survive rebuilds. The certificate
+does not need to be trusted. Verified by rebuilding twice without re-granting.
 
 ## The macOS backend
 

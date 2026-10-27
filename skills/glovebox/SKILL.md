@@ -36,8 +36,9 @@ The loop:
    shows. `getAXState({frames: true})` gives element boxes in that same space.
 
 Keys use xdotool syntax: `Return`, `Tab`, `Escape`, `ctrl+a`, `shift+Tab`,
-`super+c` (Cmd on macOS). `typeText` treats `\n` as Return. Keys bring the
-app to the front; clicks on buttons and other pressable elements do not.
+`super+c` (Cmd on macOS). `typeText` treats `\n` as Return. Input stays in
+the background: the app is not brought forward and the user's cursor does
+not move. If an app ignores it, pass `{foreground: true}` to that action.
 
 `help()` prints the full API; `help("scroll")` prints one part.
 

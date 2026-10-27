@@ -1,6 +1,6 @@
 {
   "name": "@vpatel9202/glovebox",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scriptable, provider-agnostic computer use for coding agents: one persistent JS session, many GUI actions per call, accessibility text by default, screenshots on request.",
   "type": "module",
   "license": "MIT",

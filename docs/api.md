@@ -57,21 +57,25 @@ image size. If the window is resized, read again before clicking by pixels.
 
 ## Actions
 
-- `app.click(target, {button, count, modifiers, raw})`. A plain left click on
-  a button, checkbox, link, or menu item is delivered through accessibility,
-  which works with the app in the background. Anything else brings the app
-  to the front and clicks with the mouse. `raw: true` always uses the mouse.
-  `modifiers` is a list such as `["shift"]`.
+Input stays in the background: the app is not brought to the front, the
+user's real cursor does not move, and a drawn agent cursor shows where each
+action lands. If this macOS or an app can't take background input, glovebox
+brings the app forward instead. `app.lastRoute` says how the last action got
+there (`accessibility`, `background`, or `foreground`). Pass
+`{foreground: true}` to any action, or `gb.getApp(name, {foreground: true})`,
+for apps that ignore background input (some Java, Tk, and game windows).
+
+- `app.click(target, {button, count, modifiers, raw, foreground})`. A plain
+  left click on a button, checkbox, link, or menu item is pressed through
+  accessibility. Anything else is a mouse click sent to the app's window.
+  `raw: true` always uses the mouse. `modifiers` is a list such as `["shift"]`.
 - `app.doubleClick(target)`, `app.rightClick(target)`.
 - `app.pressKey(keys, {repeat})`. xdotool syntax: `Return`, `Tab`, `Escape`,
   `BackSpace`, `Delete`, `Up`, `Page_Down`, `F5`, `ctrl+a`, `shift+Tab`,
   `super+c` (super is Cmd on macOS). Space-separated keys press in sequence:
-  `"ctrl+a BackSpace"`. Keys bring the app to the front first; pass
-  `{background: true}` (or `gb.getApp(name, {background: true})`) to post
-  them to the app without focusing it. Many apps accept that, some silently
-  ignore it, so check the result with a read.
-- `app.typeText(text, {background})`. Types literal text; `\n` presses
-  Return and `\t` presses Tab.
+  `"ctrl+a BackSpace"`. Keys go to the app's key window.
+- `app.typeText(text)`. Types literal text; `\n` presses Return and `\t`
+  presses Tab.
 - `app.scroll(target, dy, {dx})`. Positive `dy` scrolls down, in lines.
 - `app.drag(from, to)` or `app.drag([[x, y], [x, y], ...])`.
 - `app.setValue(index, value)` sets a field's value directly.
@@ -79,7 +83,7 @@ image size. If the window is resized, read again before clicking by pixels.
 - `app.selectText(index, {start, length})` selects text in a field.
 - `app.listActions(index)` and `app.performSecondaryAction(index, name)`
   run an accessibility action such as `"Show Menu"` or `"Increment"`.
-- `app.activate()` brings the app to the front.
+- `app.activate()` brings the app to the front (rarely needed).
 
 ## Approval and stopping
 
@@ -88,7 +92,7 @@ This Session, Always Allow, or Deny. Terminals, password managers, and System
 Settings are blocked unless the user runs `glovebox allow <app>`. If the user
 switches to another app or presses Escape while a script runs, the script
 stops with a "Stopped: ..." message; do not continue GUI work until they ask.
-A script brings an app forward at most once per call. Every action is
+On the foreground route a script brings an app forward at most once per call. Every action is
 appended to `~/.glovebox/actions.log` (typed text is logged as a length only).
 
 ## Tips

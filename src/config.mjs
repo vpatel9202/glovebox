@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
 
 export function homeDir() {
   return process.env.GLOVEBOX_HOME || path.join(os.homedir(), ".glovebox");
@@ -39,6 +39,13 @@ export const DEFAULTS = {
   approval: "ask",
   allow: [],
   deny: [],
+  // background: input reaches apps without focusing them (falls back to
+  // foreground when the app or macOS can't take it). foreground: always front.
+  input: "background",
+  // Apps that need foreground input, by name or bundle id.
+  foregroundApps: [],
+  // Draw the agent cursor where actions land.
+  cursor: true,
   screenshot: { maxLongSide: 1568, maxPixels: 1_150_000, format: "png", quality: 80 },
   ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 },
   log: { enabled: true, text: false },

@@ -2,7 +2,9 @@
 // MCP server an agent would use. It checks that a batched call lands, that a
 // binding survives to the next call, that reads diff, and that js_reset drops
 // the binding. Nothing here is mocked.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,7 +40,18 @@ function client() {
   return { request, js, close: () => child.stdin.end() };
 }
 
-export async function runSmoke({ screenshot = true } = {}) {
+// The frontmost app's name, so the smoke test can prove input stayed in the background.
+function frontmostApp() {
+  if (process.platform !== "darwin") return null;
+  try {
+    return execFileSync("osascript", ["-l", "JavaScript", "-e", 'ObjC.import("AppKit"); $.NSWorkspace.sharedWorkspace.frontmostApplication.localizedName.js']).toString().trim();
+  } catch {
+    return null;
+  }
+}
+
+export async function runSmoke({ screenshot = true, full = false } = {}) {
+  const frontBefore = frontmostApp();
   const mcp = client();
   const results = [];
   const step = (name, pass, detail) => {
@@ -94,6 +107,50 @@ await calc.getAXState();`);
     await mcp.request("tools/call", { name: "js_reset", arguments: {} });
     const after = await mcp.js("typeof calc");
     step("js_reset drops the binding", !after.isError && after.text.trim() === "undefined", after.text);
+
+    if (full) {
+      // Raw mouse input in a background text editor: a click places the caret,
+      // a drag selects, a scroll moves the view. Only real mouse events do these.
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "glovebox-smoke-"));
+      const short = path.join(dir, "glovebox-smoke.txt");
+      const long = path.join(dir, "glovebox-smoke-long.txt");
+      fs.writeFileSync(short, "AAAA\nBBBB\nCCCC\n");
+      fs.writeFileSync(long, Array.from({ length: 300 }, (_, i) => `line ${i} ${"x".repeat(40)}`).join("\n"));
+      execFileSync("open", ["-g", "-a", "TextEdit", short, long]);
+      await new Promise((r) => setTimeout(r, 2500));
+      const te = await mcp.js(`
+const te = await gb.getApp("TextEdit");
+const wins = await te.windows();
+const shortWin = wins.find((w) => w.title.startsWith("glovebox-smoke.txt"));
+const longWin = wins.find((w) => w.title.startsWith("glovebox-smoke-long"));
+const area = async (i) => (await te.getAXState({ window: i, emit: false, disableDiffing: true, frames: true })).match(/text area value="([^"]*)".*@(\\d+),(\\d+)/);
+let a = await area(shortWin.index);
+const [ax, ay] = [Number(a[2]), Number(a[3])];
+await te.click([ax + 8, ay + 10]);
+await te.typeText("Y");
+const afterClick = (await area(shortWin.index))[1];
+await te.drag([ax + 8, ay + 10], [ax + 300, ay + 10]);
+await te.typeText("Q");
+const afterDrag = (await area(shortWin.index))[1];
+const bars = async () => [...(await te.getAXState({ window: longWin.index, emit: false, disableDiffing: true })).matchAll(/scroll bar value="([^"]+)"/g)].map((m) => m[1]).join(",");
+const before = await bars();
+await te.scroll([300, 300], 15);
+const afterScroll = await bars();
+JSON.stringify({ afterClick, afterDrag, before, afterScroll, route: te.lastRoute });`);
+      let r = {};
+      try {
+        r = JSON.parse(te.text.trim().split("\n").at(-1));
+      } catch {}
+      step("background click places the caret (TextEdit)", !te.isError && /^Y/.test(r.afterClick ?? ""), te.isError ? te.text : r.afterClick);
+      step("background drag selects text (TextEdit)", !te.isError && /^Q /.test(r.afterDrag ?? ""), te.isError ? undefined : r.afterDrag);
+      step("background scroll moves the view (TextEdit)", !te.isError && r.before !== r.afterScroll, te.isError ? undefined : `${r.before} -> ${r.afterScroll}`);
+      process.stdout.write(`      (Two test documents are open in TextEdit; close them without saving: ${dir})\n`);
+    }
+
+    const frontAfter = frontmostApp();
+    if (frontBefore) {
+      step("input stayed in the background (frontmost app unchanged)", frontBefore === frontAfter, `${frontBefore} -> ${frontAfter}`);
+    }
   } finally {
     mcp.close();
   }

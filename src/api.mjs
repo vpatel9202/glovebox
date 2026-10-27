@@ -44,8 +44,10 @@ export class App {
     this.name = info.name;
     this.bundleId = info.bundleId;
     this.pid = info.pid;
-    // Default for pressKey/typeText; see #keyTarget.
-    this.background = false;
+    // true: always bring this app forward for input (see #useBackground).
+    this.foreground = false;
+    // How the last input reached the app: accessibility, background, or foreground.
+    this.lastRoute = null;
   }
 
   toString() {
@@ -239,13 +241,15 @@ export class App {
           hit = await this.#call("hitTest", { x, y });
         }
         if (hit?.index != null && hit.actions?.includes("AXPress") && (hit.role == null || PRESSABLE.has(hit.role))) {
+          await this.#pointCursor(await this.#screenPoint(target));
           await this.#call("performAction", { index: hit.index, action: "AXPress" });
+          this.lastRoute = "accessibility";
           return;
         }
       }
       const [x, y] = await this.#screenPoint(target);
-      await this.#activate();
-      await this.#call("click", { x, y, button, count, mods });
+      await this.#pointCursor([x, y]);
+      await this.#deliver("click", { x, y, button, count, mods }, options);
     });
   }
 
@@ -257,37 +261,70 @@ export class App {
     return this.click(target, { ...options, button: "right" });
   }
 
-  // Keys bring the app to the front unless asked not to. Posting keys to a
-  // background process works only in some apps, and nothing reports when an
-  // app drops them, so background delivery is opt-in.
-  async #keyTarget(options) {
-    if (!(options.background ?? this.background)) await this.#activate();
+  // Whether this action should stay in the background. Off when the caller,
+  // this handle, the config, or the app's entry in foregroundApps says so.
+  #useBackground(options) {
+    if (options.foreground === true || options.background === false || this.foreground) return false;
+    const config = this.#ctx.config;
+    if (config.input === "foreground") return false;
+    const names = [this.bundleId, this.name].filter(Boolean).map((n) => n.toLowerCase());
+    return !(config.foregroundApps ?? []).some((entry) => names.includes(String(entry).toLowerCase()));
+  }
+
+  // Sends one input request to the app. Background first: the window is made
+  // key inside its app and events go to the process, so focus and the real
+  // cursor stay with the user. If this macOS or this app can't take that, the
+  // app is brought forward instead and `lastRoute` says so.
+  async #deliver(method, params, options = {}) {
+    if (this.#useBackground(options)) {
+      const view = await this.#ensureView();
+      if (view.windowId != null) {
+        try {
+          const result = await this.#call(method, { ...params, mode: "background", windowId: view.windowId });
+          this.lastRoute = result?.focusRestored ? `${result.route} (focus restored)` : (result?.route ?? "background");
+          return;
+        } catch (error) {
+          if (!["background_unavailable", "background_unconfirmed"].includes(error.code)) throw error;
+          this.#ctx.log({ app: this.bundleId ?? this.name, action: "fallback", reason: error.message });
+        }
+      }
+    }
+    await this.#activate();
+    await this.#call(method, params);
+    this.lastRoute = "foreground";
+  }
+
+  // Moves the drawn agent cursor to a screen point above the app's window.
+  async #pointCursor([x, y]) {
+    if (this.#ctx.config.cursor === false) return;
+    try {
+      await this.#ctx.backend.request("cursor", { x, y, windowId: this.#view?.windowId });
+    } catch {
+      // The cursor is decoration; never fail an action over it.
+    }
   }
 
   async pressKey(keys, options = {}) {
     const chords = parseKeys(keys);
     const repeat = Math.max(1, options.repeat ?? 1);
     return this.#act("pressKey", { keys: String(keys), repeat }, async () => {
-      await this.#keyTarget(options);
-      for (let i = 0; i < repeat; i++) await this.#call("keys", { chords });
+      const all = Array.from({ length: repeat }, () => chords).flat();
+      await this.#deliver("keys", { chords: all }, options);
     });
   }
 
   async typeText(text, options = {}) {
     if (typeof text !== "string") throw new TypeError("typeText expects a string");
     const detail = this.#ctx.config.log.text ? { text } : { length: text.length };
-    return this.#act("typeText", detail, async () => {
-      await this.#keyTarget(options);
-      await this.#call("type", { text });
-    });
+    return this.#act("typeText", detail, () => this.#deliver("type", { text }, options));
   }
 
   async scroll(target, amount = 3, options = {}) {
     const { dy, dx } = typeof amount === "number" ? { dy: amount, dx: options.dx ?? 0 } : { dy: 0, dx: 0, ...amount };
     return this.#act("scroll", { target: describeTarget(target), dy, dx }, async () => {
       const [x, y] = await this.#screenPoint(target);
-      await this.#activate();
-      await this.#call("scroll", { x, y, dy, dx });
+      await this.#pointCursor([x, y]);
+      await this.#deliver("scroll", { x, y, dy, dx }, options);
     });
   }
 
@@ -296,8 +333,9 @@ export class App {
     return this.#act("drag", { path: points.map(describeTarget).join(" -> ") }, async () => {
       const path = [];
       for (const point of points) path.push(await this.#screenPoint(point));
-      await this.#activate();
-      await this.#call("drag", { path, button: options.button ?? "left" });
+      await this.#pointCursor(path[0]);
+      await this.#deliver("drag", { path, button: options.button ?? "left" }, options);
+      await this.#pointCursor(path.at(-1));
     });
   }
 
@@ -364,7 +402,7 @@ export function createApi(ctx) {
       if (existing) return existing;
       const app = new App(ctx, info);
       apps.set(info.pid, app);
-      if (options.background) app.background = true;
+      if (options.foreground) app.foreground = true;
       if (options.activate) await app.activate();
       return app;
     },

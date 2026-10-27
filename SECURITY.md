@@ -33,8 +33,14 @@ computer. Treat it with the same care as giving someone remote control.
   Use it only when you trust every agent you attach.
 - An approved app is approved for everything in it. Allowing a browser lets
   the agent use every site you are signed in to.
-- macOS ties privacy grants to the helper's ad-hoc signature, which is
-  created on your machine. Rebuilding the helper means granting again.
+- Background input uses private macOS (SkyLight) functions, the same ones
+  Codex and Claude desktop computer use rely on. They are looked up at
+  runtime; if a macOS update removes them, glovebox falls back to bringing the
+  app forward. They do not bypass any permission: the helper still needs
+  Accessibility.
+- The optional "glovebox local signing" certificate lives in your login
+  keychain and signs only the helper you build. Without it, macOS ties
+  privacy grants to an ad-hoc signature and a rebuild means granting again.
 
 ## Reporting a vulnerability
 

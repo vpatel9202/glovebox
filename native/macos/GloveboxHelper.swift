@@ -20,7 +20,7 @@ import Foundation
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
-let helperVersion = "0.1.0"
+let helperVersion = "0.2.0"
 // Marks events we synthesize so the Escape watcher ignores them.
 let syntheticMarker: Int64 = 0x676C_6F76
 
@@ -143,11 +143,21 @@ func resolveApp(_ query: String) throws -> [String: Any] {
     throw HelperError("No app named \"\(query)\".\(hint)", code: "not_found")
 }
 
+// NSRunningApplication(processIdentifier:) can come back nil for a live app
+// when called off the main thread, so a miss is checked against the process
+// table and the workspace list before calling the app gone.
 func runningApp(_ pid: Int) throws -> NSRunningApplication {
-    guard let app = NSRunningApplication(processIdentifier: pid_t(pid)), !app.isTerminated else {
-        throw HelperError("App with pid \(pid) is not running", code: "not_running")
+    if let app = NSRunningApplication(processIdentifier: pid_t(pid)), !app.isTerminated { return app }
+    if kill(pid_t(pid), 0) == 0 {
+        var found: NSRunningApplication?
+        let look = {
+            found = NSRunningApplication(processIdentifier: pid_t(pid))
+                ?? NSWorkspace.shared.runningApplications.first { $0.processIdentifier == pid_t(pid) }
+        }
+        if Thread.isMainThread { look() } else { DispatchQueue.main.sync(execute: look) }
+        if let app = found { return app }
     }
-    return app
+    throw HelperError("App with pid \(pid) is not running", code: "not_running")
 }
 
 func launch(_ params: [String: Any]) throws -> [String: Any] {
@@ -520,10 +530,16 @@ let eventSource: CGEventSource? = {
     return source
 }()
 
+// Mouse events. On the background route they go to the target process,
+// stamped with its window; otherwise to the system at the screen point.
 func post(_ event: CGEvent?) {
     guard let e = event else { return }
     e.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-    e.post(tap: .cghidEventTap)
+    if let route = backgroundRoute {
+        route.postMouse(e)
+    } else {
+        e.post(tap: .cghidEventTap)
+    }
 }
 
 // Keyboard events go to the target app's process when it is in the
@@ -533,7 +549,9 @@ var keyTargetPid: pid_t?
 func postKey(_ event: CGEvent?) {
     guard let e = event else { return }
     e.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
-    if let pid = keyTargetPid, let app = NSRunningApplication(processIdentifier: pid), !app.isActive {
+    if let route = backgroundRoute {
+        route.postKey(e)
+    } else if let pid = keyTargetPid, let app = NSRunningApplication(processIdentifier: pid), !app.isActive {
         e.postToPid(pid)
     } else {
         e.post(tap: .cghidEventTap)
@@ -679,6 +697,7 @@ func click(_ params: [String: Any]) throws -> [String: Any] {
     let f = flags((params["mods"] as? [String]) ?? [])
     post(CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left))
     usleep(30000)
+    backgroundRoute?.primeChromiumClick()
     for n in 1...count {
         let down = CGEvent(mouseEventSource: eventSource, mouseType: downType, mouseCursorPosition: point, mouseButton: button)
         let up = CGEvent(mouseEventSource: eventSource, mouseType: upType, mouseCursorPosition: point, mouseButton: button)
@@ -687,9 +706,10 @@ func click(_ params: [String: Any]) throws -> [String: Any] {
         down?.flags = f
         up?.flags = f
         post(down)
-        usleep(20000)
+        // An NSButton's mouseDown polls for the matching up; too tight a gap races it.
+        usleep(28000)
         post(up)
-        usleep(30000)
+        usleep(count > 1 ? 80000 : 30000)
     }
     return [:]
 }
@@ -713,7 +733,12 @@ func scroll(_ params: [String: Any]) throws -> [String: Any] {
         let sx: Int32 = i < abs(dx) ? (dx > 0 ? 1 : -1) : 0
         let e = CGEvent(scrollWheelEvent2Source: eventSource, units: .line, wheelCount: 2, wheel1: sy, wheel2: sx, wheel3: 0)
         e?.location = point
-        post(e)
+        if let route = backgroundRoute, let event = e {
+            event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            route.postScroll(event)
+        } else {
+            post(e)
+        }
         usleep(15000)
     }
     return [:]
@@ -725,7 +750,13 @@ func drag(_ params: [String: Any]) throws -> [String: Any] {
     let (button, downType, upType, dragType) = mouseButton(params.string("button"))
     post(CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved, mouseCursorPosition: points[0], mouseButton: button))
     usleep(40000)
-    post(CGEvent(mouseEventSource: eventSource, mouseType: downType, mouseCursorPosition: points[0], mouseButton: button))
+    // Background delivery carries no click count unless we set one, and AppKit
+    // ignores a mouseDown without it.
+    func withClickState(_ e: CGEvent?) -> CGEvent? {
+        e?.setIntegerValueField(.mouseEventClickState, value: 1)
+        return e
+    }
+    post(withClickState(CGEvent(mouseEventSource: eventSource, mouseType: downType, mouseCursorPosition: points[0], mouseButton: button)))
     usleep(60000)
     for i in 1..<points.count {
         let a = points[i - 1], b = points[i]
@@ -733,13 +764,330 @@ func drag(_ params: [String: Any]) throws -> [String: Any] {
         for s in 1...steps {
             let t = CGFloat(s) / CGFloat(steps)
             let p = CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
-            post(CGEvent(mouseEventSource: eventSource, mouseType: dragType, mouseCursorPosition: p, mouseButton: button))
+            post(withClickState(CGEvent(mouseEventSource: eventSource, mouseType: dragType, mouseCursorPosition: p, mouseButton: button)))
             usleep(8000)
         }
     }
     usleep(40000)
-    post(CGEvent(mouseEventSource: eventSource, mouseType: upType, mouseCursorPosition: points.last!, mouseButton: button))
+    post(withClickState(CGEvent(mouseEventSource: eventSource, mouseType: upType, mouseCursorPosition: points.last!, mouseButton: button)))
     return [:]
+}
+
+// MARK: - Background input
+//
+// Delivers input to an app that stays in the background: its window is made
+// key inside the app without activating it, and events are posted to the
+// process with the window stamped on them. The real cursor never moves and the
+// user's frontmost app keeps focus. This uses private SkyLight functions that
+// Codex, Claude desktop, cua-driver, Peekaboo, and yabai also rely on; each is
+// looked up at runtime, and when one is missing the caller falls back to the
+// foreground route.
+
+enum SkyLight {
+    typealias PostRecord = @convention(c) (UnsafeRawPointer, UnsafeRawPointer) -> Int32
+    typealias PostToPid = @convention(c) (pid_t, CGEvent) -> Void
+    typealias SetWindowLocation = @convention(c) (CGEvent, CGPoint) -> Void
+    typealias SetIntegerField = @convention(c) (CGEvent, UInt32, Int64) -> Void
+    typealias MainConnection = @convention(c) () -> UInt32
+    typealias WindowOwner = @convention(c) (UInt32, UInt32, UnsafeMutablePointer<UInt32>) -> Int32
+    typealias ConnectionPSN = @convention(c) (UInt32, UnsafeMutableRawPointer) -> Int32
+    typealias ProcessForPID = @convention(c) (pid_t, UnsafeMutableRawPointer) -> Int32
+
+    static let handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY)
+
+    static func symbol<T>(_ name: String, _: T.Type) -> T? {
+        _ = handle
+        // RTLD_DEFAULT is ((void *)-2) and is not imported into Swift.
+        guard let pointer = dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) else { return nil }
+        return unsafeBitCast(pointer, to: T.self)
+    }
+
+    static let postRecord = symbol("SLPSPostEventRecordTo", PostRecord.self)
+    static let postToPid = symbol("SLEventPostToPid", PostToPid.self)
+    static let setWindowLocation = symbol("CGEventSetWindowLocation", SetWindowLocation.self)
+    static let setIntegerField = symbol("CGEventSetIntegerValueField", SetIntegerField.self)
+    static let mainConnection = symbol("SLSMainConnectionID", MainConnection.self) ?? symbol("CGSMainConnectionID", MainConnection.self)
+    static let windowOwner = symbol("SLSGetWindowOwner", WindowOwner.self)
+    static let connectionPSN = symbol("SLSGetConnectionPSN", ConnectionPSN.self)
+    static let processForPID = symbol("GetProcessForPID", ProcessForPID.self)
+
+    // What the background route needs: records to make a window key, and a
+    // way to stamp window fields. Posting falls back to CGEventPostToPid.
+    static var available: Bool { postRecord != nil && setIntegerField != nil && (windowOwner != nil || processForPID != nil) }
+
+    static var capabilities: [String: Bool] {
+        [
+            "postEventRecord": postRecord != nil,
+            "postToPid": postToPid != nil,
+            "setWindowLocation": setWindowLocation != nil,
+            "setIntegerField": setIntegerField != nil,
+            "processSerialNumber": windowOwner != nil || processForPID != nil,
+        ]
+    }
+
+    // The 8-byte ProcessSerialNumber of the process that owns `windowId`.
+    static func psn(pid: pid_t, windowId: UInt32) -> [UInt8]? {
+        var psn = [UInt8](repeating: 0, count: 8)
+        if let owner = windowOwner, let toPSN = connectionPSN, let main = mainConnection {
+            var cid: UInt32 = 0
+            if owner(main(), windowId, &cid) == 0, cid != 0,
+               psn.withUnsafeMutableBytes({ toPSN(cid, $0.baseAddress!) }) == 0 {
+                return psn
+            }
+        }
+        if let forPid = processForPID, psn.withUnsafeMutableBytes({ forPid(pid, $0.baseAddress!) }) == 0 {
+            return psn
+        }
+        return nil
+    }
+
+    // 248-byte event records. Layout from yabai and cua-driver (MIT).
+    static func focusRecord(_ windowId: UInt32, focus: Bool) -> [UInt8] {
+        var record = [UInt8](repeating: 0, count: 0xF8)
+        record[0x04] = 0xF8
+        record[0x08] = 0x0D
+        withUnsafeBytes(of: windowId.littleEndian) { record.replaceSubrange(0x3C..<0x40, with: $0) }
+        record[0x8A] = focus ? 0x01 : 0x02
+        return record
+    }
+
+    static func makeKeyRecord(_ windowId: UInt32, kind: UInt8) -> [UInt8] {
+        var record = [UInt8](repeating: 0, count: 0xF8)
+        record[0x04] = 0xF8
+        record[0x08] = kind
+        record[0x3A] = 0x10
+        for i in 0x20..<0x30 { record[i] = 0xFF }
+        withUnsafeBytes(of: windowId.littleEndian) { record.replaceSubrange(0x3C..<0x40, with: $0) }
+        return record
+    }
+
+    @discardableResult
+    static func send(_ record: [UInt8], to psn: [UInt8]) -> Bool {
+        guard let post = postRecord else { return false }
+        return psn.withUnsafeBytes { p in record.withUnsafeBytes { r in post(p.baseAddress!, r.baseAddress!) } } == 0
+    }
+}
+
+func bundleUsesChromium(_ pid: pid_t) -> Bool {
+    guard let url = NSRunningApplication(processIdentifier: pid)?.bundleURL else { return false }
+    let frameworks = url.appendingPathComponent("Contents/Frameworks")
+    let names = (try? FileManager.default.contentsOfDirectory(atPath: frameworks.path)) ?? []
+    if names.contains(where: { $0.hasPrefix("Electron Framework") || $0.hasPrefix("Chromium Embedded Framework") || $0.contains("Chromium Framework") }) {
+        return true
+    }
+    let chromiumBrowsers: Set<String> = ["com.google.Chrome", "com.microsoft.edgemac", "com.brave.Browser", "company.thebrowser.Browser", "com.vivaldi.Vivaldi", "com.operasoftware.Opera"]
+    return chromiumBrowsers.contains(NSRunningApplication(processIdentifier: pid)?.bundleIdentifier ?? "")
+}
+
+// The CGWindowID of the app's key window as Accessibility reports it.
+func keyWindowId(_ pid: pid_t) -> UInt32? {
+    let app = AXUIElementCreateApplication(pid)
+    guard let window: AXUIElement = axAttr(app, kAXFocusedWindowAttribute), let frame = axFrame(window),
+          let id = cgWindowID(pid: Int(pid), frame: frame) else { return nil }
+    return UInt32(id)
+}
+
+func cgWindowBounds(_ windowId: UInt32) -> CGRect? {
+    guard let info = CGWindowListCopyWindowInfo([.optionIncludingWindow], CGWindowID(windowId)) as? [[String: Any]],
+          let bounds = info.first?[kCGWindowBounds as String] as? [String: Any] else { return nil }
+    return CGRect(dictionaryRepresentation: bounds as CFDictionary)
+}
+
+final class BackgroundRoute {
+    let pid: pid_t
+    let windowId: UInt32
+    let origin: CGPoint
+    let chromium: Bool
+    let localLocation: Bool
+    let gesture = Int64.random(in: 1...Int64(Int32.max))
+
+    init(pid: pid_t, windowId: UInt32, origin: CGPoint, localLocation: Bool) {
+        self.pid = pid
+        self.windowId = windowId
+        self.origin = origin
+        self.chromium = bundleUsesChromium(pid)
+        self.localLocation = localLocation
+    }
+
+    private func stamp(_ e: CGEvent) {
+        guard let set = SkyLight.setIntegerField else { return }
+        set(e, 40, Int64(pid))       // kCGEventTargetUnixProcessID
+        set(e, 51, Int64(windowId))  // window number
+        set(e, 91, Int64(windowId))  // kCGMouseEventWindowUnderMousePointer
+        set(e, 92, Int64(windowId))  // ...ThatCanHandleThisEvent
+        set(e, 58, gesture)          // groups one gesture's events
+        if let setLocation = SkyLight.setWindowLocation {
+            let p = e.location
+            setLocation(e, localLocation ? CGPoint(x: p.x - origin.x, y: p.y - origin.y) : p)
+        }
+    }
+
+    // Chromium and Electron want the SkyLight route; AppKit takes the public
+    // one. Never both: AppKit controls would see each click twice.
+    func postMouse(_ e: CGEvent) {
+        stamp(e)
+        if chromium, let post = SkyLight.postToPid { post(pid, e) } else { e.postToPid(pid) }
+    }
+
+    func postKey(_ e: CGEvent) {
+        if let post = SkyLight.postToPid { post(pid, e) } else { e.postToPid(pid) }
+    }
+
+    // Scroll wheel events reach background AppKit views only through both
+    // routes (cua-driver does the same); a doubled scroll tick is harmless.
+    func postScroll(_ e: CGEvent) {
+        stamp(e)
+        e.postToPid(pid)
+        if let post = SkyLight.postToPid { post(pid, e) }
+    }
+
+    // Chromium ignores a background click until it has seen user activation;
+    // an off-screen click satisfies that without touching anything.
+    func primeChromiumClick() {
+        guard chromium else { return }
+        let off = CGPoint(x: -1, y: -1)
+        postMouse(CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseDown, mouseCursorPosition: off, mouseButton: .left)!)
+        usleep(10000)
+        postMouse(CGEvent(mouseEventSource: eventSource, mouseType: .leftMouseUp, mouseCursorPosition: off, mouseButton: .left)!)
+        usleep(100000)
+    }
+}
+
+var backgroundRoute: BackgroundRoute?
+
+// Makes `windowId` the key window inside its app without activating the app.
+// Sends nothing to any other process. Returns whether AX confirms it.
+func makeWindowKey(pid: pid_t, windowId: UInt32, settle: UInt32 = 120_000) -> Bool {
+    guard let psn = SkyLight.psn(pid: pid, windowId: windowId) else { return false }
+    if let current = keyWindowId(pid), current != windowId {
+        SkyLight.send(SkyLight.focusRecord(current, focus: false), to: psn)
+        usleep(settle)
+    }
+    SkyLight.send(SkyLight.focusRecord(windowId, focus: true), to: psn)
+    usleep(settle)
+    SkyLight.send(SkyLight.makeKeyRecord(windowId, kind: 0x01), to: psn)
+    SkyLight.send(SkyLight.makeKeyRecord(windowId, kind: 0x02), to: psn)
+    for _ in 0..<10 {
+        if keyWindowId(pid) == windowId { return true }
+        usleep(40000)
+    }
+    return false
+}
+
+enum InputKind { case keys, mouse }
+
+// Runs `body` with input routed to the background app named in params, and
+// restores the user's frontmost app if the target took focus anyway.
+func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throws -> [String: Any]) throws -> [String: Any] {
+    guard params.string("mode") == "background" else { return try body() }
+    guard SkyLight.available else {
+        throw HelperError("Background input is unavailable on this macOS (private SkyLight functions missing).", code: "background_unavailable")
+    }
+    let pid = pid_t(try params.requireInt("pid"))
+    let windowId = UInt32(try params.requireInt("windowId"))
+    guard let bounds = cgWindowBounds(windowId) else { throw HelperError("Window \(windowId) is gone", code: "no_window") }
+    let front = NSWorkspace.shared.frontmostApplication
+    var keyed = true
+    if kind == .keys {
+        keyed = makeWindowKey(pid: pid, windowId: windowId)
+        if !keyed {
+            throw HelperError("Could not make the window key in the background; use foreground mode for this app.", code: "background_unconfirmed")
+        }
+    } else if let psn = SkyLight.psn(pid: pid, windowId: windowId) {
+        // Target-only focus record so AppKit routes the click to this window.
+        SkyLight.send(SkyLight.focusRecord(windowId, focus: true), to: psn)
+        usleep(50000)
+    }
+    let route = BackgroundRoute(pid: pid, windowId: windowId, origin: bounds.origin, localLocation: params.string("windowLocation") != "screen")
+    backgroundRoute = route
+    defer { backgroundRoute = nil }
+    var result = try body()
+    usleep(60000)
+    var restored = false
+    if let front = front, front.processIdentifier != pid,
+       NSWorkspace.shared.frontmostApplication?.processIdentifier == pid {
+        // The target took focus anyway: give it back to the user's app.
+        AXUIElementSetAttributeValue(AXUIElementCreateApplication(front.processIdentifier), kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        restored = true
+    }
+    result["route"] = route.chromium ? "background-skylight" : "background"
+    result["focusRestored"] = restored
+    return result
+}
+
+// MARK: - Agent cursor
+//
+// A drawn pointer that shows where the agent acts. It sits just above the
+// target window (not above everything), ignores the mouse, and never moves
+// the real cursor.
+
+final class AgentCursor {
+    static let shared = AgentCursor()
+    var enabled = true
+    private var window: NSWindow?
+    private var hideTimer: Timer?
+    private let size = CGSize(width: 36, height: 36)
+
+    private func makeWindow() -> NSWindow {
+        let w = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: .borderless, backing: .buffered, defer: false)
+        w.isOpaque = false
+        w.backgroundColor = .clear
+        w.hasShadow = false
+        w.ignoresMouseEvents = true
+        w.level = .normal
+        w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+        w.sharingType = .readOnly
+        w.title = "glovebox cursor"
+        let view = NSImageView(frame: NSRect(origin: .zero, size: size))
+        let config = NSImage.SymbolConfiguration(pointSize: 22, weight: .regular).applying(.init(paletteColors: [.white, .systemPurple]))
+        view.image = NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "agent cursor")?.withSymbolConfiguration(config)
+        view.imageAlignment = .alignTopLeft
+        w.contentView = view
+        return w
+    }
+
+    // Moves the cursor to a screen point (top-left origin) above `windowId`.
+    // Blocks until the move animation finishes so the action lines up with it.
+    func move(to point: CGPoint, above windowId: Int?) {
+        guard enabled else { return }
+        var duration: TimeInterval = 0
+        DispatchQueue.main.sync {
+            let w = self.window ?? self.makeWindow()
+            self.window = w
+            guard let primary = NSScreen.screens.first else { return }
+            // AppKit frames are bottom-left origin; the arrow tip is the frame's top-left.
+            let target = NSPoint(x: point.x - 4, y: primary.frame.height - point.y - self.size.height + 3)
+            let from = w.isVisible ? w.frame.origin : target
+            let distance = hypot(target.x - from.x, target.y - from.y)
+            duration = w.isVisible ? min(0.45, 0.12 + Double(distance) / 2400) : 0
+            if let id = windowId { w.order(.above, relativeTo: id) } else { w.orderFrontRegardless() }
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = duration
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                w.animator().setFrameOrigin(target)
+            }
+            self.hideTimer?.invalidate()
+            self.hideTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: false) { _ in self.hide() }
+        }
+        if duration > 0 { usleep(useconds_t(duration * 1_000_000)) }
+    }
+
+    func hide() {
+        let work: () -> Void = { self.window?.orderOut(nil) }
+        if Thread.isMainThread { work() } else { DispatchQueue.main.async(execute: work) }
+    }
+}
+
+func cursorCommand(_ params: [String: Any]) throws -> [String: Any] {
+    if let enabled = params.bool("enabled") {
+        AgentCursor.shared.enabled = enabled
+        if !enabled { AgentCursor.shared.hide() }
+    }
+    if params.bool("hide") == true { AgentCursor.shared.hide() }
+    if let x = params.double("x"), let y = params.double("y") {
+        AgentCursor.shared.move(to: CGPoint(x: x, y: y), above: params.int("windowId"))
+    }
+    return ["enabled": AgentCursor.shared.enabled]
 }
 
 // MARK: - Screenshots
@@ -922,12 +1270,21 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         let revoke = NSMenuItem(title: "Revoke Session Approvals", action: #selector(revokeApprovals), keyEquivalent: "")
         revoke.target = self
         menu.addItem(revoke)
+        let cursor = NSMenuItem(title: "Hide Agent Cursor", action: #selector(toggleCursor), keyEquivalent: "")
+        cursor.target = self
+        cursor.state = AgentCursor.shared.enabled ? .off : .on
+        menu.addItem(cursor)
         let quit = NSMenuItem(title: "Quit Glovebox Helper", action: #selector(quitHelper), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
     }
 
     @objc func stopScripts() { emit(["event": "escape"]) }
+
+    @objc func toggleCursor() {
+        AgentCursor.shared.enabled.toggle()
+        if !AgentCursor.shared.enabled { AgentCursor.shared.hide() }
+    }
 
     @objc func revokeApprovals() {
         work.async { for c in Connection.all() { c.approved.removeAll() } }
@@ -1040,7 +1397,7 @@ func authorize(_ connection: Connection, bundleId: String, name: String) throws 
 }
 
 // Methods that only read the app list or the helper's own state.
-let ungatedMethods: Set<String> = ["hello", "ping", "permissions", "listApps", "resolveApp", "forget"]
+let ungatedMethods: Set<String> = ["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor"]
 
 func gate(_ connection: Connection, _ method: String, _ params: [String: Any]) throws {
     if ungatedMethods.contains(method) { return }
@@ -1076,7 +1433,7 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
     case "hello":
         connection.client = params.string("client") ?? connection.client
         return ["version": helperVersion, "platform": "macos", "pid": Int(getpid())]
-    case "ping": return ["version": helperVersion, "platform": "macos", "pid": Int(getpid())]
+    case "ping": return ["version": helperVersion, "platform": "macos", "pid": Int(getpid()), "background": SkyLight.capabilities]
     case "permissions": return permissions(params)
     case "listApps": return listApps()
     case "resolveApp": return try resolveApp(params.string("query") ?? "")
@@ -1096,12 +1453,16 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
         p["attribute"] = kAXFocusedAttribute
         p["value"] = true
         return try setValue(p)
-    case "keys": return try withKeyTarget(params) { try pressKeys(params) }
-    case "type": return try withKeyTarget(params) { try typeText(params) }
-    case "click": return try click(params)
+    case "keys": return try withInputRoute(params, .keys) { try withKeyTarget(params) { try pressKeys(params) } }
+    case "type": return try withInputRoute(params, .keys) { try withKeyTarget(params) { try typeText(params) } }
+    case "click": return try withInputRoute(params, .mouse) { try click(params) }
+    case "cursor": return try cursorCommand(params)
+    case "makeKey":
+        let ok = makeWindowKey(pid: pid_t(try params.requireInt("pid")), windowId: UInt32(try params.requireInt("windowId")))
+        return ["keyed": ok]
     case "move": return try moveMouse(params)
-    case "scroll": return try scroll(params)
-    case "drag": return try drag(params)
+    case "scroll": return try withInputRoute(params, .mouse) { try scroll(params) }
+    case "drag": return try withInputRoute(params, .mouse) { try drag(params) }
     case "screenshot": return try screenshot(params)
     case "forget": tables[try params.requireInt("pid")] = nil; return [:]
     default: throw HelperError("Unknown method \(method)", code: "bad_request")

@@ -31,8 +31,14 @@ Plan: a Python helper.
 
 ## macOS improvements
 
-- Reliable background keys and mouse input, detecting per app whether
-  per-process events are accepted, so only apps that need it come to the front.
+- Chromium/Electron keyboard input on macOS 15+ may need an
+  `SLSEventAuthenticationMessage` attached to each key event; not done yet.
+- Menu shortcuts (⌘S and friends) in background apps: press the menu item
+  through accessibility instead of sending the key.
+- Detect apps that ignore background input and fall back automatically,
+  instead of relying on `foregroundApps` in the config.
+- Test matrix beyond AppKit: Safari/WebKit, Electron apps, SwiftUI-only apps,
+  Citrix Viewer.
 - A prebuilt, Developer ID signed and notarized helper in each release, so
   installs need no compiler and grants survive upgrades.
 - MCP elicitation as an alternative to the native approval dialog when the

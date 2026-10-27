@@ -21,6 +21,10 @@ On the next call `calc` is still bound. That is the whole idea: an agent
 writes a few lines per step instead of making one tool call per click, and
 reads a diff of the accessibility tree instead of a screenshot.
 
+Input goes to apps in the background, like Codex computer use: the app is
+not brought to the front, your real cursor does not move, and a drawn agent
+cursor shows where each action lands.
+
 glovebox works with any agent that speaks MCP (Claude Code, Grok CLI,
 OpenCode, Codex, Gemini CLI, Cursor) and with agents that can only run shell
 commands, through `glovebox run`.
@@ -52,8 +56,11 @@ What has been run for real on macOS 27 (Apple silicon), not mocked:
   screenshot is 460x816, the same space as clicks; `js_reset` drops bindings.
 - Claude Code (headless) attached through `glovebox mcp`: two calls, the
   second reusing the first call's binding.
-- The approval dialog, a blocked app (Terminal) being refused, typing into
-  TextEdit, switching away to stop a script, and Escape to stop a script.
+- `glovebox smoke --full` with Firefox frontmost the whole time: background
+  keys in Calculator; in TextEdit, a pixel click placed the caret, a drag
+  selected a line, a scroll moved the view; the frontmost app never changed.
+- The approval dialog, a blocked app (Terminal) being refused, and Escape to
+  stop a script.
 
 The Grok, OpenCode, and Codex configs below follow each client's documented
 MCP format but have not been exercised end to end yet.
@@ -64,6 +71,7 @@ Requires Node 20.10+ and the Xcode command line tools (`xcode-select --install`)
 
 ```bash
 npm install -g github:vpatel9202/glovebox
+glovebox signing --create   # optional, recommended: grants survive helper rebuilds
 glovebox setup
 ```
 
@@ -80,11 +88,16 @@ glovebox smoke     # a real end-to-end test on Calculator
 ```
 
 The helper is its own app so that one grant covers every agent and terminal.
-If you rebuild it (`glovebox setup --rebuild`), macOS treats it as a new app:
-clear the old grants with
-`tccutil reset Accessibility io.github.vpatel9202.glovebox.helper` and
-`tccutil reset ScreenCapture io.github.vpatel9202.glovebox.helper`, then
-run `glovebox setup` and grant again.
+To keep those grants when the helper is rebuilt (for example after an
+upgrade), create a local signing certificate once, before `setup`:
+
+```bash
+glovebox signing --create
+```
+
+Without it the helper is signed ad hoc, and macOS treats every rebuild as a
+new app: clear the old grants with `tccutil reset Accessibility|ScreenCapture|ListenEvent io.github.vpatel9202.glovebox.helper`
+and run `glovebox setup` again.
 
 ## Attach to your agent
 
@@ -158,13 +171,16 @@ agent ──shell──▶ glovebox run ──▶ daemon ──▶ kernel       
                                         ScreenCaptureKit, approval dialogs)
 ```
 
-Public macOS APIs only. No OpenAI, Anthropic, or other vendor binaries.
+Background input uses private macOS (SkyLight) functions, looked up at
+runtime with a foreground fallback; everything else is public API. No OpenAI,
+Anthropic, or other vendor binaries. Details: [docs/design.md](docs/design.md).
 
 ## Development
 
 ```bash
 npm test          # unit tests (cell rewriting, keys, diffs, coordinates)
 glovebox smoke    # GUI test on Calculator
+glovebox smoke --full   # adds background click/drag/scroll checks in TextEdit
 GLOVEBOX_DEBUG=1 glovebox mcp   # kernel logs on stderr
 ```
 

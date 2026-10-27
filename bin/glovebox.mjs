@@ -8,6 +8,7 @@ const USAGE = `glovebox ${VERSION} — scriptable computer use for coding agents
 
 Usage:
   glovebox setup [--rebuild]        Build the helper and ask macOS for permissions
+  glovebox signing [--create]       Make permission grants survive helper rebuilds
   glovebox doctor                   Check that everything is ready
   glovebox mcp                      Run the stdio MCP server (tools: js, js_reset)
   glovebox run [code] [-f file]     Run a script in a persistent CLI session
@@ -16,7 +17,8 @@ Usage:
                                     Screenshots are saved to files and printed as paths.
   glovebox reset [--session name]   Drop a CLI session's bindings
   glovebox stop                     Stop the CLI daemon and its sessions
-  glovebox smoke                    Batched, persistent smoke test on Calculator
+  glovebox smoke [--full]           Batched, persistent smoke test on Calculator
+                                    (--full adds background click/drag/scroll in TextEdit)
   glovebox allow <app>...           Always allow an app (name or bundle id)
   glovebox deny <app>...            Never allow an app
   glovebox revoke <app>...          Remove an app from both lists
@@ -82,6 +84,13 @@ async function doctor() {
       try {
         const ping = await backend.request("ping");
         check(true, `Helper running (pid ${ping.pid}, v${ping.version})`);
+        const bg = ping.background ?? {};
+        const bgOk = bg.postEventRecord && bg.setIntegerField && bg.processSerialNumber;
+        lines.push(
+          bgOk
+            ? "ok    Background input available (apps stay in the background)"
+            : `warn  Background input unavailable on this macOS; apps will be brought forward (${Object.entries(bg).filter(([, v]) => !v).map(([k]) => k).join(", ") || "old helper"})`,
+        );
         const perms = await backend.request("permissions", { prompt: false });
         check(perms.accessibility, "Accessibility granted to Glovebox Helper", "System Settings > Privacy & Security > Accessibility: enable Glovebox Helper");
         check(perms.screenRecording, "Screen Recording granted to Glovebox Helper", "System Settings > Privacy & Security > Screen & System Audio Recording: enable Glovebox Helper, then run: glovebox setup --restart");
@@ -125,12 +134,14 @@ async function setup(flags) {
   const hadBuild = fs.existsSync(helper.appPath());
   if (rebuilding || flags.restart) await helper.quit();
   if (rebuilding) await helper.build({ log: say });
-  if (rebuilding && hadBuild) {
+  if (rebuilding && hadBuild && !(await helper.signingIdentity())) {
     // An ad-hoc signed rebuild is a new app to macOS; stale grants keep showing as on.
-    say("The helper was rebuilt, so macOS treats it as a new app. If old grants still show as on but");
-    say("this step never finishes, clear them in another terminal and run setup again:");
+    say("The helper was rebuilt ad hoc, so macOS treats it as a new app. If old grants still show as");
+    say("on but this step never finishes, clear them in another terminal and run setup again:");
     say(`  tccutil reset Accessibility ${helper.BUNDLE_ID}`);
     say(`  tccutil reset ScreenCapture ${helper.BUNDLE_ID}`);
+    say(`  tccutil reset ListenEvent ${helper.BUNDLE_ID}`);
+    say("To stop this happening on every rebuild: glovebox signing --create");
   }
 
   let backend = new MacBackend({ client: "glovebox setup" });
@@ -183,6 +194,8 @@ async function main() {
       timeout: { type: "string" },
       rebuild: { type: "boolean" },
       restart: { type: "boolean" },
+      create: { type: "boolean" },
+      full: { type: "boolean" },
       n: { type: "string", short: "n" },
       help: { type: "boolean", short: "h" },
     },
@@ -238,12 +251,35 @@ async function main() {
     }
     case "smoke": {
       const { runSmoke } = await import("../src/smoke.mjs");
-      process.exitCode = (await runSmoke()) ? 0 : 1;
+      process.exitCode = (await runSmoke({ full: flags.full })) ? 0 : 1;
       return;
     }
     case "setup":
       await setup(flags);
       return;
+    case "signing": {
+      if (process.platform !== "darwin") die("Signing applies to the macOS helper only.");
+      const helper = await import("../src/macos-helper.mjs");
+      let identity = await helper.signingIdentity();
+      if (!identity && flags.create) {
+        await helper.createSigningIdentity({ log: (m) => process.stdout.write(`${m}\n`) });
+        identity = await helper.signingIdentity();
+      }
+      if (identity) {
+        process.stdout.write(`Signing identity "${helper.SIGNING_NAME}" (${identity}) is ready.\n`);
+        process.stdout.write("Run `glovebox setup --rebuild` once to re-sign the helper with it, and grant permissions one last time.\n");
+      } else {
+        process.stdout.write(
+          [
+            "No local signing identity. The helper is signed ad hoc, so every rebuild resets its macOS permissions.",
+            `Create one (a self-signed certificate named "${helper.SIGNING_NAME}" in your login keychain):`,
+            "  glovebox signing --create",
+            "",
+          ].join("\n"),
+        );
+      }
+      return;
+    }
     case "doctor":
       await doctor();
       return;
