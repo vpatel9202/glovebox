@@ -27,7 +27,7 @@ the macOS permissions. See the README for the signing option.
 ## Tests
 
 ```bash
-npm test                # unit tests; run anywhere
+npm test                # unit tests; run anywhere (Node 22+: node --test test/unit.test.mjs)
 glovebox smoke          # GUI test on Calculator (macOS only)
 glovebox smoke --full   # adds background click, drag, and scroll checks in TextEdit (macOS only)
 ```
