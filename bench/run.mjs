@@ -102,7 +102,13 @@ async function benchmark() {
       // Setups take turns on each task so drift over the session hits all of them.
       for (const setupName of setupNames) {
         const label = `[${rep + 1}/${n}] ${task.id} × ${setupName}`;
-        await task.setup();
+        try {
+          await task.setup();
+        } catch (e) {
+          console.log(`SKIP ${label}: setup failed (${e.message})`);
+          await task.teardown().catch(() => {});
+          continue;
+        }
         // A task that starts solved would pass for free; skip the run instead.
         const before = await task.verify();
         if (before.ok) {
