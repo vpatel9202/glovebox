@@ -25,7 +25,7 @@ documented MCP format but have not been exercised end to end yet.
 ## Unit tests
 
 ```bash
-npm test    # node --test test/
+npm test    # node --test test/ (Node 22+: node --test test/unit.test.mjs)
 ```
 
 `test/unit.test.mjs` needs only Node. It checks:
