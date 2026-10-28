@@ -139,7 +139,10 @@ function panel(y0, title, key, format) {
   const top = y0 + 28;
   const height = tasks.length * GROUP;
   const out = [`<text class="title" x="${LEFT}" y="${y0 + 14}">${esc(title)}</text>`];
-  const decimals = Math.max(0, -Math.floor(Math.log10(step) + 1e-9) + (step % (10 ** Math.floor(Math.log10(step))) ? 1 : 0));
+  // Enough decimals for the step: 0.05 needs 2, 2.5 needs 1.
+  const magnitude = Math.floor(Math.log10(step) + 1e-9);
+  const fractional = Math.abs(step / 10 ** magnitude - Math.round(step / 10 ** magnitude)) > 1e-9;
+  const decimals = Math.max(0, -magnitude + (fractional ? 1 : 0));
   for (let v = 0; v <= max + step / 2; v += step) {
     out.push(`<line class="grid" x1="${x(v)}" x2="${x(v)}" y1="${top}" y2="${top + height}"/>`);
     out.push(`<text class="tick" x="${x(v)}" y="${top + height + 14}" text-anchor="middle">${esc(format(v, decimals))}</text>`);
@@ -157,7 +160,9 @@ function panel(y0, title, key, format) {
       const r = Math.min(4, w, BAR / 2);
       const d = `M${LEFT},${by} h${w - r} a${r},${r} 0 0 1 ${r},${r} v${BAR - 2 * r} a${r},${r} 0 0 1 -${r},${r} h-${w - r} z`;
       out.push(`<path class="s${si}" d="${d}"><title>${esc(`${task} · ${s.label}: ${format(v)} (${c.passed}/${c.runs} passed)`)}</title></path>`);
-      out.push(`<text class="value" x="${LEFT + w + 4}" y="${by + BAR - 1}">${esc(format(v))}</text>`);
+      // Medians include failed runs, so say when a cell had any.
+      const passed = c.passed < c.runs ? ` · ${c.passed}/${c.runs} passed` : "";
+      out.push(`<text class="value" x="${LEFT + w + 4}" y="${by + BAR - 1}">${esc(format(v) + passed)}</text>`);
     });
   });
   out.push(`<line class="axis" x1="${LEFT}" x2="${LEFT}" y1="${top}" y2="${top + height}"/>`);
@@ -172,7 +177,7 @@ const legend = SETUPS.map((s, i) => {
 const p1 = panel(40, "Median model round trips per task", "roundTrips", (v, d) => (d == null ? fmt.n(v) : v.toFixed(d)));
 const p2 = panel(p1.bottom + 16, "Median cost per task (USD, list price)", "cost", (v, d) => (d == null ? fmt.usd(v) : `$${v.toFixed(d)}`));
 const H = p2.bottom + 24;
-const note = `${records.length} runs · ${esc(models)} · medians per task`;
+const note = `${records.length} runs · ${esc(models)} · medians per task, failed runs included`;
 const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-labelledby="t d">
 <title id="t">glovebox benchmark: round trips and cost per task</title>
 <desc id="d">Grouped bars comparing glovebox, Anthropic computer use, and open-computer-use on ${tasks.length} macOS tasks. Full numbers are in bench/results/summary.md.</desc>

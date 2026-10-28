@@ -91,9 +91,23 @@ as accessibility text diffs. (In one Codex session we traced, 786 calls had a
 median script of about 130 characters. That measures Codex, not glovebox.)
 glovebox brings that shape to any MCP or shell agent.
 
-glovebox's own measurements of round trips and tokens per task are not
-published yet. The benchmark is the first item on the
-[roadmap](docs/roadmap.md#credibility-and-distribution).
+## Benchmark
+
+Seven macOS tasks, five runs each, with the same model, prompt, and agent loop
+for every setup. Measured 2026-10-28 on one Mac; method and raw results are in
+[bench/](bench/README.md).
+
+| Setup | Passed | Model round trips | Images returned | Cost at list price |
+|---|---|---|---|---|
+| glovebox | 32/35 | 193 | 17 | $0.75 |
+| Anthropic computer use | 30/35 | 249 | 198 | $1.83 |
+| open-computer-use | 26/35 | 325 | 375 | $3.16 |
+
+![Median round trips and cost per task for each setup](bench/results/chart.svg)
+
+glovebox's three failures were Finder renames where `setValue` changed the
+name Finder displayed but not the file. That and the other bugs the run found
+are on the [roadmap](docs/roadmap.md#found-by-the-benchmark).
 
 ## Status
 

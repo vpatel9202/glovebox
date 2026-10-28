@@ -18,13 +18,41 @@ fixed; see the changelog.)
    indentation.
 3. **Non-string return values print twice.** A read whose value is already
    printed prints again as the cell result, because the dedupe in `runCell`
-   in `src/kernel.mjs` only handles strings.
+   in `src/kernel.mjs` only handles strings. `console.log(await
+   app.getAXState())` also prints the tree twice: the read emits it, then the
+   log prints it again.
+4. **`frames` and `menus` are part of the diff key.** A `{frames: true}` read
+   followed by a plain read reprints the whole tree. The benchmark counted 16
+   full reprints of an already-printed window across 35 glovebox runs; how
+   many come from this and how many from item 1 is not yet split out.
+
+## Found by the benchmark
+
+The 2026-10-28 baseline ([bench/results](../bench/results/summary.md))
+surfaced these. Fix them after the diff fixes, then rerun the benchmark.
+
+1. **Background pixel clicks don't reach an open pop-up menu.** A click on a
+   menu item does nothing in the background; the foreground route and
+   accessibility presses work.
+2. **Menu picks aren't settled before the next action.** Picking a pop-up
+   item and clicking Submit in one call can submit the old value.
+3. **Finder's rename field becomes "the window".** While an inline rename is
+   active, window selection picks the 138x33 field editor, and screenshots
+   fail with "Cannot find a capturable window id".
+4. **`setValue` on a Finder name cell changes only the label.** The tree then
+   shows the new name though the file was never renamed, which cost glovebox
+   3 of 5 Finder runs. Warn in the result, or point agents at the rename
+   flow (Return, type, Return).
+5. **Background keys don't start a Finder rename.** Return on a selected file
+   works only on the foreground route.
 
 ## Credibility and distribution
 
 Ordered by expected impact. These come before new platforms.
 
-1. **Benchmark harness (`bench/`).** About five fixed tasks: Calculator
+1. **Benchmark harness (`bench/`).** Done 2026-10-28: harness, raw results,
+   and chart are in [bench/](../bench/README.md). The original scope follows.
+   About five fixed tasks: Calculator
    arithmetic, editing a TextEdit document, a Finder rename, toggling a
    setting in a non-blocked app, and filling a form in a native app. Add two
    more: a Citrix-or-canvas task (pixel fallback, one-node tree) and a replay
