@@ -14,6 +14,19 @@
   and that the frontmost app never changed.
 - `input`, `foregroundApps`, and `cursor` config keys; `app.lastRoute`.
 
+### Upgrading
+
+If the helper was signed ad hoc (you did not run `glovebox signing --create`),
+rebuilding it makes macOS treat it as a new app. Reset the old grants and run
+setup again:
+
+```bash
+for s in Accessibility ScreenCapture ListenEvent; do
+  tccutil reset $s io.github.vpatel9202.glovebox.helper
+done
+glovebox setup
+```
+
 ## 0.1.0 (2026-10-27)
 
 First release.
