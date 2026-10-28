@@ -4,3 +4,10 @@ node_modules/
 bench/.build/
 bench/results/transcripts/
 bench/.env
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
