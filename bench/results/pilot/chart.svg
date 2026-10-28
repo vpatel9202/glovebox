@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 782" width="760" height="782" role="img" aria-labelledby="t d">
+<title id="t">glovebox benchmark: round trips and cost per task</title>
+<desc id="d">Grouped bars comparing glovebox, Anthropic computer use, and open-computer-use on 7 macOS tasks. Full numbers are in bench/results/summary.md.</desc>
+<style>
+  svg { --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --grid: #e4e3df; --s0: #2a78d6; --s1: #eb6834; --s2: #1baf7a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  @media (prefers-color-scheme: dark) { svg { --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --grid: #34332f; --s0: #3987e5; --s1: #d95926; --s2: #199e70; } }
+  .bg { fill: var(--surface); }
+  .title { fill: var(--ink); font-size: 13px; font-weight: 600; }
+  .label { fill: var(--ink); font-size: 12px; }
+  .value, .tick, .note { fill: var(--ink-2); font-size: 10.5px; }
+  .grid { stroke: var(--grid); stroke-width: 1; }
+  .axis { stroke: var(--ink-2); stroke-width: 1; }
+  .s0 { fill: var(--s0); } .s1 { fill: var(--s1); } .s2 { fill: var(--s2); }
+</style>
+<rect class="bg" width="760" height="782" rx="8"/>
+<rect class="s0" x="132" y="12" width="12" height="12" rx="3"/><text class="label" x="150" y="22">glovebox</text>
+<rect class="s1" x="322" y="12" width="12" height="12" rx="3"/><text class="label" x="340" y="22">Anthropic computer use</text>
+<rect class="s2" x="512" y="12" width="12" height="12" rx="3"/><text class="label" x="530" y="22">open-computer-use</text>
+<text class="title" x="132" y="54">Median model round trips per task</text>
+<line class="grid" x1="132" x2="132" y1="68" y2="369"/>
+<text class="tick" x="132" y="383" text-anchor="middle">0</text>
+<line class="grid" x1="275" x2="275" y1="68" y2="369"/>
+<text class="tick" x="275" y="383" text-anchor="middle">10</text>
+<line class="grid" x1="418" x2="418" y1="68" y2="369"/>
+<text class="tick" x="418" y="383" text-anchor="middle">20</text>
+<line class="grid" x1="561" x2="561" y1="68" y2="369"/>
+<text class="tick" x="561" y="383" text-anchor="middle">30</text>
+<line class="grid" x1="704" x2="704" y1="68" y2="369"/>
+<text class="tick" x="704" y="383" text-anchor="middle">40</text>
+<text class="label" x="122" y="87.5" text-anchor="end">calculator</text>
+<path class="s0" d="M132,68 h24.599999999999994 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.599999999999994 z"><title>calculator · glovebox: 2 (1/1 passed)</title></path>
+<text class="value" x="164.6" y="76">2</text>
+<path class="s1" d="M132,79 h38.900000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.900000000000006 z"><title>calculator · Anthropic computer use: 3 (1/1 passed)</title></path>
+<text class="value" x="178.9" y="87">3</text>
+<path class="s2" d="M132,90 h81.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.80000000000001 z"><title>calculator · open-computer-use: 6 (1/1 passed)</title></path>
+<text class="value" x="221.8" y="98">6</text>
+<text class="label" x="122" y="130.5" text-anchor="end">textedit-edit</text>
+<path class="s0" d="M132,111 h67.5 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-67.5 z"><title>textedit-edit · glovebox: 5 (1/1 passed)</title></path>
+<text class="value" x="207.5" y="119">5</text>
+<path class="s1" d="M132,122 h38.900000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.900000000000006 z"><title>textedit-edit · Anthropic computer use: 3 (1/1 passed)</title></path>
+<text class="value" x="178.9" y="130">3</text>
+<path class="s2" d="M132,133 h38.900000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.900000000000006 z"><title>textedit-edit · open-computer-use: 3 (1/1 passed)</title></path>
+<text class="value" x="178.9" y="141">3</text>
+<text class="label" x="122" y="173.5" text-anchor="end">finder-rename</text>
+<path class="s0" d="M132,154 h410.70000000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-410.70000000000005 z"><title>finder-rename · glovebox: 29 (1/1 passed)</title></path>
+<text class="value" x="550.7" y="162">29</text>
+<path class="s1" d="M132,165 h167.60000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-167.60000000000002 z"><title>finder-rename · Anthropic computer use: 12 (1/1 passed)</title></path>
+<text class="value" x="307.6" y="173">12</text>
+<path class="s2" d="M132,176 h282 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-282 z"><title>finder-rename · open-computer-use: 20 (1/1 passed)</title></path>
+<text class="value" x="422" y="184">20</text>
+<text class="label" x="122" y="216.5" text-anchor="end">textedit-setting</text>
+<path class="s0" d="M132,197 h38.900000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.900000000000006 z"><title>textedit-setting · glovebox: 3 (1/1 passed)</title></path>
+<text class="value" x="178.9" y="205">3</text>
+<path class="s1" d="M132,208 h81.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.80000000000001 z"><title>textedit-setting · Anthropic computer use: 6 (1/1 passed)</title></path>
+<text class="value" x="221.8" y="216">6</text>
+<path class="s2" d="M132,219 h482.20000000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-482.20000000000005 z"><title>textedit-setting · open-computer-use: 34 (1/1 passed)</title></path>
+<text class="value" x="622.2" y="227">34</text>
+<text class="label" x="122" y="259.5" text-anchor="end">form</text>
+<path class="s0" d="M132,240 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>form · glovebox: 4 (1/1 passed)</title></path>
+<text class="value" x="193.2" y="248">4</text>
+<path class="s1" d="M132,251 h81.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.80000000000001 z"><title>form · Anthropic computer use: 6 (1/1 passed)</title></path>
+<text class="value" x="221.8" y="259">6</text>
+<path class="s2" d="M132,262 h67.5 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-67.5 z"><title>form · open-computer-use: 5 (1/1 passed)</title></path>
+<text class="value" x="207.5" y="270">5</text>
+<text class="label" x="122" y="302.5" text-anchor="end">canvas</text>
+<path class="s0" d="M132,283 h38.900000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.900000000000006 z"><title>canvas · glovebox: 3 (1/1 passed)</title></path>
+<text class="value" x="178.9" y="291">3</text>
+<path class="s1" d="M132,294 h38.900000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.900000000000006 z"><title>canvas · Anthropic computer use: 3 (1/1 passed)</title></path>
+<text class="value" x="178.9" y="302">3</text>
+<path class="s2" d="M132,305 h67.5 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-67.5 z"><title>canvas · open-computer-use: 5 (0/1 passed)</title></path>
+<text class="value" x="207.5" y="313">5</text>
+<text class="label" x="122" y="345.5" text-anchor="end">form-repeat</text>
+<path class="s0" d="M132,326 h139 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-139 z"><title>form-repeat · glovebox: 10 (1/1 passed)</title></path>
+<text class="value" x="279" y="334">10</text>
+<path class="s1" d="M132,337 h181.89999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-181.89999999999998 z"><title>form-repeat · Anthropic computer use: 13 (1/1 passed)</title></path>
+<text class="value" x="321.9" y="345">13</text>
+<path class="s2" d="M132,348 h181.89999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-181.89999999999998 z"><title>form-repeat · open-computer-use: 13 (1/1 passed)</title></path>
+<text class="value" x="321.9" y="356">13</text>
+<line class="axis" x1="132" x2="132" y1="68" y2="369"/>
+<text class="title" x="132" y="421">Median cost per task (USD, list price)</text>
+<line class="grid" x1="132" x2="132" y1="435" y2="736"/>
+<text class="tick" x="132" y="750" text-anchor="middle">$0.0</text>
+<line class="grid" x1="275" x2="275" y1="435" y2="736"/>
+<text class="tick" x="275" y="750" text-anchor="middle">$0.1</text>
+<line class="grid" x1="418" x2="418" y1="435" y2="736"/>
+<text class="tick" x="418" y="750" text-anchor="middle">$0.2</text>
+<line class="grid" x1="561" x2="561" y1="435" y2="736"/>
+<text class="tick" x="561" y="750" text-anchor="middle">$0.3</text>
+<line class="grid" x1="704" x2="704" y1="435" y2="736"/>
+<text class="tick" x="704" y="750" text-anchor="middle">$0.4</text>
+<text class="label" x="122" y="454.5" text-anchor="end">calculator</text>
+<path class="s0" d="M132,435 h5.86699999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-5.86699999999999 z"><title>calculator · glovebox: $0.007 (1/1 passed)</title></path>
+<text class="value" x="145.867" y="443">$0.007</text>
+<path class="s1" d="M132,446 h35.89699999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-35.89699999999999 z"><title>calculator · Anthropic computer use: $0.028 (1/1 passed)</title></path>
+<text class="value" x="175.897" y="454">$0.028</text>
+<path class="s2" d="M132,457 h125.98699999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-125.98699999999997 z"><title>calculator · open-computer-use: $0.091 (1/1 passed)</title></path>
+<text class="value" x="265.98699999999997" y="465">$0.091</text>
+<text class="label" x="122" y="497.5" text-anchor="end">textedit-edit</text>
+<path class="s0" d="M132,478 h25.744 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-25.744 z"><title>textedit-edit · glovebox: $0.021 (1/1 passed)</title></path>
+<text class="value" x="165.744" y="486">$0.021</text>
+<path class="s1" d="M132,489 h40.90199999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-40.90199999999999 z"><title>textedit-edit · Anthropic computer use: $0.031 (1/1 passed)</title></path>
+<text class="value" x="180.902" y="497">$0.031</text>
+<path class="s2" d="M132,500 h40.615999999999985 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-40.615999999999985 z"><title>textedit-edit · open-computer-use: $0.031 (1/1 passed)</title></path>
+<text class="value" x="180.61599999999999" y="508">$0.031</text>
+<text class="label" x="122" y="540.5" text-anchor="end">finder-rename</text>
+<path class="s0" d="M132,521 h424.5709999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-424.5709999999999 z"><title>finder-rename · glovebox: $0.30 (1/1 passed)</title></path>
+<text class="value" x="564.5709999999999" y="529">$0.30</text>
+<path class="s1" d="M132,532 h147.29399999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-147.29399999999998 z"><title>finder-rename · Anthropic computer use: $0.11 (1/1 passed)</title></path>
+<text class="value" x="287.294" y="540">$0.11</text>
+<path class="s2" d="M132,543 h370.94599999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-370.94599999999997 z"><title>finder-rename · open-computer-use: $0.26 (1/1 passed)</title></path>
+<text class="value" x="510.94599999999997" y="551">$0.26</text>
+<text class="label" x="122" y="583.5" text-anchor="end">textedit-setting</text>
+<path class="s0" d="M132,564 h12.301999999999992 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-12.301999999999992 z"><title>textedit-setting · glovebox: $0.011 (1/1 passed)</title></path>
+<text class="value" x="152.302" y="572">$0.011</text>
+<path class="s1" d="M132,575 h61.637 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-61.637 z"><title>textedit-setting · Anthropic computer use: $0.046 (1/1 passed)</title></path>
+<text class="value" x="201.637" y="583">$0.046</text>
+<path class="s2" d="M132,586 h470.3309999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-470.3309999999999 z"><title>textedit-setting · open-computer-use: $0.33 (1/1 passed)</title></path>
+<text class="value" x="610.3309999999999" y="594">$0.33</text>
+<text class="label" x="122" y="626.5" text-anchor="end">form</text>
+<path class="s0" d="M132,607 h13.445999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-13.445999999999998 z"><title>form · glovebox: $0.012 (1/1 passed)</title></path>
+<text class="value" x="153.446" y="615">$0.012</text>
+<path class="s1" d="M132,618 h51.62700000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-51.62700000000001 z"><title>form · Anthropic computer use: $0.039 (1/1 passed)</title></path>
+<text class="value" x="191.627" y="626">$0.039</text>
+<path class="s2" d="M132,629 h55.488 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-55.488 z"><title>form · open-computer-use: $0.042 (1/1 passed)</title></path>
+<text class="value" x="195.488" y="637">$0.042</text>
+<text class="label" x="122" y="669.5" text-anchor="end">canvas</text>
+<path class="s0" d="M132,650 h10.728999999999985 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-10.728999999999985 z"><title>canvas · glovebox: $0.010 (1/1 passed)</title></path>
+<text class="value" x="150.72899999999998" y="658">$0.010</text>
+<path class="s1" d="M132,661 h34.466999999999985 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-34.466999999999985 z"><title>canvas · Anthropic computer use: $0.027 (1/1 passed)</title></path>
+<text class="value" x="174.46699999999998" y="669">$0.027</text>
+<path class="s2" d="M132,672 h39.90100000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-39.90100000000001 z"><title>canvas · open-computer-use: $0.031 (0/1 passed)</title></path>
+<text class="value" x="179.901" y="680">$0.031</text>
+<text class="label" x="122" y="712.5" text-anchor="end">form-repeat</text>
+<path class="s0" d="M132,693 h23.59899999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-23.59899999999999 z"><title>form-repeat · glovebox: $0.019 (1/1 passed)</title></path>
+<text class="value" x="163.599" y="701">$0.019</text>
+<path class="s1" d="M132,704 h67.92899999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-67.92899999999997 z"><title>form-repeat · Anthropic computer use: $0.050 (1/1 passed)</title></path>
+<text class="value" x="207.92899999999997" y="712">$0.050</text>
+<path class="s2" d="M132,715 h138.428 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-138.428 z"><title>form-repeat · open-computer-use: $0.100 (1/1 passed)</title></path>
+<text class="value" x="278.428" y="723">$0.100</text>
+<line class="axis" x1="132" x2="132" y1="435" y2="736"/>
+<text class="note" x="132" y="772">21 runs · claude-sonnet-5-5 (effort medium) · medians per task</text>
+</svg>
