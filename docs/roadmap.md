@@ -3,30 +3,20 @@
 What works today is macOS (14+, tested on 27). Everything below is planned,
 not shipped. Nothing here has been tested unless it says so.
 
-## Fix before benchmarking
+## Diff fixes
 
-The first item below can make a script act on a stale view of the screen,
-which would make benchmark success rates noisy. It must be fixed first. The
-other three cost tokens, not correctness, and can follow the benchmark so it
-shows a before and after.
+These cost tokens, not correctness, and can follow the benchmark so it shows
+a before and after. (The silent-read baseline bug that had to come first is
+fixed; see the changelog.)
 
-1. **Silent reads reset the diff baseline.** `getAXState` in `src/api.mjs`
-   stores the tree it just read as the baseline on every call, including
-   `{emit: false}` reads. Changes made earlier in the same script then never
-   appear in the next visible diff, so the agent can act on a view that
-   misses them. This is a correctness bug. Done when a silent read leaves the
-   baseline of the last visible read alone.
-
-Can follow the benchmark:
-
-2. **Diff key includes the window title and list position.** A title change
+1. **Diff key includes the window title and list position.** A title change
    (a document name, an unread count) reprints the full tree. Key the
    baseline by the window's element index, with one baseline per key.
-3. **Depth-only changes show as `~`.** `diffTrees` in `src/axformat.mjs`
+2. **Depth-only changes show as `~`.** `diffTrees` in `src/axformat.mjs`
    compares whole lines including indentation, so wrapping content in a new
    container reprints every node below it. Compare lines without
    indentation.
-4. **Non-string return values print twice.** A read whose value is already
+3. **Non-string return values print twice.** A read whose value is already
    printed prints again as the cell result, because the dedupe in `runCell`
    in `src/kernel.mjs` only handles strings.
 
@@ -50,7 +40,7 @@ Ordered by expected impact. These come before new platforms.
    the kernel). Results must split input tokens into uncached, cache write,
    and cache read, because with prompt caching round trips dominate cost.
    Done when the raw results and the harness are in the repo and one chart is
-   in the README. Fix the first item in "Fix before benchmarking" first.
+   in the README.
 2. **npm publish and a prebuilt helper.** Publish `@vpatel9202/glovebox` to
    npm and ship a Developer ID signed, notarized helper in each release.
    Done when `npx -y @vpatel9202/glovebox setup` works on a Mac without the

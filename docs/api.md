@@ -40,6 +40,8 @@ await calc.getAXState();
   (`+`), or a list of removed indices. `disableDiffing: true` prints the full
   tree. `frames: true` appends `@x,y wxh` in image pixels. `menus: true` adds
   the menu bar. `window` picks a window index from `app.windows()`.
+  Diffs compare against the last read that printed; `{emit: false}` reads
+  don't change that.
   `maxNodes` (default 800) and `maxDepth` (default 40) bound the tree; a
   truncated tree says so.
 - Line format: `<index> <role> "<label>" value="..." id=... help="..."

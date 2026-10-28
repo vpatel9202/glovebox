@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
+import { App } from "../src/api.mjs";
 import { diffTrees, formatTree } from "../src/axformat.mjs";
 import { toImage, toScreen, viewFor } from "../src/geometry.mjs";
 import { parseChord, parseKeys } from "../src/keys.mjs";
@@ -59,6 +60,44 @@ test("tree lines are compact and diffs are keyed by index", () => {
   const after = formatTree([nodes[0], { ...nodes[1], value: "7" }, { i: 3, d: 1, role: "AXButton", desc: "8" }]);
   assert.deepEqual(diffTrees(before, after), ['~\t1 text "Edit field" value="7"', '+\t3 button "8"', "- removed: 2"]);
   assert.deepEqual(diffTrees(before, before), []);
+});
+
+// An App over a fake backend whose tree the test can change between reads.
+function fakeApp() {
+  const state = { value: "0" };
+  const printed = [];
+  const ctx = {
+    config: { screenshot: { maxLongSide: 1568, maxPixels: 1_150_000 }, ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 } },
+    checkAbort() {},
+    out: { text: (t) => printed.push(t) },
+    backend: {
+      async request(method) {
+        if (method === "windows") return [{ index: 0, frame: [0, 0, 200, 300], scale: 2, title: "Calc", focused: true }];
+        if (method === "axTree") {
+          return {
+            window: { title: "Calc" },
+            nodes: [
+              { i: 0, d: 0, role: "AXWindow", title: "Calc" },
+              { i: 1, d: 1, role: "AXStaticText", desc: "Edit field", value: state.value },
+            ],
+          };
+        }
+        throw new Error(`unexpected ${method}`);
+      },
+    },
+  };
+  return { app: new App(ctx, { name: "Calc", pid: 1 }), state, printed };
+}
+
+test("a silent read does not move the diff baseline", async () => {
+  const { app, state, printed } = fakeApp();
+  await app.getAXState();
+  state.value = "42";
+  await app.getAXState({ emit: false, disableDiffing: true });
+  await app.getAXState();
+  assert.equal(printed.length, 2);
+  assert.match(printed[1], /changes since last read/);
+  assert.match(printed[1], /~\t1 text "Edit field" value="42"/);
 });
 
 test("image space round-trips to screen points", () => {

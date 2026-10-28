@@ -67,11 +67,6 @@ await clickMenu(app, "Edit", "Select All");
 await app.getAXState();
 ```
 
-Caution: until the baseline fix in
-[the roadmap](roadmap.md#fix-before-benchmarking) ships, a silent read resets
-the diff baseline. Pass `disableDiffing: true` on the next visible read, or
-expect it to miss changes made before the silent read.
-
 ## 4. Pixel fallback for Citrix and canvases
 
 Not yet run on a real machine. When the tree is one node, take a screenshot,
@@ -111,11 +106,6 @@ const calc = await gb.getApp("Calculator");
 for (const label of ["7", "Add", "1", "Equals"]) await clickLabel(calc, label);
 await calc.getAXState();
 ```
-
-Caution: until the baseline fix in
-[the roadmap](roadmap.md#fix-before-benchmarking) ships, a silent read resets
-the diff baseline. Pass `disableDiffing: true` on the next visible read, or
-expect it to miss changes made before the silent read.
 
 ## 6. Set a field's value directly
 
