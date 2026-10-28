@@ -3,18 +3,54 @@
 What works today is macOS (14+, tested on 27). Everything below is planned,
 not shipped. Nothing here has been tested unless it says so.
 
+## Fix before benchmarking
+
+The first item below can make a script act on a stale view of the screen,
+which would make benchmark success rates noisy. It must be fixed first. The
+other three cost tokens, not correctness, and can follow the benchmark so it
+shows a before and after.
+
+1. **Silent reads reset the diff baseline.** `getAXState` in `src/api.mjs`
+   stores the tree it just read as the baseline on every call, including
+   `{emit: false}` reads. Changes made earlier in the same script then never
+   appear in the next visible diff, so the agent can act on a view that
+   misses them. This is a correctness bug. Done when a silent read leaves the
+   baseline of the last visible read alone.
+
+Can follow the benchmark:
+
+2. **Diff key includes the window title and list position.** A title change
+   (a document name, an unread count) reprints the full tree. Key the
+   baseline by the window's element index, with one baseline per key.
+3. **Depth-only changes show as `~`.** `diffTrees` in `src/axformat.mjs`
+   compares whole lines including indentation, so wrapping content in a new
+   container reprints every node below it. Compare lines without
+   indentation.
+4. **Non-string return values print twice.** A read whose value is already
+   printed prints again as the cell result, because the dedupe in `runCell`
+   in `src/kernel.mjs` only handles strings.
+
 ## Credibility and distribution
 
 Ordered by expected impact. These come before new platforms.
 
 1. **Benchmark harness (`bench/`).** About five fixed tasks: Calculator
    arithmetic, editing a TextEdit document, a Finder rename, toggling a
-   setting in a non-blocked app, and filling a form in a native app. Compare
-   glovebox, Anthropic computer use (screenshot-first), and one per-action AX
-   MCP server (open-computer-use or agent-desktop). Measure model round trips,
-   input tokens including image tokens, wall-clock time, and success over N
-   runs per task, plus the token cost of a diff versus a full tree. Done when
-   the raw results and the harness are in the repo and one chart is in the README.
+   setting in a non-blocked app, and filling a form in a native app. Add two
+   more: a Citrix-or-canvas task (pixel fallback, one-node tree) and a replay
+   task (run the same task again from a saved script), so the differentiators
+   below are measured against this baseline. Compare glovebox, Anthropic
+   computer use (screenshot-first), and one per-action AX MCP server
+   (open-computer-use or agent-desktop). Measure model round trips,
+   input tokens including image tokens, output tokens, wall-clock time, and
+   success over N runs per task, plus the token cost of a diff versus a full
+   tree. For the token work below, also count full re-prints caused by a
+   baseline mismatch, "no change" reads followed by another read, screenshots
+   per text task, and per-result text characters and image pixels (logged by
+   the kernel). Results must split input tokens into uncached, cache write,
+   and cache read, because with prompt caching round trips dominate cost.
+   Done when the raw results and the harness are in the repo and one chart is
+   in the README. Fix the first item in "Fix before benchmarking" first.
 2. **npm publish and a prebuilt helper.** Publish `@vpatel9202/glovebox` to
    npm and ship a Developer ID signed, notarized helper in each release.
    Done when `npx -y @vpatel9202/glovebox setup` works on a Mac without the
@@ -45,6 +81,74 @@ Ordered by expected impact. These come before new platforms.
 After these, Windows is the highest-priority platform: cross-platform support
 is what lcu, agent-desktop, open-computer-use, and cua have over glovebox, and
 Windows-MCP has about 10.5k stars.
+
+## Token efficiency
+
+Ranked by round trips saved. Each call re-reads the cached context and adds
+reasoning and output tokens, so a round trip costs more than trimming one
+read. Savings are estimates from reading the code, to be confirmed by the
+benchmark. Effort: S is small, M is medium.
+
+1. **Silent structured lookups.** Add `app.find({role, label, id})`,
+   `app.text(i)`, and `app.nodes()`, which return data without printing, plus
+   one instruction line in the tool description and `skills/glovebox/SKILL.md`.
+   `app.text` also gives the full value of a field, which a read truncates at
+   160 characters. Saves 1-2 round trips on text and web tasks. S.
+2. **A read that waits for change.** `getAXState({waitForChange: ms})` polls
+   silently until the tree changes, instead of relying on the fixed 80 ms
+   settle after an action. Saves 0.5-1.5 round trips on sheets and async UIs.
+   S-M.
+3. **Checks inside the script.** An `expect` helper lets one call chain
+   several steps, stop at the first failed check, and print state on failure
+   or error. Per-action tools cannot do this. Saves 0.5-1 round trip per task
+   and per error. S.
+4. **Outline for large trees.** Above about 250 nodes, show an outline
+   instead of the full tree, and prune offscreen nodes with a summary line.
+   Helps Electron and web apps and saves 5-8k tokens per full read. Adds no
+   round trip, because the script can call `find` in the same call. M.
+5. **Field labels and window notices.** Resolve `AXTitleUIElement` and
+   `AXLabelUIElements` into field labels, and add a one-line notice when a
+   window, sheet, or alert opens. Helps forms and save sheets by avoiding
+   screenshots, and makes scripts that skip the read safe. S.
+6. **Line-format cleanup.** Quiet `AXShowMenu` (it is not in `QUIET_ACTIONS`),
+   drop auto-generated `_NS:` ids, show `help=` only when there is no label,
+   collapse scroll bars into `scrolled N%`, and drop single-child unlabeled
+   groups. A guess of 20-40% off a full tree, to be verified. S.
+7. **Diffs that survive context clearing.** A `read #N` header on each read,
+   and role plus label in short removed lists, so a diff still makes sense
+   after the earlier tree has left the context. S.
+8. **Cheaper images.** `getScreenshot({region})` crops, and a hint when the
+   tree has two or fewer nodes. JPEG and grayscale save no tokens, because
+   images are charged by pixel size. Lowering the default scale would change
+   the click coordinate space, so it is not planned. S-M.
+
+Not doing (backfires):
+
+- An automatic read after every action: it adds tokens to calls that did not
+  need a read.
+- Aggressive pruning: the agent loses elements it needs and spends a round
+  trip finding them.
+- Diffs that show only changed attributes: they are harder to read and the
+  line no longer identifies the element.
+- A smaller default screenshot scale: it changes the click coordinate space.
+- An outline-first read for small trees: it adds a round trip below about
+  2-3k tokens.
+
+## Differentiators
+
+Two features no other tool checked has, as far as their READMEs show (eight
+competitors checked on 2026-10-27).
+
+1. **Local OCR text.** `app.getText()` runs Vision `VNRecognizeTextRequest`
+   in the helper and returns diffable `"text" @x,y` lines in click
+   space. It targets Citrix, canvases, and remote desktops, where the tree is
+   one node. None of the eight competitors checked documents this. The OCR
+   runs locally, but the recognized text still goes to the model.
+2. **Durable scripts and replay.** Selectors (token item 1) and `waitFor`
+   (token item 2) feed functions saved to `~/.glovebox/lib/*.mjs`, which load
+   automatically. `glovebox run file.mjs` replays a script with zero model
+   calls. For comparison, ghost-os recipes appear to need a small model, and
+   Peekaboo and open-computer-use replay JSON step lists with no branching.
 
 ## Windows backend
 
