@@ -25,7 +25,11 @@ import {
 
 const notesPath = path.join(workDir, "notes.txt");
 const scratchPath = path.join(workDir, "scratch.txt");
-const finderDir = path.join(workDir, "finder-task");
+// Finder caches a folder's listing by path, and deleting and recreating the
+// folder doesn't clear it, so each run gets a "finder-task" folder at a path
+// Finder has never shown.
+const finderRoot = path.join(workDir, "finder");
+let finderDir = path.join(finderRoot, "unused", "finder-task");
 const formOut = path.join(workDir, "form.jsonl");
 const canvasOut = path.join(workDir, "canvas.jsonl");
 
@@ -105,28 +109,23 @@ export const TASKS = [
     prompt: 'In Finder, the folder "finder-task" is open. Rename the file draft-v1.txt to final-report.txt.',
     async setup() {
       await closeFinderWindow("finder-task");
-      fs.rmSync(finderDir, { recursive: true, force: true });
+      fs.rmSync(finderRoot, { recursive: true, force: true });
+      finderDir = path.join(finderRoot, String(Date.now()), "finder-task");
       fs.mkdirSync(finderDir, { recursive: true });
       for (const name of ["draft-v1.txt", "budget.txt", "photo-list.txt"]) fs.writeFileSync(path.join(finderDir, name), `${name}\n`);
-      // Finder can show a recreated folder's old listing for a while, which
-      // would make the task look done already. Reopen until the window shows
-      // the fresh files.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        await sh("open", [finderDir]);
-        const fresh = await waitFor(
-          async () => {
-            const tree = await oracleRead("Finder").catch(() => "");
-            return tree.includes("draft-v1.txt") && !tree.includes("final-report.txt");
-          },
-          { timeoutMs: 4000, everyMs: 500 },
-        );
-        if (fresh) return;
-        await closeFinderWindow("finder-task");
-        await sleep(1000);
-      }
-      throw new Error("Finder kept showing a stale listing for finder-task");
+      await sh("open", [finderDir]);
+      // The task must start visibly unsolved, not only on disk.
+      const shown = await waitFor(
+        async () => {
+          const tree = await oracleRead("Finder").catch(() => "");
+          return tree.includes("draft-v1.txt") && !tree.includes("final-report.txt");
+        },
+        { timeoutMs: 8000, everyMs: 500 },
+      );
+      if (!shown) throw new Error("Finder did not show the new finder-task folder");
     },
     async verify() {
+      if (!fs.existsSync(finderDir)) return { ok: false, detail: "no finder-task folder yet" };
       const names = fs.readdirSync(finderDir).sort();
       const ok = names.includes("final-report.txt") && !names.includes("draft-v1.txt") && names.length === 3;
       return { ok, detail: `folder holds ${names.join(", ")}` };
