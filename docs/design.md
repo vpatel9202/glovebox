@@ -122,8 +122,9 @@ the user's frontmost app keeps focus and the real cursor never moves.
 - Each private function is looked up at runtime. If one is missing (a future
   macOS may remove it), the helper says so and glovebox falls back to the
   foreground route: bring the app forward once per call, then post events.
-  On that route, switching to another app stops the script. `glovebox ping`
-  data and `lastRoute` show which route ran.
+  On that route, switching to another app stops the script. `glovebox doctor`
+  reports whether background input is available, and `app.lastRoute` shows
+  which route the last action took.
 - The record layouts and event fields come from open-source tools that do the
   same: yabai, trycua's cua-driver, and Peekaboo (all MIT). Codex's service
   links only public frameworks and resolves these calls by hashed name at
@@ -154,8 +155,9 @@ Computer use can click anything, so approval is part of the product:
   This Session, Always Allow (persisted to `config.json`), or Deny.
 - `allowlist` mode never prompts. `allow-all` is an explicit opt-in.
 - Terminals, password managers, Keychain Access, System Settings, Script
-  Editor, and Automator are blocked by default and never offered in a dialog.
-  Only an explicit `glovebox allow <bundle id>` unlocks one.
+  Editor, Automator, and the helper itself are blocked by default and never
+  offered in a dialog. Only an explicit `glovebox allow` unlocks one. The
+  full list is in `SECURITY.md`.
 - Switching to another app stops the running script. A script brings an app
   forward at most once per call; if the app is no longer in front later in
   the same call, the user took over, and the script stops rather than taking
@@ -165,9 +167,10 @@ Computer use can click anything, so approval is part of the product:
   its own events) stops the running script. In testing on macOS 27, an
   Accessibility-only global key monitor saw no key events, so Escape is
   documented as needing Input Monitoring.
-- Every action is appended to `~/.glovebox/actions.log` with the client, the
-  step title, the app, and the target. Typed text is logged as a length
-  unless `log.text` is true.
+- Every action is appended to `~/.glovebox/actions.log` as one JSON object:
+  `ts`, `client`, `step` (the call's title, when given), then the action's own
+  fields (`app`, `action`, and for example `target`, `keys`, or `length`).
+  Typed text is logged as a length unless `log.text` is true.
 - The helper's socket is mode 0600 and checks the peer's uid.
 
 ## Signing and permissions
@@ -183,17 +186,20 @@ does not need to be trusted. Verified by rebuilding twice without re-granting.
 ## The macOS backend
 
 Glovebox Helper is a small Swift app (`native/macos/GloveboxHelper.swift`)
-built locally by `glovebox setup` with the Xcode command line tools and
-ad-hoc signed. It runs as its own app, launched through LaunchServices, so
+built locally by `glovebox setup` with the Xcode command line tools. It is
+signed with the local certificate from `glovebox signing --create` when one
+exists, and ad hoc otherwise. It runs as its own app, launched through LaunchServices, so
 macOS attributes Accessibility and Screen Recording to "Glovebox Helper"
 rather than to whatever terminal or agent started it. One grant covers every
 agent. (The first prototype ran the native code as a child process; macOS
 then charges the permission to the parent, and some hosts disclaim
 responsibility for their children, so the grant never applies.)
 
-It uses public APIs only: AXUIElement for the tree and actions, CGEvent for
-input, ScreenCaptureKit for window capture. It speaks JSON lines over
-`~/.glovebox/helper.sock`. See `backend-protocol.md`.
+It uses AXUIElement for the tree and actions, CGEvent for input, and
+ScreenCaptureKit for window capture, all public APIs. Background input
+(see Input delivery) also uses private SkyLight functions, looked up at
+runtime, with a foreground fallback when they are missing. It speaks JSON
+lines over `~/.glovebox/helper.sock`. See `backend-protocol.md`.
 
 ## What we did not do
 
