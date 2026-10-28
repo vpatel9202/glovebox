@@ -43,7 +43,9 @@ args = ["mcp"]
 enabled = true
 ```
 
-Verify with `grok mcp doctor glovebox`. Skill:
+Verify with `grok mcp doctor glovebox`. This config, and the OpenCode and
+Codex ones below, follow each client's documented MCP format but have not been
+exercised end to end. Skill:
 
 ```bash
 mkdir -p ~/.grok/skills && cp -R "$(npm root -g)/@vpatel9202/glovebox/skills/glovebox" ~/.grok/skills/
@@ -117,5 +119,6 @@ glovebox approval allowlist   # never prompt; only allowlisted apps work
 ```
 
 `glovebox approval allow-all` turns prompts off for every app except the
-blocked ones (terminals, password managers, System Settings, Script Editor).
-Those need an explicit `glovebox allow <bundle id>`.
+blocked ones (terminals, password managers, and a few others). Those need an
+explicit `glovebox allow`. The full list is in
+[SECURITY.md](../SECURITY.md#blocked-apps).

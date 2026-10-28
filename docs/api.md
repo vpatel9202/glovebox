@@ -14,12 +14,15 @@ await calc.getAXState();
 
 ## gb
 
-- `gb.getApp(query, {activate})` returns an App handle. `query` is a display
-  name, a bundle id, or `"pid:123"`. Launches the app if it is not running,
-  without bringing it to the front unless `activate: true`. The first action in
-  each app may show an approval dialog to the user.
-- `gb.listApps({installed})` lists running apps (or installed ones too) and
-  returns `[{name, bundleId, pid, running, active}]`.
+- `gb.getApp(query, {activate, foreground})` returns an App handle. `query` is
+  a display name, a bundle id, or `"pid:123"`. Launches the app if it is not
+  running, without bringing it to the front unless `activate: true`.
+  `foreground: true` makes every input to the handle use the foreground
+  route; it takes effect only on the call that first creates the handle.
+  The first action in each app may show an approval dialog to the user.
+- `gb.listApps({installed, emit})` lists running apps (or installed ones too)
+  and returns `[{name, bundleId, pid, running, active}]`. It prints the list
+  unless `emit: false`.
 - `gb.sleep(ms)` waits. Also available as `sleep(ms)`.
 - `gb.permissions()` reports Accessibility and Screen Recording status.
 - `help(topic)` prints this document, or the sections mentioning `topic`.
@@ -28,12 +31,17 @@ await calc.getAXState();
 
 ## Reading state
 
-- `app.getAXState({disableDiffing, frames, menus, window, maxNodes, emit})`
+- `app.name`, `app.bundleId`, and `app.pid` identify the handle.
+  `app.view` is `{window, width, height, scale, ...}` for the window last read
+  (`null` before the first read); `scale` is image pixels per screen point.
+- `app.getAXState({disableDiffing, frames, menus, window, maxNodes, maxDepth, emit})`
   returns the accessibility tree as text. The first read of a window is the
   full tree; later reads print only lines that changed (`~`), were added
   (`+`), or a list of removed indices. `disableDiffing: true` prints the full
   tree. `frames: true` appends `@x,y wxh` in image pixels. `menus: true` adds
   the menu bar. `window` picks a window index from `app.windows()`.
+  `maxNodes` (default 800) and `maxDepth` (default 40) bound the tree; a
+  truncated tree says so.
 - Line format: `<index> <role> "<label>" value="..." id=... help="..."
   (focused, selected, disabled, settable) actions: ...`. Indentation is depth.
   Indices are stable for the life of the session, so a diff means what it says.
@@ -61,9 +69,13 @@ Input stays in the background: the app is not brought to the front, the
 user's real cursor does not move, and a drawn agent cursor shows where each
 action lands. If this macOS or an app can't take background input, glovebox
 brings the app forward instead. `app.lastRoute` says how the last action got
-there (`accessibility`, `background`, or `foreground`). Pass
-`{foreground: true}` to any action, or `gb.getApp(name, {foreground: true})`,
-for apps that ignore background input (some Java, Tk, and game windows).
+there: `accessibility`, `background`, `background-skylight` (Chromium and
+Electron), or `foreground`, with " (focus restored)" appended if the app took
+focus and glovebox gave it back. Pass
+`{foreground: true}` to `click`, `doubleClick`, `rightClick`, `pressKey`,
+`typeText`, `scroll`, or `drag`, or `gb.getApp(name, {foreground: true})` for
+every action, for apps that ignore background input (some Java, Tk, and game
+windows).
 
 - `app.click(target, {button, count, modifiers, raw, foreground})`. A plain
   left click on a button, checkbox, link, or menu item is pressed through
@@ -76,7 +88,8 @@ for apps that ignore background input (some Java, Tk, and game windows).
   `"ctrl+a BackSpace"`. Keys go to the app's key window.
 - `app.typeText(text)`. Types literal text; `\n` presses Return and `\t`
   presses Tab.
-- `app.scroll(target, dy, {dx})`. Positive `dy` scrolls down, in lines.
+- `app.scroll(target, dy = 3, {dx})` or `app.scroll(target, {dy, dx})`.
+  Positive `dy` scrolls down, in lines.
 - `app.drag(from, to)` or `app.drag([[x, y], [x, y], ...])`.
 - `app.setValue(index, value)` sets a field's value directly.
 - `app.focus(index)` gives an element keyboard focus.
@@ -90,10 +103,12 @@ for apps that ignore background input (some Java, Tk, and game windows).
 The first time a session touches an app, the user sees a dialog: Allow for
 This Session, Always Allow, or Deny. Terminals, password managers, and System
 Settings are blocked unless the user runs `glovebox allow <app>`. If the user
-switches to another app or presses Escape while a script runs, the script
-stops with a "Stopped: ..." message; do not continue GUI work until they ask.
-On the foreground route a script brings an app forward at most once per call. Every action is
-appended to `~/.glovebox/actions.log` (typed text is logged as a length only).
+switches to another app while a script runs, the script stops with a
+"Stopped: ..." message. Escape stops it too, but only when the user has
+granted Input Monitoring. Do not continue GUI work until the user asks.
+On the foreground route a script brings an app forward at most once per call.
+Every action is appended to `~/.glovebox/actions.log` (typed text is logged
+as a length only).
 
 ## Tips
 
