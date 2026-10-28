@@ -129,8 +129,11 @@ export class App {
       text = `${header}\n${lines.join("\n")}`;
     }
     if (tree.truncated) text += `\n(truncated at ${lines.length} elements; pass {maxNodes} to see more)`;
-    this.#lastTree = { key, lines };
-    if (emit) this.#ctx.out.text(text);
+    // The baseline is what the model last saw, so silent reads leave it alone.
+    if (emit) {
+      this.#lastTree = { key, lines };
+      this.#ctx.out.text(text);
+    }
     return text;
   }
 

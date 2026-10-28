@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Fix: a read with `{emit: false}` no longer becomes the diff baseline, so
+  the next printed read shows every change since the last printed one.
+  Before, changes made before a silent read never appeared in a diff.
+
 ## 0.2.0 (2026-10-27)
 
 - Background input by default: keys, typing, clicks, drags, and scrolls reach
