@@ -113,6 +113,15 @@ class McpClient {
   }
 }
 
+function sniffImageType(base64) {
+  const head = Buffer.from(base64.slice(0, 16), "base64");
+  if (head[0] === 0x89 && head[1] === 0x50) return "image/png";
+  if (head[0] === 0xff && head[1] === 0xd8) return "image/jpeg";
+  if (head.subarray(0, 4).toString() === "RIFF") return "image/webp";
+  if (head.subarray(0, 3).toString() === "GIF") return "image/gif";
+  return null;
+}
+
 // Scales an image down to the shared long-side limit with sips.
 function fitImage(data, mimeType) {
   const size = imageSize(data);
@@ -138,7 +147,9 @@ export function mcpContentToApi(content = []) {
       chars += text.length;
       blocks.push({ type: "text", text });
     } else if (c.type === "image") {
-      const image = fitImage(c.data, c.mimeType);
+      // Labels can be wrong (Codex's cua_repl marks JPEG screenshots as PNG),
+      // and the API rejects a mismatch, so trust the bytes.
+      const image = fitImage(c.data, sniffImageType(c.data) ?? c.mimeType);
       blocks.push({ type: "image", source: { type: "base64", media_type: image.mimeType, data: image.data } });
     }
   }

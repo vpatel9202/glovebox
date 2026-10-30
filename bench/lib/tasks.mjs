@@ -49,6 +49,8 @@ const PEOPLE = [
   { name: "Margaret Hamilton", email: "margaret@example.com", department: "Support", newsletter: true },
 ];
 
+const COEXIST = { name: "Grace Hopper", email: "grace@example.com", department: "", newsletter: false };
+
 // Ten records given in one prompt, as a pasted spreadsheet would be.
 const BULK = [
   ["Mary Jackson", "mary.j@example.com", "Engineering", true],
@@ -83,10 +85,12 @@ const FILL = `async function __fill(app, p) {
   let t = await tree();
   await app.setValue(idx(t, /text field.*placeholder="Full name"/), p.name);
   await app.setValue(idx(t, /text field.*placeholder="name@example.com"/), p.email);
-  await app.click(idx(t, /pop up button/));
-  await sleep(300);
-  t = await tree();
-  await app.click(idx(t, new RegExp('menu item "' + p.department + '"')));
+  if (p.department) {
+    await app.click(idx(t, /pop up button/));
+    await sleep(300);
+    t = await tree();
+    await app.click(idx(t, new RegExp('menu item "' + p.department + '"')));
+  }
   t = await tree();
   if (/checkbox "Subscribe to newsletter" value="1"/.test(t.join("\\n")) !== p.newsletter) await app.click(idx(t, /checkbox "Subscribe/));
   await app.click(idx(t, /button "Submit"/));
@@ -101,12 +105,16 @@ async function solveForm(people) {
 // the user's document is frontmost, so a tool that takes focus loses the
 // user's text (and nothing is ever typed into another app).
 const USER_WORDS = "the quick brown fox jumps over the lazy dog while the agent works in the background".split(" ");
-const typist = { running: false, typed: [], blocked: 0, done: null };
+const typist = { running: false, paused: false, typed: [], blocked: 0, done: null, word: null };
 
 async function startTypist() {
-  Object.assign(typist, { running: true, typed: [], blocked: 0 });
+  Object.assign(typist, { running: true, paused: false, typed: [], blocked: 0, word: null });
   typist.done = (async () => {
     for (let i = 0; typist.running; i++) {
+      if (typist.paused) {
+        await sleep(100);
+        continue;
+      }
       const word = USER_WORDS[i % USER_WORDS.length];
       const script = `tell application "System Events"
   set p to first process whose frontmost is true
@@ -116,12 +124,21 @@ async function startTypist() {
   end if
   return name of p
 end tell`;
-      const result = await osascript(script).catch(() => "error");
+      typist.word = osascript(script).catch(() => "error");
+      const result = await typist.word;
+      typist.word = null;
       if (result === "typed") typist.typed.push(word);
       else typist.blocked += 1;
-      await sleep(400);
+      await sleep(250);
     }
   })();
+}
+
+// Verify runs before the agent too (to check the task starts unsolved), so
+// it only pauses the user while it reads their document.
+async function pauseTypist() {
+  typist.paused = true;
+  await typist.word;
 }
 
 async function stopTypist() {
@@ -269,6 +286,7 @@ export const TASKS = [
     kind: "text",
     prompt: `In the Bench Fixture app's Bench Form window, add this person and submit the form: ${describePerson(PEOPLE[0])}.`,
     followUps: PEOPLE.slice(1).map((p) => `Do the same for another person: ${describePerson(p)}.`),
+    maxTurns: 80,
     async setup() {
       await launchFixture("form", formOut);
     },
@@ -285,6 +303,7 @@ export const TASKS = [
     id: "bulk-entry",
     app: "Bench Fixture",
     kind: "text",
+    maxTurns: 80,
     prompt: `In the Bench Fixture app's Bench Form window, add each of these ten people, in order, submitting the form once per person:\n${BULK.map((p, i) => `${i + 1}. ${describePerson(p)}`).join("\n")}`,
     async setup() {
       await launchFixture("form", formOut);
@@ -389,7 +408,11 @@ await __s.setValue(__i(l, /text field.*Username/), sug); await __s.click(__i(l, 
     id: "coexistence",
     app: "Bench Fixture",
     kind: "text",
-    prompt: `The user is typing in TextEdit and must not be interrupted. In the background, in the Bench Fixture app's Bench Form window, add this person and submit the form: ${describePerson(PEOPLE[1])}.`,
+    // No department: opening a pop-up menu in a background app takes the
+    // user's keystrokes for as long as the menu is open (menu tracking is
+    // system-wide), whatever the tool. That is filed for glovebox; this task
+    // measures what the tool's own input method does to the user.
+    prompt: `The user is typing in TextEdit and must not be interrupted. In the background, in the Bench Fixture app's Bench Form window, add this person and submit the form: name "${COEXIST.name}", email ${COEXIST.email}, not subscribed to the newsletter. Leave Department as it is.`,
     async setup() {
       await closeBenchTextEdit();
       await launchFixture("form", formOut);
@@ -401,19 +424,20 @@ await __s.setValue(__i(l, /text field.*Username/), sug); await __s.click(__i(l, 
       await sleep(1500);
     },
     async verify() {
-      await stopTypist();
+      await pauseTypist();
       const records = readJsonLines(formOut);
       // TextEdit may capitalize the first word; case doesn't matter here.
       const text = (await osascript('tell application "TextEdit" to get text of document "user-notes.txt"').catch(() => "")).trim().toLowerCase();
       const expectedText = typist.typed.join(" ");
-      const formOk = sameRecords(records, PEOPLE.slice(1, 2));
+      const formOk = sameRecords(records, [COEXIST]);
       const textOk = text === expectedText && typist.blocked === 0;
+      typist.paused = false;
       return {
         ok: formOk && textOk,
         detail: `form ${formOk ? "ok" : JSON.stringify(records)}; user typed ${typist.typed.length} words, ${typist.blocked} blocked while another app was in front${text === expectedText ? "" : `; their document reads ${JSON.stringify(text.slice(0, 80))}`}`,
       };
     },
-    solve: () => solveForm(PEOPLE.slice(1, 2)),
+    solve: () => solveForm([COEXIST]),
     async teardown() {
       await stopTypist();
       await osascript('tell application "TextEdit" to close (every document whose name is "user-notes.txt") saving no').catch(() => {});

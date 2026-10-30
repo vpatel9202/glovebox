@@ -38,3 +38,9 @@ test("tool results are capped the same way for every setup", () => {
   assert.match(block.text, /truncated by the benchmark/);
   assert.deepEqual(mcpContentToApi([]), [{ type: "text", text: "(no output)" }]);
 });
+
+test("an image's type comes from its bytes, not its label", () => {
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1]).toString("base64");
+  const [block] = mcpContentToApi([{ type: "image", mimeType: "image/png", data: jpeg }]);
+  assert.equal(block.source.media_type, "image/jpeg");
+});

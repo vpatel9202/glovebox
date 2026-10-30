@@ -38,6 +38,9 @@ Choices that affect the comparison:
   that is fixed since, but `cu` stays on the foreground route.
 - **No refusal fallback.** A fallback model would mix two models in one
   measurement, so a refusal counts as a failed run.
+- **Image types come from the bytes.** A tool that labels a JPEG as PNG
+  (Codex's `cua_repl` does) would get a 400 from the API, so the harness
+  sends the type the image data actually has.
 - **Same result limits for every setup.** Tool text over 100,000 characters
   is truncated and images are scaled to a 1568 px long side
   (`LIMITS` in `lib/setups.mjs`), so no tool can send more than another.
@@ -131,8 +134,8 @@ node bench/run.mjs --n 1 --budget 10
 ```
 
 Options: `--setups glovebox,cu,ocu`, `--tasks calculator,form`, `--n 5`,
-`--model claude-sonnet-5-5`, `--effort medium`, `--max-turns` (40, or 25 for
-Haiku), `--label v2` (a second file on the same day). Leave the Mac alone
+`--model claude-sonnet-5-5`, `--effort medium`, `--max-turns` (40; `bulk-entry`
+and `form-repeat` allow 80), `--label v2` (a second file on the same day). Leave the Mac alone
 while it runs: apps open on screen, and glovebox stops a script if you switch
 into the app it is driving.
 

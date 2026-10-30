@@ -44,8 +44,8 @@ const setupNames = opts.setups.split(",").map((s) => s.trim());
 for (const name of setupNames) if (!SETUPS[name]) throw new Error(`Unknown setup ${name}; use ${Object.keys(SETUPS).join(", ")}`);
 const tasks = opts.tasks === "all" ? TASKS : opts.tasks.split(",").map((id) => TASKS.find((t) => t.id === id) ?? fail(`Unknown task ${id}`));
 const n = Number(opts.n);
-const haiku = opts.model.includes("haiku");
-const maxTurns = Number(opts["max-turns"] ?? (haiku ? 25 : 40));
+// Per run; tasks with several records or user turns set their own.
+const maxTurns = Number(opts["max-turns"] ?? 40);
 const runCap = Number(opts["run-cap"] ?? 0.375 * (PRICES[opts.model]?.input ?? 2));
 const budget = { cap: Number(opts.budget), spent: 0 };
 
@@ -276,7 +276,7 @@ async function runOne(task, setupName, rep, cap, transcriptDir) {
   const started = Date.now();
   let agent;
   try {
-    agent = await runAgent({ model: opts.model, effort: opts.effort, setup, prompt: task.prompt, followUps: task.followUps, maxTurns, runCap: cap });
+    agent = await runAgent({ model: opts.model, effort: opts.effort, setup, prompt: task.prompt, followUps: task.followUps, maxTurns: task.maxTurns ?? maxTurns, runCap: cap });
   } catch (e) {
     agent = { usage: {}, turns: [], segments: [], finalText: "", stopReason: "harness-error", apiError: e.message, cost: 0 };
   }
