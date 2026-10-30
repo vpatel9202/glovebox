@@ -3,10 +3,11 @@
 // Needs ANTHROPIC_ADMIN_KEY in bench/.env (gitignored); the key is never printed.
 //
 //   node bench/usage.mjs                      month to date: org billing, bench key vs harness records
-//   node bench/usage.mjs --watch 10 --file <run.jsonl> --pid <run.mjs pid>
-//       every 10 minutes, compare the bench key's usage since the file began
-//       with the file's records, and send SIGINT to the run if the API side
-//       is well ahead of what the harness counted.
+//   node bench/usage.mjs --watch 5 --file <run.jsonl> --pid <run.mjs pid> --org-cap 90 --cycle-start 2026-10-10
+//       every 5 minutes, compare the bench key's usage since the file began
+//       with the file's records, and estimate the org's spend this billing
+//       cycle. Send SIGINT to the run and exit 3 if the org's spend is within
+//       $1 of the cap, or exit 4 if the API side is well ahead of the harness.
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -19,6 +20,8 @@ const { values: opts } = parseArgs({
     watch: { type: "string" },
     file: { type: "string" },
     pid: { type: "string" },
+    "org-cap": { type: "string" },
+    "cycle-start": { type: "string" },
   },
 });
 
@@ -76,6 +79,23 @@ function listCost(model, t) {
   return (t.input * p.input + t.cacheWrite * p.cacheWrite + t.cacheRead * p.cacheRead + t.output * p.output) / 1e6;
 }
 
+// The org's spend since `cycleStart`: billed days from the cost report, plus
+// usage after the last billed day at list price (the priciest model in
+// PRICES for a model it lacks, so the estimate errs high).
+async function orgSpend(cycleStart) {
+  const today = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`;
+  const days = (await get(`cost_report?starting_at=${cycleStart}&limit=31`)).filter((d) => d.results.length && d.ending_at <= today);
+  const billed = days.flatMap((d) => d.results).reduce((s, r) => s + Number(r.amount) / 100, 0);
+  const pricedFrom = days.at(-1)?.ending_at ?? cycleStart;
+  const priciest = Object.keys(PRICES).sort((a, b) => PRICES[b].output - PRICES[a].output)[0];
+  let recent = 0;
+  for (const [key, t] of await usageSince(pricedFrom)) {
+    const model = key.split("\t")[1];
+    recent += listCost(model, t) ?? listCost(priciest, t);
+  }
+  return { billed, recent, pricedFrom };
+}
+
 function ledger(files, since) {
   const byModel = new Map();
   for (const file of files) {
@@ -113,6 +133,10 @@ async function report() {
   const billed = costDays.flatMap((d) => d.results).reduce((s, r) => s + Number(r.amount) / 100, 0);
   const lastDay = costDays.filter((d) => d.results.length).at(-1)?.starting_at.slice(0, 10) ?? "none";
   console.log(`Org billed since ${since.slice(0, 10)}: ${usd(billed)} (cost report, days through ${lastDay})`);
+  if (opts["cycle-start"]) {
+    const org = await orgSpend(`${opts["cycle-start"]}T00:00:00Z`);
+    console.log(`Org this cycle: ${usd(org.billed + org.recent)} (${usd(org.billed)} billed, ${usd(org.recent)} since ${org.pricedFrom.slice(0, 10)} at list price)`);
+  }
 
   console.log("\nUsage by key since then, at list price:");
   for (const [key, t] of [...usage].sort()) {
@@ -137,7 +161,7 @@ async function watch() {
   const minutes = Number(opts.watch);
   if (!opts.file) throw new Error("--watch needs --file <run.jsonl>");
   const header = readJsonLines(opts.file).find((r) => r.type === "header");
-  const since = new Date(new Date(header?.date ?? Date.now()).getTime() - 3600_000).toISOString().slice(0, 13) + ":00:00Z";
+  const since = new Date(header?.date ?? Date.now()).toISOString().slice(0, 13) + ":00:00Z";
   const { id } = await benchKeyId();
   for (;;) {
     const usage = await usageSince(since);
@@ -149,12 +173,23 @@ async function watch() {
       api += listCost(model, usage.get(`${id}\t${model}`) ?? { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 }) ?? 0;
     }
     const stamp = new Date().toISOString().slice(11, 16);
-    console.log(`${stamp} bench key since ${since.slice(11, 16)}Z: API ${usd(api)}, harness ${usd(harness)}`);
+    let line = `${stamp} bench key since ${since.slice(11, 16)}Z: API ${usd(api)}, harness ${usd(harness)}`;
+    let stop = null;
     // API data lags the harness, so API ahead by much means the harness undercounts.
-    if (opts.pid && api > harness * 1.2 + 0.5) {
-      console.log(`API usage is ahead of the harness records; sending SIGINT to ${opts.pid}.`);
-      process.kill(Number(opts.pid), "SIGINT");
-      return;
+    if (api > harness * 1.2 + 0.5) stop = { code: 4, why: "API usage is ahead of the harness records" };
+    if (opts["org-cap"]) {
+      const cap = Number(opts["org-cap"]);
+      const org = await orgSpend(`${opts["cycle-start"]}T00:00:00Z`);
+      // Runs the usage data has not caught up with yet count too.
+      const total = org.billed + org.recent + Math.max(0, harness - api);
+      line += `; org this cycle ${usd(total)} of ${usd(cap)}`;
+      if (total >= cap - 1) stop = { code: 3, why: `org spend ${usd(total)} is within $1 of the ${usd(cap)} cap` };
+    }
+    console.log(line);
+    if (stop) {
+      console.log(`${stop.why}; sending SIGINT to ${opts.pid ?? "(no pid)"}.`);
+      if (opts.pid) process.kill(Number(opts.pid), "SIGINT");
+      process.exit(stop.code);
     }
     await new Promise((r) => setTimeout(r, minutes * 60_000));
   }

@@ -161,9 +161,11 @@ Spend and restarts:
 - `node bench/usage.mjs` checks the records against Anthropic's own usage
   data. It needs an Admin API key in `bench/.env` as `ANTHROPIC_ADMIN_KEY`.
   It prints the org's month-to-date billing and each key's usage, then the
-  bench key's tokens beside the harness's. `--watch 10 --file <run.jsonl>
-  --pid <pid>` repeats the check every 10 minutes during a run and sends the
-  run Ctrl-C if the API side gets well ahead of the records.
+  bench key's tokens beside the harness's. `--watch 5 --file <run.jsonl>
+  --pid <pid>` repeats the check every 5 minutes during a run and sends the
+  run Ctrl-C if the API side gets well ahead of the records; add
+  `--org-cap 90 --cycle-start <YYYY-MM-DD>` to also stop when the org's
+  spend this billing cycle comes within $1 of $90.
 
 ## What each record holds
 

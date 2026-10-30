@@ -166,8 +166,11 @@ function runKey(r) {
 
 async function benchmark() {
   if (!PRICES[opts.model]) fail(`No price for ${opts.model}`);
-  const sha = git("rev-parse", "--short", "HEAD");
-  const dirty = git("status", "--porcelain", "--", "src", "native", "bin", "bench", ":!bench/results") !== "";
+  // The last commit that changed glovebox or the harness, so committing
+  // results or docs mid-run does not block --resume.
+  const code = ["src", "native", "bin", "bench", ":!bench/results", ":!bench/*.md"];
+  const sha = git("log", "-1", "--format=%h", "--", ...code);
+  const dirty = git("status", "--porcelain", "--", ...code) !== "";
   if (dirty && !opts["allow-dirty"]) fail("glovebox or the harness has uncommitted changes; commit first so the SHA in the results means something, or pass --allow-dirty for a throwaway run");
 
   const rawDir = path.join(benchDir, "results", "raw");
