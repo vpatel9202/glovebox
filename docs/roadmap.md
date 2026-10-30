@@ -46,6 +46,20 @@ surfaced these. Fix them after the diff fixes, then rerun the benchmark.
 5. **Background keys don't start a Finder rename.** Return on a selected file
    works only on the foreground route.
 
+The 2026-10-29 Citrix field run
+([summary](../bench/results/field/2026-10-29-citrix/summary.md))
+added these. All 94 of its actions used the background route.
+
+6. **A tooltip window becomes the default read target.** While a remote
+   client's small, untitled tooltip window exists, it is the focused window,
+   so screenshots and `windows()[0]` read it and the main window's index
+   shifts. This is the same class as #3. (gb-1iz.11)
+7. **Horizontal background scroll is ignored in Citrix.** `dx` does nothing,
+   while `dy` and scrollbar clicks work. (gb-1iz.12)
+8. **No built-in settle.** Remote UIs repaint 1–30 s after input. A
+   hand-written frame-hash loop took 45% of tool time. Add
+   `app.settle()` or `app.waitForChange()`. (gb-1iz.13)
+
 ## Credibility and distribution
 
 Ordered by expected impact. These come before new platforms.
