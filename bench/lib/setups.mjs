@@ -1,4 +1,4 @@
-// The three setups under test. Each exposes the same shape to the agent loop:
+// The setups under test. Each exposes the same shape to the agent loop:
 //   { name, tools, instructions, execute(toolUseBlocks) -> toolResultBlocks, close() }
 //
 // glovebox and open-computer-use run as stdio MCP servers, exactly as an agent
@@ -145,13 +145,15 @@ export function mcpContentToApi(content = []) {
   return blocks.length ? blocks : [{ type: "text", text: "(no output)" }];
 }
 
-async function mcpSetup(name, command, args, { env, onRequest, capabilities, onTurnEnd } = {}) {
+// `withhold` drops tools the comparison excludes, such as tools that call
+// their own AI model.
+async function mcpSetup(name, command, args, { env, onRequest, capabilities, onTurnEnd, withhold = [] } = {}) {
   const client = new McpClient(command, args, { onRequest, env });
   const { instructions, tools } = await client.start(capabilities);
   return {
     name,
     instructions,
-    tools: tools.map((t) => ({ name: t.name, description: t.description ?? "", input_schema: t.inputSchema })),
+    tools: tools.filter((t) => !withhold.includes(t.name)).map((t) => ({ name: t.name, description: t.description ?? "", input_schema: t.inputSchema })),
     async execute(blocks) {
       const results = [];
       for (const block of blocks) {
@@ -274,8 +276,96 @@ async function computerUseSetup(task) {
   };
 }
 
+// Codex computer use, run directly from the ChatGPT app's bundled plugin with
+// the command and environment Codex itself uses. App approvals arrive as MCP
+// elicitations; only the bench apps are approved, for this session only.
+const BENCH_BUNDLES = ["com.apple.calculator", "com.apple.textedit", "com.apple.finder", "dev.glovebox.bench-fixture"];
+
+function codexPluginConfig() {
+  const root = path.join(os.homedir(), ".codex", "plugins", "cache", "openai-bundled", "unified-computer-use");
+  const versions = fs.existsSync(root) ? fs.readdirSync(root).sort() : [];
+  const file = versions.length && path.join(root, versions.at(-1), ".mcp.json");
+  if (!file || !fs.existsSync(file)) throw new Error(`Codex computer use is not installed (no ${root}/<version>/.mcp.json)`);
+  return JSON.parse(fs.readFileSync(file, "utf8")).mcpServers.cua_repl;
+}
+
+async function codexSetup() {
+  const config = codexPluginConfig();
+  const session = `bench-${process.pid}-${Date.now()}`;
+  let turn = 0;
+  return mcpSetup("codex-cu", config.command, config.args, {
+    env: config.env,
+    capabilities: { elicitation: { form: {} } },
+    async onRequest(method, params) {
+      if (method !== "elicitation/create") throw new Error(`${method} is not supported`);
+      const app = String(params._meta?.tool_params?.app ?? "").toLowerCase();
+      return BENCH_BUNDLES.includes(app) ? { action: "accept", content: {}, _meta: { persist: "session" } } : { action: "decline" };
+    },
+    onTurnEnd: (client) => client.request("tools/call", { name: "turn_ended", arguments: { hook_event_name: "Stop", session_id: session, turn_id: String(++turn) } }).catch(() => {}),
+    // Codex enables js and js_reset for the model; turn_ended is its hook.
+    withhold: ["turn_ended", "js_add_node_module_dir"],
+  });
+}
+
+// agent-desktop is a CLI that agents run from a shell after loading its
+// bundled skill guides. The setup is that, minus the shell: one tool that runs
+// only the agent-desktop binary, described by the core and macOS guides.
+const AGENT_DESKTOP = path.join(benchDir, "node_modules", "agent-desktop", "bin", "agent-desktop");
+
+function agentDesktopSetup() {
+  const guide = (name) => execFileSync(AGENT_DESKTOP, ["skills", "get", name], { encoding: "utf8" });
+  const description = `Runs the agent-desktop CLI with the given arguments and returns its JSON output. Screenshots come back as images.\n\n${guide("desktop")}\n\n${guide("platform")}`;
+  return {
+    name: "agent-desktop",
+    instructions: "",
+    tools: [
+      {
+        name: "agent_desktop",
+        description,
+        input_schema: {
+          type: "object",
+          properties: { args: { type: "array", items: { type: "string" }, description: 'Arguments after the binary name, e.g. ["snapshot", "--app", "Calculator"]' } },
+          required: ["args"],
+        },
+      },
+    ],
+    async execute(blocks) {
+      return blocks.map((block) => {
+        const base = { type: "tool_result", tool_use_id: block.id };
+        const args = (block.input?.args ?? []).map(String);
+        let out;
+        let failed = false;
+        try {
+          out = execFileSync(AGENT_DESKTOP, args, { encoding: "utf8", timeout: 120_000, maxBuffer: 64 * 1024 * 1024 });
+        } catch (error) {
+          failed = true;
+          out = `${error.stdout ?? ""}${error.stderr ?? ""}` || String(error.message);
+        }
+        // A shell agent would view the PNG; hand it over as an image.
+        let parsed = null;
+        try {
+          parsed = JSON.parse(out);
+        } catch {
+          // Plain text output.
+        }
+        if (parsed?.command === "screenshot" && typeof parsed.data?.data === "string") {
+          const image = parsed.data.data;
+          parsed.data.data = "(image attached)";
+          return { ...base, content: mcpContentToApi([{ type: "text", text: JSON.stringify(parsed) }, { type: "image", mimeType: "image/png", data: image }]), is_error: failed };
+        }
+        return { ...base, content: mcpContentToApi([{ type: "text", text: out }]), is_error: failed };
+      });
+    },
+    close() {},
+  };
+}
+
 export const SETUPS = {
   glovebox: () => mcpSetup("glovebox", process.execPath, [path.join(repoDir, "bin", "glovebox.mjs"), "mcp"]),
   ocu: () => mcpSetup("open-computer-use", path.join(benchDir, "node_modules", ".bin", "ocu"), ["mcp"]),
   cu: (task) => computerUseSetup(task),
+  "codex-cu": () => codexSetup(),
+  "agent-desktop": () => agentDesktopSetup(),
+  // Peekaboo's agent and analyze tools call their own configured AI model.
+  peekaboo: () => mcpSetup("peekaboo", process.execPath, [path.join(benchDir, "node_modules", "@steipete", "peekaboo", "peekaboo-mcp.js")], { withhold: ["agent", "analyze"] }),
 };

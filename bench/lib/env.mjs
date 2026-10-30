@@ -62,11 +62,11 @@ export async function quitFixture() {
   await sleep(300);
 }
 
-export async function launchFixture(mode, out) {
+export async function launchFixture(mode, out, { target = "" } = {}) {
   await quitFixture();
   fs.rmSync(out, { force: true });
-  fs.writeFileSync(path.join(workDir, "fixture.json"), JSON.stringify({ mode, out }));
-  await sh("open", [fixtureApp, "--args", "--mode", mode, "--out", out]);
+  fs.writeFileSync(path.join(workDir, "fixture.json"), JSON.stringify({ mode, out, target }));
+  await sh("open", [fixtureApp, "--args", "--mode", mode, "--out", out, "--target", target]);
   await waitFor(async () => (await osascript(`application id "${FIXTURE_BUNDLE_ID}" is running`).catch(() => "false")) === "true");
   await sleep(800);
 }
@@ -123,6 +123,16 @@ export async function oracleKeys(appName, keys) {
     timeoutMs: 20_000,
   });
   if (!result.ok) throw new Error(result.content.map((c) => c.text ?? "").join("\n"));
+}
+
+// Runs a script in the oracle session. Used by the dry run's scripted solves,
+// which prove each task can be done and that verify notices.
+export async function oracleRun(code, timeoutMs = 60_000) {
+  oracle ??= new Session({ client: "glovebox bench oracle" });
+  const result = await oracle.run(code, { timeoutMs });
+  const text = result.content.map((c) => c.text ?? "").join("\n");
+  if (!result.ok) throw new Error(text);
+  return text;
 }
 
 export function closeOracle() {

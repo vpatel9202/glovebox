@@ -102,15 +102,30 @@ try {
 }
 
 // No model calls: check that every task resets cleanly and starts unsolved,
-// and that every setup starts and lists its tools.
+// that a scripted solve (where the task has one) makes verify pass, and that
+// every setup starts and lists its tools. Twice, to catch leftover state.
 async function dryRun() {
-  for (const task of tasks) {
-    await task.setup();
-    const before = await task.verify();
-    await task.teardown();
-    console.log(`${before.ok ? "BAD " : "ok  "} ${task.id}: before the task, verify says ${before.ok ? "solved" : "unsolved"} (${before.detail})`);
+  let bad = 0;
+  for (const pass of [1, 2]) {
+    for (const task of tasks) {
+      await task.setup();
+      const before = await task.verify();
+      let after = null;
+      if (task.solve && !before.ok) {
+        await task.solve().catch((e) => console.log(`     solve failed: ${e.message.slice(0, 300)}`));
+        after = await task.verify();
+      }
+      await task.teardown();
+      const ok = !before.ok && (after == null || after.ok);
+      if (!ok) bad += 1;
+      console.log(
+        `${ok ? "ok  " : "BAD "} [${pass}] ${task.id}: unsolved at start (${before.ok ? "NO" : "yes"})` +
+          (after ? `, solved by script (${after.ok ? "yes" : "NO"}: ${after.detail})` : ""),
+      );
+    }
   }
   for (const name of setupNames) await smoke(name);
+  if (bad) console.log(`${bad} task check(s) failed.`);
 }
 
 async function smoke(name) {

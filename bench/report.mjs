@@ -19,11 +19,15 @@ const records = files
   .filter((r) => r.setup && !r.infra);
 if (!records.length) throw new Error("No results yet. Run node bench/run.mjs first.");
 
+// Only setups with results, so older result files report as they did.
 const SETUPS = [
   { id: "glovebox", label: "glovebox" },
   { id: "cu", label: "Anthropic computer use" },
   { id: "ocu", label: "open-computer-use" },
-];
+  { id: "codex-cu", label: "Codex computer use" },
+  { id: "agent-desktop", label: "agent-desktop" },
+  { id: "peekaboo", label: "Peekaboo" },
+].filter((s) => records.some((r) => r.setup === s.id));
 const tasks = TASKS.map((t) => t.id).filter((id) => records.some((r) => r.task === id));
 
 function median(values) {
