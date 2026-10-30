@@ -46,6 +46,8 @@ export const DEFAULTS = {
   foregroundApps: [],
   // Draw the agent cursor where actions land.
   cursor: true,
+  // Pause after each action so the app can update before the next one.
+  settleMs: 80,
   screenshot: { maxLongSide: 1568, maxPixels: 1_150_000, format: "png", quality: 80 },
   ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 },
   log: { enabled: true, text: false },

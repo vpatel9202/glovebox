@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
-import { App } from "../src/api.mjs";
+import { App, pickWindow } from "../src/api.mjs";
 import { diffTrees, formatTree } from "../src/axformat.mjs";
 import { toImage, toScreen, viewFor } from "../src/geometry.mjs";
 import { parseChord, parseKeys } from "../src/keys.mjs";
@@ -62,9 +62,29 @@ test("tree lines are compact and diffs are keyed by index", () => {
   assert.deepEqual(diffTrees(before, before), []);
 });
 
+test("an element that only moved deeper is not a change", () => {
+  const before = formatTree(nodes);
+  const after = formatTree([nodes[0], { i: 9, d: 1, role: "AXGroup" }, { ...nodes[1], d: 2 }, { ...nodes[2], d: 2 }]);
+  assert.deepEqual(diffTrees(before, after), ["+\t9 group"]);
+});
+
+test("tooltips and field editors never become the default window", () => {
+  const main = { index: 1, windowId: 10, frame: [0, 0, 900, 500], main: true, focused: false, title: "Docs" };
+  const tooltip = { index: 0, windowId: 11, frame: [100, 100, 362, 50], focused: true, title: "" };
+  const editor = { index: 0, frame: [100, 100, 55, 16], focused: true, title: "" };
+  const desktop = { index: 2, frame: [0, 0, 1710, 1112], title: "" };
+  assert.equal(pickWindow([tooltip, main, desktop]), main);
+  assert.equal(pickWindow([editor, main, desktop], { windowId: 10 }), main);
+  // A new normal window that takes focus (settings, a new document) wins.
+  const settings = { index: 0, windowId: 12, frame: [50, 50, 600, 400], focused: true, title: "Settings" };
+  assert.equal(pickWindow([settings, main], { windowId: 10 }), settings);
+  // ...unless the caller picked a window explicitly.
+  assert.equal(pickWindow([settings, main], { windowId: 10, explicit: true }), main);
+});
+
 // An App over a fake backend whose tree the test can change between reads.
 function fakeApp() {
-  const state = { value: "0" };
+  const state = { value: "0", title: "Calc" };
   const printed = [];
   const ctx = {
     config: { screenshot: { maxLongSide: 1568, maxPixels: 1_150_000 }, ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 } },
@@ -72,13 +92,13 @@ function fakeApp() {
     out: { text: (t) => printed.push(t) },
     backend: {
       async request(method) {
-        if (method === "windows") return [{ index: 0, frame: [0, 0, 200, 300], scale: 2, title: "Calc", focused: true }];
+        if (method === "windows") return [{ index: 0, windowId: 7, frame: [0, 0, 200, 300], scale: 2, title: state.title, focused: true }];
         if (method === "axTree") {
           return {
-            window: { title: "Calc" },
+            window: { title: state.title, windowId: 7 },
             nodes: [
-              { i: 0, d: 0, role: "AXWindow", title: "Calc" },
-              { i: 1, d: 1, role: "AXStaticText", desc: "Edit field", value: state.value },
+              { i: 0, d: 0, role: "AXWindow", title: state.title, frame: [0, 0, 200, 300] },
+              { i: 1, d: 1, role: "AXStaticText", desc: "Edit field", value: state.value, frame: [10, 10, 100, 20] },
             ],
           };
         }
@@ -98,6 +118,21 @@ test("a silent read does not move the diff baseline", async () => {
   assert.equal(printed.length, 2);
   assert.match(printed[1], /changes since last read/);
   assert.match(printed[1], /~\t1 text "Edit field" value="42"/);
+});
+
+test("a title change or a frames read does not reprint the tree", async () => {
+  const { app, state, printed } = fakeApp();
+  await app.getAXState();
+  state.title = "Calc — 42";
+  state.value = "42";
+  await app.getAXState();
+  assert.match(printed[1], /changes since last read/);
+  assert.equal(printed[1].split("\n").length, 3);
+  // The first frames read is printed in full; the plain read after it diffs.
+  await app.getAXState({ frames: true });
+  assert.match(printed[2], /@20,20 200x40/);
+  await app.getAXState();
+  assert.match(printed[3], /no change/);
 });
 
 test("image space round-trips to screen points", () => {

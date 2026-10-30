@@ -107,7 +107,8 @@ for every setup. Measured 2026-10-28 on one Mac; method and raw results are in
 
 glovebox's three failures were Finder renames where `setValue` changed the
 name Finder displayed but not the file. That and the other bugs the run found
-are on the [roadmap](docs/roadmap.md#found-by-the-benchmark).
+are fixed in the next release ([changelog](CHANGELOG.md)); the numbers above
+are from before the fixes.
 
 ## Status
 
@@ -175,8 +176,7 @@ Anthropic, or other vendor binaries.
 
 ## Development
 
-`npm test` runs the unit tests anywhere (on Node 22+, use
-`node --test test/unit.test.mjs` until the script is fixed); `glovebox smoke` and
+`npm test` runs the unit tests anywhere; `glovebox smoke` and
 `glovebox smoke --full` drive real apps on macOS. Setup from a clone and PR
 rules: [CONTRIBUTING.md](CONTRIBUTING.md).
 

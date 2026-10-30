@@ -40,8 +40,10 @@ await calc.getAXState();
   (`+`), or a list of removed indices. `disableDiffing: true` prints the full
   tree. `frames: true` appends `@x,y wxh` in image pixels. `menus: true` adds
   the menu bar. `window` picks a window index from `app.windows()`.
-  Diffs compare against the last read that printed; `{emit: false}` reads
-  don't change that.
+  Without `window`, reads and clicks use the focused window if it is a normal
+  one, else the window last used, else the main window; tooltips, popovers,
+  and rename fields never take over. Diffs compare against the last printed
+  read of the same window; `{emit: false}` reads don't change that.
   `maxNodes` (default 800) and `maxDepth` (default 40) bound the tree; a
   truncated tree says so.
 - Line format: `<index> <role> "<label>" value="..." id=... help="..."
@@ -55,6 +57,14 @@ await calc.getAXState();
 - `app.frame(index)` and `app.center(index)` give an element's rectangle or
   center in image pixels.
 - Every read emits by default. Pass `{emit: false}` to only return the value.
+- `app.waitForChange({timeout, window})` waits silently until the window
+  differs from the last printed read (pixels after a screenshot, the tree
+  after a tree read), then settles. Returns `{changed, ms}`; `changed: false`
+  at the timeout (default 10000 ms). Use it after an action in an app that
+  updates late. A blinking caret counts as a change in pixel mode.
+- `app.settle({timeout, stableFor, window})` waits until two screenshots in a
+  row match (ignoring a blinking caret) and returns `{stable, ms}`. Nothing is
+  printed; read afterwards.
 
 ## Coordinates
 
@@ -82,7 +92,9 @@ windows).
 - `app.click(target, {button, count, modifiers, raw, foreground})`. A plain
   left click on a button, checkbox, link, or menu item is pressed through
   accessibility. Anything else is a mouse click sent to the app's window.
-  `raw: true` always uses the mouse. `modifiers` is a list such as `["shift"]`.
+  `raw: true` uses the mouse, except on an open menu's items in the
+  background, which only accessibility reaches. A click on a menu item waits
+  for the menu to close. `modifiers` is a list such as `["shift"]`.
 - `app.doubleClick(target)`, `app.rightClick(target)`.
 - `app.pressKey(keys, {repeat})`. xdotool syntax: `Return`, `Tab`, `Escape`,
   `BackSpace`, `Delete`, `Up`, `Page_Down`, `F5`, `ctrl+a`, `shift+Tab`,
@@ -93,7 +105,10 @@ windows).
 - `app.scroll(target, dy = 3, {dx})` or `app.scroll(target, {dy, dx})`.
   Positive `dy` scrolls down, in lines.
 - `app.drag(from, to)` or `app.drag([[x, y], [x, y], ...])`.
-- `app.setValue(index, value)` sets a field's value directly.
+- `app.setValue(index, value)` sets a field's value directly. Finder file
+  names refuse it (Finder would relabel without renaming); rename with a
+  click on the item, `pressKey("Return")`, `typeText(name)`,
+  `pressKey("Return")`, which works in the background.
 - `app.focus(index)` gives an element keyboard focus.
 - `app.selectText(index, {start, length})` selects text in a field.
 - `app.listActions(index)` and `app.performSecondaryAction(index, name)`

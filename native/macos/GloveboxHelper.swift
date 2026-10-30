@@ -498,6 +498,12 @@ func setValue(_ params: [String: Any]) throws -> [String: Any] {
     let pid = try params.requireInt("pid")
     let element = try table(pid).element(try params.requireInt("index"))
     let attribute = params.string("attribute") ?? kAXValueAttribute
+    // Finder takes a new value on a file-name field but only relabels the row:
+    // the file keeps its old name. Only the rename editor (focused) commits.
+    if attribute == kAXValueAttribute, NSRunningApplication(processIdentifier: pid_t(pid))?.bundleIdentifier == "com.apple.finder",
+       (axAttr(element, kAXRoleAttribute) as String?) == kAXTextFieldRole, (axAttr(element, kAXFocusedAttribute) as Bool?) != true {
+        throw HelperError("Finder would show the new name without renaming the file. Rename instead: click the item, pressKey(\"Return\"), typeText(newName), pressKey(\"Return\").", code: "label_only")
+    }
     var value: CFTypeRef
     if let s = params["value"] as? String { value = s as CFString }
     else if let b = params["value"] as? Bool { value = (b ? kCFBooleanTrue : kCFBooleanFalse)! }
@@ -733,6 +739,12 @@ func scroll(_ params: [String: Any]) throws -> [String: Any] {
         let sx: Int32 = i < abs(dx) ? (dx > 0 ? 1 : -1) : 0
         let e = CGEvent(scrollWheelEvent2Source: eventSource, units: .line, wheelCount: 2, wheel1: sy, wheel2: sx, wheel3: 0)
         e?.location = point
+        // Some clients (Citrix Viewer) read only the point and fixed-point
+        // deltas, which the line-based constructor leaves at 0 for axis 2.
+        if sx != 0 {
+            e?.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: Int64(sx) * 10)
+            e?.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: Double(sx))
+        }
         if let route = backgroundRoute, let event = e {
             event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
             route.postScroll(event)
@@ -976,6 +988,22 @@ func makeWindowKey(pid: pid_t, windowId: UInt32, settle: UInt32 = 120_000) -> Bo
 
 enum InputKind { case keys, mouse }
 
+// True when keyboard focus is in a small uncapturable window inside
+// `windowId`, such as Finder's rename field editor. Keys already go there, and
+// making the parent key again would end the edit. A background app reports no
+// focused window, so look for a focused child instead.
+func focusIsInside(pid: pid_t, windowId: UInt32) -> Bool {
+    guard let bounds = cgWindowBounds(windowId)?.insetBy(dx: -2, dy: -2) else { return false }
+    for w in axWindows(Int(pid)) {
+        guard let frame = axFrame(w), frame.height < 120, bounds.contains(frame),
+              cgWindowID(pid: Int(pid), frame: frame) == nil else { continue }
+        // Finder's editor "window" is the focused text field itself.
+        let children: [AXUIElement] = axAttr(w, kAXChildrenAttribute) ?? []
+        if ([w] + children).contains(where: { (axAttr($0, kAXFocusedAttribute) as Bool?) == true }) { return true }
+    }
+    return false
+}
+
 // Runs `body` with input routed to the background app named in params, and
 // restores the user's frontmost app if the target took focus anyway.
 func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throws -> [String: Any]) throws -> [String: Any] {
@@ -989,7 +1017,7 @@ func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throw
     let front = NSWorkspace.shared.frontmostApplication
     var keyed = true
     if kind == .keys {
-        keyed = makeWindowKey(pid: pid, windowId: windowId)
+        keyed = focusIsInside(pid: pid, windowId: windowId) || makeWindowKey(pid: pid, windowId: windowId)
         if !keyed {
             throw HelperError("Could not make the window key in the background; use foreground mode for this app.", code: "background_unconfirmed")
         }
@@ -1177,7 +1205,8 @@ func userPressedEscape() {
     emit(["event": "escape"])
 }
 
-// A global key monitor needs only Accessibility.
+// A global key monitor. macOS delivers key events to it only with Input
+// Monitoring granted; Accessibility alone installs it but it stays silent.
 func startEscapeMonitor() {
     guard keyMonitor == nil, AXIsProcessTrusted() else { return }
     let install = {

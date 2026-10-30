@@ -15,12 +15,12 @@
   "bin": {
     "glovebox": "bin/glovebox.mjs"
   },
-  "files": ["bin", "src", "native", "skills", "docs", "README.md", "LICENSE"],
+  "files": ["bin", "src", "native", "skills", "docs", "README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md"],
   "engines": {
     "node": ">=20.10"
   },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/unit.test.mjs",
     "build:helper": "node bin/glovebox.mjs setup --rebuild",
     "smoke": "node bin/glovebox.mjs smoke"
   },

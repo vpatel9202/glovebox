@@ -3,62 +3,16 @@
 What works today is macOS (14+, tested on 27). Everything below is planned,
 not shipped. Nothing here has been tested unless it says so.
 
-## Diff fixes
+## Found by the benchmark and the field run
 
-These cost tokens, not correctness, and can follow the benchmark so it shows
-a before and after. (The silent-read baseline bug that had to come first is
-fixed; see the changelog.)
+The diff fixes and the bugs found by the 2026-10-28 baseline
+([bench/results](../bench/results/summary.md)) and the 2026-10-29 Citrix field
+run ([summary](../bench/results/field/2026-10-29-citrix/summary.md)) are
+fixed; see the [changelog](../CHANGELOG.md). One is not yet confirmed:
 
-1. **Diff key includes the window title and list position.** A title change
-   (a document name, an unread count) reprints the full tree. Key the
-   baseline by the window's element index, with one baseline per key.
-2. **Depth-only changes show as `~`.** `diffTrees` in `src/axformat.mjs`
-   compares whole lines including indentation, so wrapping content in a new
-   container reprints every node below it. Compare lines without
-   indentation.
-3. **Non-string return values print twice.** A read whose value is already
-   printed prints again as the cell result, because the dedupe in `runCell`
-   in `src/kernel.mjs` only handles strings. `console.log(await
-   app.getAXState())` also prints the tree twice: the read emits it, then the
-   log prints it again.
-4. **`frames` and `menus` are part of the diff key.** A `{frames: true}` read
-   followed by a plain read reprints the whole tree. The benchmark counted 16
-   full reprints of an already-printed window across 35 glovebox runs; how
-   many come from this and how many from item 1 is not yet split out.
-
-## Found by the benchmark
-
-The 2026-10-28 baseline ([bench/results](../bench/results/summary.md))
-surfaced these. Fix them after the diff fixes, then rerun the benchmark.
-
-1. **Background pixel clicks don't reach an open pop-up menu.** A click on a
-   menu item does nothing in the background; the foreground route and
-   accessibility presses work.
-2. **Menu picks aren't settled before the next action.** Picking a pop-up
-   item and clicking Submit in one call can submit the old value.
-3. **Finder's rename field becomes "the window".** While an inline rename is
-   active, window selection picks the 138x33 field editor, and screenshots
-   fail with "Cannot find a capturable window id".
-4. **`setValue` on a Finder name cell changes only the label.** The tree then
-   shows the new name though the file was never renamed, which cost glovebox
-   3 of 5 Finder runs. Warn in the result, or point agents at the rename
-   flow (Return, type, Return).
-5. **Background keys don't start a Finder rename.** Return on a selected file
-   works only on the foreground route.
-
-The 2026-10-29 Citrix field run
-([summary](../bench/results/field/2026-10-29-citrix/summary.md))
-added these. All 94 of its actions used the background route.
-
-6. **A tooltip window becomes the default read target.** While a remote
-   client's small, untitled tooltip window exists, it is the focused window,
-   so screenshots and `windows()[0]` read it and the main window's index
-   shifts. This is the same class as #3. (gb-1iz.11)
-7. **Horizontal background scroll is ignored in Citrix.** `dx` does nothing,
-   while `dy` and scrollbar clicks work. (gb-1iz.12)
-8. **No built-in settle.** Remote UIs repaint 1–30 s after input. A
-   hand-written frame-hash loop took 45% of tool time. Add
-   `app.settle()` or `app.waitForChange()`. (gb-1iz.13)
+1. **Horizontal background scroll in Citrix.** Scroll events now set the
+   point and fixed-point deltas for the horizontal axis, but this has not been
+   tried in Citrix Viewer. (gb-1iz.12)
 
 ## Credibility and distribution
 
@@ -95,20 +49,13 @@ Ordered by expected impact. These come before new platforms.
    Gemini CLI, and Cursor configs end to end, with a short clip for each.
    Done when `docs/agents.md` and the README's "Works with" line list each
    client as verified or say what failed.
-5. **CI.** After the `test` script fix in item 7, GitHub Actions running
+5. **CI.** GitHub Actions running
    `npm test` on ubuntu and macos runners.
    Done when it runs on every push and PR, and a CI badge is in the README.
 6. **Listings.** The official MCP registry, the Claude Code plugin
    marketplace, and skills.sh (for `skills/glovebox/SKILL.md`). Done when each
    listing is live and links back to the repo.
-7. **Packaging and docs fixes found in review.** `files` in `package.json`
-   omits `SECURITY.md` and `CHANGELOG.md`; `settleMs` is read in
-   `src/kernel.mjs` but missing from `DEFAULTS` in `src/config.mjs`; a comment
-   in `native/macos/GloveboxHelper.swift` says the Escape monitor needs only
-   Accessibility, but it needs Input Monitoring; the `test` script
-   (`node --test test/`) fails on Node 22 because a bare directory is no
-   longer accepted (`node --test test/unit.test.mjs` passes, 7 of 7). Done
-   when all four are fixed.
+7. **Packaging and docs fixes found in review.** Done; see the changelog.
 
 After these, Windows is the highest-priority platform: cross-platform support
 is what lcu, agent-desktop, open-computer-use, and cua have over glovebox, and
@@ -126,10 +73,8 @@ benchmark. Effort: S is small, M is medium.
    one instruction line in the tool description and `skills/glovebox/SKILL.md`.
    `app.text` also gives the full value of a field, which a read truncates at
    160 characters. Saves 1-2 round trips on text and web tasks. S.
-2. **A read that waits for change.** `getAXState({waitForChange: ms})` polls
-   silently until the tree changes, instead of relying on the fixed 80 ms
-   settle after an action. Saves 0.5-1.5 round trips on sheets and async UIs.
-   S-M.
+2. **A read that waits for change.** Done: `app.waitForChange()` and
+   `app.settle()`.
 3. **Checks inside the script.** An `expect` helper lets one call chain
    several steps, stop at the first failed check, and print state on failure
    or error. Per-action tools cannot do this. Saves 0.5-1 round trip per task

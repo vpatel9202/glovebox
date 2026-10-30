@@ -123,10 +123,11 @@ export function formatTree(nodes, options = {}) {
 }
 
 // Diffs two formatted trees keyed by element index. Lines are compared
-// whole, so a change to any attribute (or depth) shows as "~".
+// without indentation, so a change to any attribute shows as "~" but an
+// element that only moved deeper (wrapped in a new container) does not.
 export function diffTrees(previous, next) {
   const key = (line) => line.trimStart().split(" ", 1)[0];
-  const before = new Map(previous.map((line) => [key(line), line]));
+  const before = new Map(previous.map((line) => [key(line), line.trimStart()]));
   const nextKeys = new Set();
   const out = [];
   for (const line of next) {
@@ -134,7 +135,7 @@ export function diffTrees(previous, next) {
     nextKeys.add(k);
     const old = before.get(k);
     if (old === undefined) out.push(`+${line}`);
-    else if (old !== line) out.push(`~${line}`);
+    else if (old !== line.trimStart()) out.push(`~${line}`);
   }
   const removed = [...before.keys()].filter((k) => !nextKeys.has(k)).map(Number).sort((a, b) => a - b);
   if (removed.length) out.push(`- removed: ${ranges(removed)}`);

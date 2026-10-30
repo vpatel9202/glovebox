@@ -99,7 +99,7 @@ merged key by key; arrays and scalars replace the default.
 | `log.text` | `false` | Log typed text instead of only its length. |
 | `daemon.idleMinutes` | `60` | The CLI daemon exits after this long without requests. `0` never exits. |
 | `timeoutMs` | `120000` | Default script time limit for `js` and `run`. |
-| `settleMs` | `80` | Pause after each action, in milliseconds. Not in the defaults, so not shown by `glovebox config`. |
+| `settleMs` | `80` | Pause after each action, in milliseconds. |
 
 `screenshot.maxLongSide` and `maxPixels` set the image scale; see "Coordinates
 and images" in `design.md`. Check order for each app: `deny`, `allow`, the

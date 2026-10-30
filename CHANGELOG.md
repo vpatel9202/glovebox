@@ -5,6 +5,21 @@
 - Fix: a read with `{emit: false}` no longer becomes the diff baseline, so
   the next printed read shows every change since the last printed one.
   Before, changes made before a silent read never appeared in a diff.
+- `app.waitForChange()` and `app.settle()`: wait silently for a late update
+  instead of polling from the script.
+- Fix: the default window ignores tooltips, popovers, and Finder's rename
+  field, so reads and screenshots no longer land on a 50-pixel window.
+- Fix: diffs survive a window title change, a `{frames: true}` read, and
+  elements that only moved deeper, instead of reprinting the whole tree.
+- Fix: a read that is also returned or passed to `console.log` prints once.
+- Fix: a raw click on an open menu's item works in the background, and any
+  click on a menu item waits for the menu to close before the next action.
+- Fix: keys reach Finder's rename field in the background, and `setValue` on a
+  Finder file name fails with the rename steps instead of only relabeling.
+- Fix: horizontal background scroll sets the point and fixed-point deltas
+  some apps read.
+- `settleMs` is in the documented defaults; `npm test` works on Node 22;
+  the npm package includes `SECURITY.md` and `CHANGELOG.md`.
 
 ## 0.2.0 (2026-10-27)
 

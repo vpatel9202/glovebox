@@ -34,6 +34,9 @@ class StoppedError extends Error {
 
 let config = loadConfig();
 let content = [];
+// Text the API already printed this cell (reads, help). Returning or logging
+// the same value again must not print it twice.
+let printed = new Set();
 let running = false;
 let abortReason = null;
 let cellTitle = null;
@@ -47,11 +50,25 @@ function pushText(text) {
 }
 
 function show(value) {
-  return typeof value === "string" ? value : util.inspect(value, { depth: 4, maxArrayLength: 50, maxStringLength: 4000, breakLength: 120 });
+  return typeof value === "string" ? value : util.inspect(withoutPrinted(value), { depth: 4, maxArrayLength: 50, maxStringLength: 4000, breakLength: 120 });
+}
+
+// A copy of `value` with already-printed strings replaced by a marker, e.g.
+// the `text` of getAXStateAndScreenshot().
+function withoutPrinted(value, depth = 0) {
+  if (typeof value === "string") return printed.has(value) ? "[printed above]" : value;
+  if (depth > 4 || value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((v) => withoutPrinted(v, depth + 1));
+  if (Object.getPrototypeOf(value) !== Object.prototype) return value;
+  return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withoutPrinted(v, depth + 1)]));
 }
 
 const out = {
-  text: (value) => pushText(show(value)),
+  text(value) {
+    const text = show(value);
+    pushText(text);
+    if (running) printed.add(text);
+  },
   async image(data, mimeType, label) {
     if (!running) return;
     if (imageMode === "file") {
@@ -116,7 +133,10 @@ const ctx = {
 function makeContext() {
   const gb = createApi(ctx);
   const consoleProxy = Object.fromEntries(
-    ["log", "info", "warn", "error", "debug"].map((name) => [name, (...args) => pushText(args.map(show).join(" "))]),
+    ["log", "info", "warn", "error", "debug"].map((name) => [
+      name,
+      (...args) => pushText(args.filter((a) => !(typeof a === "string" && printed.has(a))).map(show).join(" ")),
+    ]),
   );
   const sandbox = {
     gb,
@@ -145,6 +165,7 @@ let context = makeContext();
 
 async function runCell(message) {
   content = [];
+  printed = new Set();
   cellNumber += 1;
   running = true;
   abortReason = null;
@@ -153,11 +174,8 @@ async function runCell(message) {
   try {
     const code = transformCell(String(message.code ?? ""));
     const result = await vm.runInContext(code, context, { filename: "cell.js", timeout: 30_000 });
-    if (result !== undefined && typeof result !== "function") {
-      const text = show(result);
-      // Reads already emitted their text; don't print it twice.
-      const already = content.some((c) => c.type === "text" && c.text.endsWith(text));
-      if (!already) pushText(text);
+    if (result !== undefined && typeof result !== "function" && !(typeof result === "string" && printed.has(result))) {
+      pushText(show(result));
     }
     send({ id: message.id, ok: true, content });
   } catch (error) {
