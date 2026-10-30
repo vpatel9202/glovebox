@@ -158,6 +158,12 @@ Spend and restarts:
   `infra: true`, retried once, and left out of the report. Three in a row
   for one setup, or three runs where every tool call errored, stop the file.
 - Ctrl-C restores your settings; resume picks up where it stopped.
+- `node bench/usage.mjs` checks the records against Anthropic's own usage
+  data. It needs an Admin API key in `bench/.env` as `ANTHROPIC_ADMIN_KEY`.
+  It prints the org's month-to-date billing and each key's usage, then the
+  bench key's tokens beside the harness's. `--watch 10 --file <run.jsonl>
+  --pid <pid>` repeats the check every 10 minutes during a run and sends the
+  run Ctrl-C if the API side gets well ahead of the records.
 
 ## What each record holds
 
