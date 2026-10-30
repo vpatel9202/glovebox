@@ -23,16 +23,26 @@ Choices that affect the comparison:
   own `instructions` when it sends them. All other guidance comes from each
   setup's tool descriptions.
 - **Screenshot-first sees one window.** The `cu` screenshot is the target
-  app's focused window at glovebox's capture size (1568 px long side), not the
+  app's focused window (glovebox's default window, which skips tooltips and
+  field editors) at glovebox's capture size (1568 px long side), not the
   whole display. On macOS 27 that capture includes the app's open menus. It is
   cheaper than a full-display screenshot, so it favors `cu`. Members the
   executor can't run (`zoom`, `left_mouse_down`, `left_mouse_up`, `hold_key`,
   `middle_click`) are withheld through `configs`.
-- **Why foreground input for `cu`.** glovebox's background pixel clicks don't
-  reach an open pop-up menu (a known glovebox gap; its accessibility route
-  works). Charging that to the screenshot-first baseline would be unfair.
+- **Why foreground input for `cu`.** Anthropic's reference environment drives
+  a real display, so `cu` clicks go to the front app. In the 2026-10-28
+  baseline, glovebox's background pixel clicks also missed open pop-up menus;
+  that is fixed since, but `cu` stays on the foreground route.
 - **No refusal fallback.** A fallback model would mix two models in one
   measurement, so a refusal counts as a failed run.
+- **Same result limits for every setup.** Tool text over 100,000 characters
+  is truncated and images are scaled to a 1568 px long side
+  (`LIMITS` in `lib/setups.mjs`), so no tool can send more than another.
+- **Side doors fail the run.** A run whose tool inputs contain `require(`,
+  `import(`, `fs.`, `child_process`, `exec(`, `spawn(`, `osascript`, or
+  `defaults write` counts as failed, with the pattern in `detail`
+  (`sideDoors`). A tool that is a full Node REPL could otherwise rename the
+  file or write the setting without touching the UI.
 - **Verification never uses the tool under test.** Each task checks files,
   `defaults`, or the fixture app's output file. Calculator's display is read
   by a separate glovebox session that the model never sees.
@@ -89,9 +99,29 @@ node bench/run.mjs --n 1 --budget 10
 ```
 
 Options: `--setups glovebox,cu,ocu`, `--tasks calculator,form`, `--n 5`,
-`--model claude-sonnet-5-5`, `--effort medium`, `--max-turns 40`. Leave the
-Mac alone while it runs: apps open on screen, and glovebox stops a script if
-you switch into the app it is driving.
+`--model claude-sonnet-5-5`, `--effort medium`, `--max-turns` (40, or 25 for
+Haiku), `--label v2` (a second file on the same day). Leave the Mac alone
+while it runs: apps open on screen, and glovebox stops a script if you switch
+into the app it is driving.
+
+Spend and restarts:
+
+- `--budget` caps the whole output file, including runs already in it. A run
+  is skipped, and the file stops, when the remaining budget is under three
+  times that task and setup's most expensive runs so far (p90).
+- `--run-cap` caps one run (default $0.75 on Sonnet, scaled by input price).
+  It is checked before each request, so a looping run ends as
+  `stopReason: "run-cap"` before it crosses the cap.
+- `--stop-after-rep 1` stops after the first pass so you can look at it;
+  `--resume <file>` continues a file, skipping every run already recorded.
+  The file's first line records the git SHA and tool versions, and resume
+  refuses a different SHA. Paid runs need a clean checkout (`--allow-dirty`
+  for throwaway runs).
+- Infrastructure failures (a task or tool server that fails to start, an API
+  error past 8 retries, a verify that throws) are recorded with
+  `infra: true`, retried once, and left out of the report. Three in a row
+  for one setup, or three runs where every tool call errored, stop the file.
+- Ctrl-C restores your settings; resume picks up where it stopped.
 
 ## What each record holds
 
@@ -105,6 +135,11 @@ you switch into the app it is driving.
 - `screenshotsOnTextTask`: images returned on tasks the tree can solve
 - `resultChars`: text returned by tools
 - `wallMs`, `modelMs`, `toolMs`
+- `contextPerCall`: median and p90 growth of the prompt per request
+- `sideDoors`, `longPromptTurns` (Haiku requests over 100K prompt tokens,
+  billed at the higher rate), `smallWindowReads` (glovebox reads that landed
+  on a tooltip-sized window)
+- `infra`: true for runs that say nothing about the tool
 - `reads` (glovebox only): `fullReads`, `diffReads`, `noChangeReads`,
   `reprints` (a full tree printed again for a window already printed), and
   `noChangeThenRead` (a "no change" result followed by another read before

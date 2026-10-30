@@ -108,7 +108,9 @@ for every setup. Measured 2026-10-28 on one Mac; method and raw results are in
 glovebox's three failures were Finder renames where `setValue` changed the
 name Finder displayed but not the file. That and the other bugs the run found
 are fixed in the next release ([changelog](CHANGELOG.md)); the numbers above
-are from before the fixes.
+are from before the fixes. Rerun alone after them, glovebox passed 35/35 in 158
+round trips, down from 193
+([details](bench/results/after-fixes/summary.md)).
 
 ## Status
 

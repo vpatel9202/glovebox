@@ -41,6 +41,32 @@ function gloveboxReads(turns) {
   return counts;
 }
 
+// Tool inputs that reach around the UI: a Node REPL tool (Codex's cua_repl)
+// could rename the file or write the setting directly. A run that does this
+// is counted as failed, and the patterns are listed in bench/README.md.
+const SIDE_DOORS = [/\brequire\s*\(/, /\bimport\s*\(/, /\bfs\.\w+/, /child_process/, /\bexecSync\b|\bexec(File)?\s*\(/, /\bspawn\s*\(/, /\bosascript\b/, /\bdefaults\s+write\b/];
+
+export function sideDoors(turns) {
+  const hits = new Set();
+  for (const call of turns.flatMap((t) => t.calls)) {
+    const text = JSON.stringify(call.input ?? {});
+    for (const re of SIDE_DOORS) if (re.test(text)) hits.add(re.source);
+  }
+  return [...hits];
+}
+
+export function quantile(values, q) {
+  const v = values.filter((x) => x != null).sort((a, b) => a - b);
+  if (!v.length) return null;
+  return v[Math.min(v.length - 1, Math.floor(q * v.length))];
+}
+
+// Prompt growth from one request to the next: what each tool call added.
+function contextDeltas(turns) {
+  const prompt = (t) => t.input + t.cacheWrite + t.cacheRead;
+  return turns.slice(1).map((t, i) => prompt(t) - prompt(turns[i]));
+}
+
 export function summarize(setupName, task, agent) {
   const images = agent.turns.flatMap((t) => t.images ?? []);
   const summary = {
@@ -55,6 +81,11 @@ export function summarize(setupName, task, agent) {
     screenshotsOnTextTask: task.kind === "text" ? images.length : null,
     modelMs: agent.turns.reduce((n, t) => n + t.modelMs, 0),
     toolMs: agent.turns.reduce((n, t) => n + (t.toolMs ?? 0), 0),
+    contextPerCall: { median: quantile(contextDeltas(agent.turns), 0.5), p90: quantile(contextDeltas(agent.turns), 0.9) },
+    longPromptTurns: agent.turns.filter((t) => t.longPrompt).length,
+    sideDoors: sideDoors(agent.turns),
+    // glovebox says so in a read's header when it lands on a tooltip-sized window.
+    smallWindowReads: agent.turns.flatMap((t) => t.calls).filter((c) => /a small or uncapturable window/.test(c.text)).length,
   };
   if (setupName === "glovebox") summary.reads = gloveboxReads(agent.turns);
   return summary;

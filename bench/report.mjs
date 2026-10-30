@@ -12,7 +12,11 @@ const rawDir = path.join(benchDir, "results", "raw");
 const files = process.argv.slice(2).length
   ? process.argv.slice(2)
   : fs.readdirSync(rawDir).filter((f) => f.endsWith(".jsonl")).map((f) => path.join(rawDir, f));
-const records = files.flatMap((f) => fs.readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)));
+// Header records and infrastructure failures (setup crashes, API errors past
+// the retries) are not runs of the task.
+const records = files
+  .flatMap((f) => fs.readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)))
+  .filter((r) => r.setup && !r.infra);
 if (!records.length) throw new Error("No results yet. Run node bench/run.mjs first.");
 
 const SETUPS = [

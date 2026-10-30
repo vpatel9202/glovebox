@@ -5,14 +5,25 @@
 // would attach them. The screenshot-first setup is Anthropic's computer use
 // toolset, executed through a glovebox session so input reliability is the
 // same and only the tool shape differs.
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { Session } from "../../src/session.mjs";
+import { imageSize } from "./agent.mjs";
 import { benchDir, repoDir } from "./env.mjs";
 
+// The same limits for every setup's tool results, so no tool can send the
+// model something another tool could not. Listed in bench/README.md.
+export const LIMITS = { textChars: 100_000, imageLongSide: 1568 };
+
 class McpClient {
-  constructor(command, args) {
-    this.child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"] });
+  // `onRequest(method, params)` answers requests the server sends the client
+  // (elicitation); without it they get an error.
+  constructor(command, args, { onRequest, env } = {}) {
+    // Its own process group, so close() also ends the server's children.
+    this.child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"], detached: true, env: env ? { ...process.env, ...env } : process.env });
+    this.onRequest = onRequest;
     this.pending = new Map();
     this.nextId = 1;
     this.stderr = "";
@@ -29,6 +40,10 @@ class McpClient {
         try {
           message = JSON.parse(line);
         } catch {
+          continue;
+        }
+        if (message.method && message.id != null) {
+          this.#answer(message);
           continue;
         }
         const waiter = this.pending.get(message.id);
@@ -62,14 +77,25 @@ class McpClient {
     });
   }
 
+  async #answer({ id, method, params }) {
+    let reply;
+    try {
+      if (!this.onRequest) throw new Error(`${method} is not supported`);
+      reply = { result: await this.onRequest(method, params ?? {}) };
+    } catch (error) {
+      reply = { error: { code: -32601, message: String(error.message) } };
+    }
+    this.child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, ...reply })}\n`);
+  }
+
   notify(method, params = {}) {
     this.child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", method, params })}\n`);
   }
 
-  async start() {
+  async start(capabilities = {}) {
     const init = await this.request("initialize", {
       protocolVersion: "2025-06-18",
-      capabilities: {},
+      capabilities,
       clientInfo: { name: "glovebox-bench", version: "1" },
     });
     this.notify("notifications/initialized");
@@ -79,22 +105,49 @@ class McpClient {
 
   close() {
     this.child.stdin.end();
-    this.child.kill("SIGTERM");
+    try {
+      process.kill(-this.child.pid, "SIGTERM");
+    } catch {
+      this.child.kill("SIGTERM");
+    }
   }
 }
 
-function mcpContentToApi(content = []) {
+// Scales an image down to the shared long-side limit with sips.
+function fitImage(data, mimeType) {
+  const size = imageSize(data);
+  if (!size || Math.max(size.width, size.height) <= LIMITS.imageLongSide) return { data, mimeType };
+  const file = path.join(os.tmpdir(), `glovebox-bench-${process.pid}-${Date.now()}.${mimeType === "image/jpeg" ? "jpg" : "png"}`);
+  fs.writeFileSync(file, Buffer.from(data, "base64"));
+  try {
+    execFileSync("sips", ["-Z", String(LIMITS.imageLongSide), file], { stdio: "ignore" });
+    return { data: fs.readFileSync(file).toString("base64"), mimeType };
+  } finally {
+    fs.rmSync(file, { force: true });
+  }
+}
+
+export function mcpContentToApi(content = []) {
   const blocks = [];
+  let chars = 0;
   for (const c of content) {
-    if (c.type === "text" && c.text) blocks.push({ type: "text", text: c.text });
-    else if (c.type === "image") blocks.push({ type: "image", source: { type: "base64", media_type: c.mimeType, data: c.data } });
+    if (c.type === "text" && c.text) {
+      const room = LIMITS.textChars - chars;
+      if (room <= 0) continue;
+      const text = c.text.length > room ? `${c.text.slice(0, room)}\n(truncated by the benchmark at ${LIMITS.textChars} characters)` : c.text;
+      chars += text.length;
+      blocks.push({ type: "text", text });
+    } else if (c.type === "image") {
+      const image = fitImage(c.data, c.mimeType);
+      blocks.push({ type: "image", source: { type: "base64", media_type: image.mimeType, data: image.data } });
+    }
   }
   return blocks.length ? blocks : [{ type: "text", text: "(no output)" }];
 }
 
-async function mcpSetup(name, command, args) {
-  const client = new McpClient(command, args);
-  const { instructions, tools } = await client.start();
+async function mcpSetup(name, command, args, { env, onRequest, capabilities, onTurnEnd } = {}) {
+  const client = new McpClient(command, args, { onRequest, env });
+  const { instructions, tools } = await client.start(capabilities);
   return {
     name,
     instructions,
@@ -111,6 +164,7 @@ async function mcpSetup(name, command, args) {
       }
       return results;
     },
+    onTurnEnd: onTurnEnd && (() => onTurnEnd(client)),
     close: () => client.close(),
   };
 }
@@ -135,13 +189,12 @@ async function computerUseSetup(task) {
   // pop-up menu, and that limit belongs to glovebox, not to this baseline.
   await js(`const __cu = await gb.getApp(${JSON.stringify(task.app)}, { foreground: true });`);
 
-  // The screenshot follows the app's focused window, so settings windows and
-  // dialogs are visible, and clicks land in that same window. On macOS 27 a
-  // window capture includes the app's open menus.
+  // The screenshot uses glovebox's default window (the focused one, unless it
+  // is a tooltip or field editor), so settings windows and dialogs are
+  // visible, and clicks land in that same window. On macOS 27 a window capture
+  // includes the app's open menus.
   async function screenshot() {
-    const content = await js(`const __ws = await __cu.windows();
-const __w = __ws.find((w) => w.focused) ?? __ws.find((w) => w.main) ?? __ws[0];
-await __cu.getScreenshot({ window: __w.index, format: "jpeg", quality: 80 }); undefined;`);
+    const content = await js(`await __cu.getScreenshot({ format: "jpeg", quality: 80 }); undefined;`);
     const image = content.find((c) => c.type === "image");
     if (!image) throw new Error("no screenshot returned");
     return image.data;
