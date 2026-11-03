@@ -78,7 +78,7 @@ As of 2026-10. "—" means not documented. Longer comparison and reasoning:
 | Codex computer use | many (one script) | yes | accessibility text | yes | yes (Codex app + Computer Use plugin) |
 | [lcu](https://github.com/amontlabs/lcu) | — | — | — | — | yes (runs Codex's runtime from the ChatGPT app) |
 | [open-computer-use](https://github.com/iFurySt/open-computer-use) | one per tool call | — | app state | — | no |
-| [agent-desktop](https://github.com/lahfir/agent-desktop) | one per command (plus a batch command) | refs tied to a snapshot | accessibility tree JSON | no | no |
+| [agent-desktop](https://github.com/vercel-labs/agent-desktop) | one per command (plus a batch command) | refs tied to a snapshot | accessibility tree JSON | no | no |
 | [Peekaboo](https://github.com/openclaw/Peekaboo) | one per command | — | screenshot or JSON UI map | — | no |
 | Anthropic computer use | several per response, run in order | no | screenshot | no | no (you supply the environment) |
 

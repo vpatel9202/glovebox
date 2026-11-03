@@ -12,9 +12,9 @@ This folder is not part of the published package.
 |---|---|---|
 | `glovebox` | The `js` and `js_reset` tools from `glovebox mcp` | Exactly what an MCP client sees. |
 | `cu` | Anthropic's computer use toolset (`computer_toolset_20260801`) | Screenshot-first. Actions run through a glovebox session on its foreground route (window screenshots, raw pixel clicks, keys to the frontmost app), like Anthropic's reference environment, which drives a real display. |
-| `ocu` | The 10 tools from [open-computer-use](https://github.com/iFurySt/open-computer-use) 1.1.2 (`ocu mcp`) | One action per call over the accessibility tree. |
+| `ocu` | The 11 tools from [open-computer-use](https://github.com/iFurySt/open-computer-use) 1.1.3 (`ocu mcp`) | One action per call over the accessibility tree. |
 | `codex-cu` | Codex computer use: the `js` and `js_reset` tools of the `cua_repl` MCP server bundled in the ChatGPT app, started with the command and environment from its Codex plugin config | No Codex and no OpenAI model; the same Claude loop as every other setup. App approvals arrive as MCP elicitations; the harness approves only the bench apps, for the session. The harness sends `turn_ended` after each user turn, as Codex does. Its first call returns about 20,000 characters of documentation, counted as shipped. |
-| `agent-desktop` | One tool that runs the [agent-desktop](https://github.com/lahfir/agent-desktop) 1.0.1 CLI, described by its bundled `desktop` and macOS guides | Agents normally run it from a shell; here the tool runs only that binary. Screenshots come back as images. |
+| `agent-desktop` | One tool that runs the [agent-desktop](https://github.com/vercel-labs/agent-desktop) 1.1.0 CLI, described by its bundled `desktop` and macOS guides | Agents normally run it from a shell; here the tool runs only that binary. Screenshots come back as images. |
 | `peekaboo` | The MCP tools of [Peekaboo](https://github.com/openclaw/Peekaboo) 4.9.7, without `agent` and `analyze` | Those two call their own AI model, so they are withheld. |
 
 Choices that affect the comparison:
@@ -166,6 +166,9 @@ Spend and restarts:
   run Ctrl-C if the API side gets well ahead of the records; add
   `--org-cap 90 --cycle-start <YYYY-MM-DD>` to also stop when the org's
   spend this billing cycle comes within $1 of $90.
+  `bench/session.sh <run.mjs options>` runs both together, with `CYCLE_START`
+  set to the cycle's first day, and on a cap stop commits the results and
+  pushes.
 
 ## What each record holds
 
