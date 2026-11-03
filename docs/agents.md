@@ -29,7 +29,7 @@ claude mcp add --scope user glovebox -- glovebox mcp
 Check with `/mcp` in a session. To teach Claude the loop, copy the skill:
 
 ```bash
-mkdir -p ~/.claude/skills && cp -R "$(npm root -g)/@vpatel9202/glovebox/skills/glovebox" ~/.claude/skills/
+mkdir -p ~/.claude/skills && cp -R "$(npm root -g)/@vashp2029/glovebox/skills/glovebox" ~/.claude/skills/
 ```
 
 ## Grok CLI
@@ -48,7 +48,7 @@ Codex ones below, follow each client's documented MCP format but have not been
 exercised end to end. Skill:
 
 ```bash
-mkdir -p ~/.grok/skills && cp -R "$(npm root -g)/@vpatel9202/glovebox/skills/glovebox" ~/.grok/skills/
+mkdir -p ~/.grok/skills && cp -R "$(npm root -g)/@vashp2029/glovebox/skills/glovebox" ~/.grok/skills/
 ```
 
 ## OpenCode

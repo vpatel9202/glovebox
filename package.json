@@ -1,7 +1,7 @@
 {
-  "name": "@vpatel9202/glovebox",
-  "version": "0.2.0",
-  "description": "Scriptable, provider-agnostic computer use for coding agents: one persistent JS session, many GUI actions per call, accessibility text by default, screenshots on request.",
+  "name": "@vashp2029/glovebox",
+  "version": "0.3.0",
+  "description": "Computer use for coding agents on macOS: one JavaScript call per step, accessibility diffs instead of screenshots, input in the background. MCP and CLI.",
   "type": "module",
   "license": "MIT",
   "author": "Vash Patel",
@@ -11,7 +11,7 @@
   },
   "homepage": "https://github.com/vpatel9202/glovebox#readme",
   "bugs": "https://github.com/vpatel9202/glovebox/issues",
-  "keywords": ["computer-use", "mcp", "accessibility", "automation", "agents", "gui", "repl", "macos"],
+  "keywords": ["computer-use", "mcp", "mcp-server", "claude-code", "macos", "accessibility", "automation", "agents", "gui"],
   "bin": {
     "glovebox": "bin/glovebox.mjs"
   },

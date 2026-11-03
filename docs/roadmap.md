@@ -37,21 +37,18 @@ Ordered by expected impact. These come before new platforms.
    and cache read, because with prompt caching round trips dominate cost.
    Done when the raw results and the harness are in the repo and one chart is
    in the README.
-2. **npm publish and a prebuilt helper.** Publish `@vpatel9202/glovebox` to
-   npm and ship a Developer ID signed, notarized helper in each release.
-   Done when `npx -y @vpatel9202/glovebox setup` works on a Mac without the
-   Xcode command line tools and grants survive an upgrade.
-3. **Demo media, then launch.** Record the GIF from the shot list in the
-   README comment, and a short video. Launch (Show HN, X, Codex computer-use
+2. **A prebuilt helper.** Ship a Developer ID signed, notarized helper in each
+   release. Done when `npx -y @vashp2029/glovebox setup` works on a Mac without
+   the Xcode command line tools and grants survive an upgrade.
+3. **Demo media, then launch.** Record a GIF and a short video. Launch (Show HN, X, Codex computer-use
    threads) only after one or two of these exist. Done when the GIF is at the
    top of the README.
 4. **Exercise every documented client.** Run the Codex, Grok CLI, OpenCode,
    Gemini CLI, and Cursor configs end to end, with a short clip for each.
    Done when `docs/agents.md` and the README's "Works with" line list each
    client as verified or say what failed.
-5. **CI.** GitHub Actions running
-   `npm test` on ubuntu and macos runners.
-   Done when it runs on every push and PR, and a CI badge is in the README.
+5. **CI on real GUI runs.** Unit tests run on every push and PR. Smoke tests
+   still need a Mac with permissions granted, so they run by hand.
 6. **Listings.** The official MCP registry, the Claude Code plugin
    marketplace, and skills.sh (for `skills/glovebox/SKILL.md`). Done when each
    listing is live and links back to the repo.

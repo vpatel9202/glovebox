@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-03)
 
+- First npm release, as `@vashp2029/glovebox`. CI runs the unit tests on every
+  push and pull request.
+- A clearer error when the helper was built from different source than the
+  running glovebox, including what a rebuild does to macOS permissions.
 - Fix: a read with `{emit: false}` no longer becomes the diff baseline, so
   the next printed read shows every change since the last printed one.
   Before, changes made before a silent read never appeared in a diff.

@@ -34,7 +34,11 @@ export class MacBackend extends EventEmitter {
 
   async #connect() {
     if (!fs.existsSync(helper.appPath()) || !helper.isBuilt()) {
-      throw new Error("Glovebox Helper is not built or is out of date. Run: glovebox setup");
+      throw new Error(
+        "Glovebox Helper is missing, or was built from different source than this glovebox. " +
+          "Run: glovebox setup. That rebuilds the helper; unless you ran `glovebox signing --create`, " +
+          "macOS will ask for its permissions again. If you have more than one install, check which `glovebox` this client runs.",
+      );
     }
     const path = helper.socketPath();
     let socket;

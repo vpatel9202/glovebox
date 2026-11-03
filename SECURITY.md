@@ -58,11 +58,18 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   Use it only when you trust every agent you attach.
 - An approved app is approved for everything in it. Allowing a browser lets
   the agent use every site you are signed in to.
-- Background input uses private macOS (SkyLight) functions, the same ones
-  Codex and Claude desktop computer use rely on. They are looked up at
-  runtime; if a macOS update removes them, glovebox falls back to bringing the
-  app forward. They do not bypass any permission: the helper still needs
+- Background input uses two private macOS (SkyLight) functions, the same
+  approach as yabai, cua-driver, and Peekaboo. They are looked up at runtime;
+  if a macOS update removes them, glovebox falls back to bringing the app
+  forward. They do not bypass any permission: the helper still needs
   Accessibility.
+- Scripts have no `require`, `fs`, or dynamic `import`, and see an empty
+  `process.env`. That limits a script to the `gb` API and approved apps, but an
+  approved app can still reach whatever that app can reach. Finder is not on the
+  blocked list, and approving it lets an agent read or change any file Finder
+  can.
+- glovebox does not screen app or page content for prompt injection. Text an
+  agent reads in an approved app can try to steer it.
 - The optional "glovebox local signing" certificate lives in your login
   keychain and signs only the helper you build. Without it, macOS ties
   privacy grants to an ad-hoc signature and a rebuild means granting again.

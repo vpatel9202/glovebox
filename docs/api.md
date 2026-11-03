@@ -127,6 +127,16 @@ On the foreground route a script brings an app forward at most once per call.
 Every action is appended to `~/.glovebox/actions.log` (typed text is logged
 as a length only).
 
+## Known limits
+
+- **Pop-up menus and your keyboard.** While a background app's pop-up menu is
+  open, macOS menu tracking is system-wide, so what you type goes to that app. A
+  word you type can land in its field. Keep the time the menu is open short: open
+  it and pick the item in one script, with no read in between. A dedicated
+  `app.select(popup, item)` is planned.
+- **One-node trees.** Remote desktops such as Citrix expose a single accessibility
+  node, so work there runs on screenshots and pixel clicks.
+
 ## Tips
 
 - Bind each app once and reuse the handle; define helpers in the session.
