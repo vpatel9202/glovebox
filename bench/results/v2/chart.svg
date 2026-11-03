@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 2024" width="760" height="2024" role="img" aria-labelledby="t d">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 2044" width="760" height="2044" role="img" aria-labelledby="t d">
 <title id="t">glovebox benchmark: round trips and cost per task</title>
-<desc id="d">Grouped bars comparing glovebox, Anthropic computer use, open-computer-use, Codex computer use, agent-desktop, Peekaboo on 12 macOS tasks. Full numbers are in summary.md.</desc>
+<desc id="d">Grouped bars comparing glovebox, Anthropic toolset, run by glovebox, open-computer-use, Codex cua_repl, driven by Claude, agent-desktop, Peekaboo on 12 macOS tasks. Full numbers are in summary.md.</desc>
 <style>
   svg { --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --grid: #e4e3df; --s0: #2a78d6; --s1: #eb6834; --s2: #1baf7a; --s3: #eda100; --s4: #e87ba4; --s5: #008300; --tool: #6250d6; --model: #e34948; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
   @media (prefers-color-scheme: dark) { svg { --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --grid: #34332f; --s0: #3987e5; --s1: #d95926; --s2: #199e70; --s3: #c98500; --s4: #d55181; --s5: #008300; --tool: #9085e9; --model: #e66767; } }
@@ -13,350 +13,350 @@
   .s0 { fill: var(--s0); } .s1 { fill: var(--s1); } .s2 { fill: var(--s2); } .s3 { fill: var(--s3); } .s4 { fill: var(--s4); } .s5 { fill: var(--s5); }
   .tool { fill: var(--tool); } .model { fill: var(--model); }
 </style>
-<rect class="bg" width="760" height="2024" rx="8"/>
+<rect class="bg" width="760" height="2044" rx="8"/>
 <rect class="s0" x="132" y="12" width="12" height="12" rx="3"/><text class="label" x="150" y="22">glovebox</text>
-<rect class="s1" x="322" y="12" width="12" height="12" rx="3"/><text class="label" x="340" y="22">Anthropic computer use</text>
-<rect class="s2" x="512" y="12" width="12" height="12" rx="3"/><text class="label" x="530" y="22">open-computer-use</text>
-<rect class="s3" x="132" y="32" width="12" height="12" rx="3"/><text class="label" x="150" y="42">Codex computer use</text>
-<rect class="s4" x="322" y="32" width="12" height="12" rx="3"/><text class="label" x="340" y="42">agent-desktop</text>
-<rect class="s5" x="512" y="32" width="12" height="12" rx="3"/><text class="label" x="530" y="42">Peekaboo</text>
-<text class="title" x="132" y="74">Median model round trips per task</text>
-<line class="grid" x1="132" x2="132" y1="88" y2="1000"/>
-<text class="tick" x="132" y="1014" text-anchor="middle">0</text>
-<line class="grid" x1="246.4" x2="246.4" y1="88" y2="1000"/>
-<text class="tick" x="246.4" y="1014" text-anchor="middle">10</text>
-<line class="grid" x1="360.8" x2="360.8" y1="88" y2="1000"/>
-<text class="tick" x="360.8" y="1014" text-anchor="middle">20</text>
-<line class="grid" x1="475.2" x2="475.2" y1="88" y2="1000"/>
-<text class="tick" x="475.2" y="1014" text-anchor="middle">30</text>
-<line class="grid" x1="589.6" x2="589.6" y1="88" y2="1000"/>
-<text class="tick" x="589.6" y="1014" text-anchor="middle">40</text>
-<line class="grid" x1="704" x2="704" y1="88" y2="1000"/>
-<text class="tick" x="704" y="1014" text-anchor="middle">50</text>
-<text class="label" x="122" y="124" text-anchor="end">calculator</text>
-<path class="s0" d="M132,88 h18.879999999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.879999999999995 z"><title>calculator · glovebox: 2 (2/2 passed)</title></path>
-<text class="value" x="158.88" y="96">2</text>
-<path class="s1" d="M132,99 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>calculator · Anthropic computer use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="107">3</text>
-<path class="s2" d="M132,110 h64.63999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.63999999999999 z"><title>calculator · open-computer-use: 6 (2/2 passed)</title></path>
-<text class="value" x="204.64" y="118">6</text>
-<path class="s3" d="M132,121 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>calculator · Codex computer use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="129">3</text>
-<path class="s4" d="M132,132 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>calculator · agent-desktop: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="140">5</text>
-<path class="s5" d="M132,143 h41.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.75999999999999 z"><title>calculator · Peekaboo: 4 (2/2 passed)</title></path>
-<text class="value" x="181.76" y="151">4</text>
-<text class="label" x="122" y="200" text-anchor="end">textedit-edit</text>
-<path class="s0" d="M132,164 h58.920000000000016 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-58.920000000000016 z"><title>textedit-edit · glovebox: 5.5 (2/2 passed)</title></path>
-<text class="value" x="198.92000000000002" y="172">5.5</text>
-<path class="s1" d="M132,175 h139 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-139 z"><title>textedit-edit · Anthropic computer use: 12.5 (2/2 passed)</title></path>
-<text class="value" x="279" y="183">12.5</text>
-<path class="s2" d="M132,186 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>textedit-edit · open-computer-use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="194">3</text>
-<path class="s3" d="M132,197 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>textedit-edit · Codex computer use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="205">3</text>
-<path class="s4" d="M132,208 h41.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.75999999999999 z"><title>textedit-edit · agent-desktop: 4 (2/2 passed)</title></path>
-<text class="value" x="181.76" y="216">4</text>
-<path class="s5" d="M132,219 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>textedit-edit · Peekaboo: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="227">5</text>
-<text class="label" x="122" y="276" text-anchor="end">finder-rename</text>
-<path class="s0" d="M132,240 h93.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-93.24000000000001 z"><title>finder-rename · glovebox: 8.5 (2/2 passed)</title></path>
-<text class="value" x="233.24" y="248">8.5</text>
-<path class="s1" d="M132,251 h156.16000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-156.16000000000003 z"><title>finder-rename · Anthropic computer use: 14 (2/2 passed)</title></path>
-<text class="value" x="296.16" y="259">14</text>
-<path class="s2" d="M132,262 h93.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-93.24000000000001 z"><title>finder-rename · open-computer-use: 8.5 (1/2 passed)</title></path>
-<text class="value" x="233.24" y="270">8.5 · 1/2 passed</text>
-<path class="s3" d="M132,273 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>finder-rename · Codex computer use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="281">3</text>
-<path class="s4" d="M132,284 h47.47999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-47.47999999999999 z"><title>finder-rename · agent-desktop: 4.5 (0/2 passed)</title></path>
-<text class="value" x="187.48" y="292">4.5 · 0/2 passed</text>
-<path class="s5" d="M132,295 h81.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.80000000000001 z"><title>finder-rename · Peekaboo: 7.5 (0/2 passed)</title></path>
-<text class="value" x="221.8" y="303">7.5 · 0/2 passed</text>
-<text class="label" x="122" y="352" text-anchor="end">textedit-setting</text>
-<path class="s0" d="M132,316 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>textedit-setting · glovebox: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="324">3</text>
-<path class="s1" d="M132,327 h64.63999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.63999999999999 z"><title>textedit-setting · Anthropic computer use: 6 (2/2 passed)</title></path>
-<text class="value" x="204.64" y="335">6</text>
-<path class="s2" d="M132,338 h201.91999999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-201.91999999999996 z"><title>textedit-setting · open-computer-use: 18 (2/2 passed)</title></path>
-<text class="value" x="341.91999999999996" y="346">18</text>
-<path class="s3" d="M132,349 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>textedit-setting · Codex computer use: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="357">5</text>
-<path class="s4" d="M132,360 h76.08000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-76.08000000000001 z"><title>textedit-setting · agent-desktop: 7 (2/2 passed)</title></path>
-<text class="value" x="216.08" y="368">7</text>
-<path class="s5" d="M132,371 h150.44 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-150.44 z"><title>textedit-setting · Peekaboo: 13.5 (2/2 passed)</title></path>
-<text class="value" x="290.44" y="379">13.5</text>
-<text class="label" x="122" y="428" text-anchor="end">form</text>
-<path class="s0" d="M132,392 h41.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.75999999999999 z"><title>form · glovebox: 4 (2/2 passed)</title></path>
-<text class="value" x="181.76" y="400">4</text>
-<path class="s1" d="M132,403 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>form · Anthropic computer use: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="411">5</text>
-<path class="s2" d="M132,414 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>form · open-computer-use: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="422">5</text>
-<path class="s3" d="M132,425 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>form · Codex computer use: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="433">5</text>
-<path class="s4" d="M132,436 h41.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.75999999999999 z"><title>form · agent-desktop: 4 (2/2 passed)</title></path>
-<text class="value" x="181.76" y="444">4</text>
-<path class="s5" d="M132,447 h150.44 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-150.44 z"><title>form · Peekaboo: 13.5 (2/2 passed)</title></path>
-<text class="value" x="290.44" y="455">13.5</text>
-<text class="label" x="122" y="504" text-anchor="end">canvas</text>
-<path class="s0" d="M132,468 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>canvas · glovebox: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="476">3</text>
-<path class="s1" d="M132,479 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>canvas · Anthropic computer use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="487">3</text>
-<path class="s2" d="M132,490 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>canvas · open-computer-use: 3 (0/2 passed)</title></path>
-<text class="value" x="170.32" y="498">3 · 0/2 passed</text>
-<path class="s3" d="M132,501 h41.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.75999999999999 z"><title>canvas · Codex computer use: 4 (2/2 passed)</title></path>
-<text class="value" x="181.76" y="509">4</text>
-<path class="s4" d="M132,512 h70.36000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-70.36000000000001 z"><title>canvas · agent-desktop: 6.5 (2/2 passed)</title></path>
-<text class="value" x="210.36" y="520">6.5</text>
-<path class="s5" d="M132,523 h81.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.80000000000001 z"><title>canvas · Peekaboo: 7.5 (2/2 passed)</title></path>
-<text class="value" x="221.8" y="531">7.5</text>
-<text class="label" x="122" y="580" text-anchor="end">form-repeat</text>
-<path class="s0" d="M132,544 h161.88 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-161.88 z"><title>form-repeat · glovebox: 14.5 (2/2 passed)</title></path>
-<text class="value" x="301.88" y="552">14.5</text>
-<path class="s1" d="M132,555 h190.48000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-190.48000000000002 z"><title>form-repeat · Anthropic computer use: 17 (2/2 passed)</title></path>
-<text class="value" x="330.48" y="563">17</text>
-<path class="s2" d="M132,566 h224.8 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-224.8 z"><title>form-repeat · open-computer-use: 20 (2/2 passed)</title></path>
-<text class="value" x="364.8" y="574">20</text>
-<path class="s3" d="M132,577 h213.36 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-213.36 z"><title>form-repeat · Codex computer use: 19 (1/2 passed)</title></path>
-<text class="value" x="353.36" y="585">19 · 1/2 passed</text>
-<path class="s4" d="M132,588 h224.8 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-224.8 z"><title>form-repeat · agent-desktop: 20 (2/2 passed)</title></path>
-<text class="value" x="364.8" y="596">20</text>
-<path class="s5" d="M132,599 h453.6 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-453.6 z"><title>form-repeat · Peekaboo: 40 (2/2 passed)</title></path>
-<text class="value" x="593.6" y="607">40</text>
-<text class="label" x="122" y="656" text-anchor="end">bulk-entry</text>
-<path class="s0" d="M132,620 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>bulk-entry · glovebox: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="628">5</text>
-<path class="s1" d="M132,631 h87.51999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-87.51999999999998 z"><title>bulk-entry · Anthropic computer use: 8 (2/2 passed)</title></path>
-<text class="value" x="227.51999999999998" y="639">8</text>
-<path class="s2" d="M132,642 h116.12 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-116.12 z"><title>bulk-entry · open-computer-use: 10.5 (2/2 passed)</title></path>
-<text class="value" x="256.12" y="650">10.5</text>
-<path class="s3" d="M132,653 h93.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-93.24000000000001 z"><title>bulk-entry · Codex computer use: 8.5 (0/2 passed)</title></path>
-<text class="value" x="233.24" y="661">8.5 · 0/2 passed</text>
-<path class="s4" d="M132,664 h87.51999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-87.51999999999998 z"><title>bulk-entry · agent-desktop: 8 (2/2 passed)</title></path>
-<text class="value" x="227.51999999999998" y="672">8</text>
-<path class="s5" d="M132,675 h568 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-568 z"><title>bulk-entry · Peekaboo: 50 (0/2 passed)</title></path>
-<text class="value" x="708" y="683">50 · 0/2 passed</text>
-<text class="label" x="122" y="732" text-anchor="end">large-table</text>
-<path class="s0" d="M132,696 h41.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.75999999999999 z"><title>large-table · glovebox: 4 (2/2 passed)</title></path>
-<text class="value" x="181.76" y="704">4</text>
-<path class="s1" d="M132,707 h121.84000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-121.84000000000003 z"><title>large-table · Anthropic computer use: 11 (2/2 passed)</title></path>
-<text class="value" x="261.84000000000003" y="715">11</text>
-<path class="s2" d="M132,718 h241.96000000000004 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-241.96000000000004 z"><title>large-table · open-computer-use: 21.5 (2/2 passed)</title></path>
-<text class="value" x="381.96000000000004" y="726">21.5</text>
-<path class="s3" d="M132,729 h87.51999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-87.51999999999998 z"><title>large-table · Codex computer use: 8 (2/2 passed)</title></path>
-<text class="value" x="227.51999999999998" y="737">8</text>
-<path class="s4" d="M132,740 h144.72000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-144.72000000000003 z"><title>large-table · agent-desktop: 13 (2/2 passed)</title></path>
-<text class="value" x="284.72" y="748">13</text>
-<path class="s5" d="M132,751 h116.12 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-116.12 z"><title>large-table · Peekaboo: 10.5 (2/2 passed)</title></path>
-<text class="value" x="256.12" y="759">10.5</text>
-<text class="label" x="122" y="808" text-anchor="end">remote-desktop</text>
-<path class="s0" d="M132,772 h64.63999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.63999999999999 z"><title>remote-desktop · glovebox: 6 (2/2 passed)</title></path>
-<text class="value" x="204.64" y="780">6</text>
-<path class="s1" d="M132,783 h64.63999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.63999999999999 z"><title>remote-desktop · Anthropic computer use: 6 (2/2 passed)</title></path>
-<text class="value" x="204.64" y="791">6</text>
-<path class="s2" d="M132,794 h179.03999999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-179.03999999999996 z"><title>remote-desktop · open-computer-use: 16 (2/2 passed)</title></path>
-<text class="value" x="319.03999999999996" y="802">16</text>
-<path class="s3" d="M132,805 h173.32 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-173.32 z"><title>remote-desktop · Codex computer use: 15.5 (2/2 passed)</title></path>
-<text class="value" x="313.32" y="813">15.5</text>
-<path class="s4" d="M132,816 h179.03999999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-179.03999999999996 z"><title>remote-desktop · agent-desktop: 16 (2/2 passed)</title></path>
-<text class="value" x="319.03999999999996" y="824">16</text>
-<path class="s5" d="M132,827 h93.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-93.24000000000001 z"><title>remote-desktop · Peekaboo: 8.5 (2/2 passed)</title></path>
-<text class="value" x="233.24" y="835">8.5</text>
-<text class="label" x="122" y="884" text-anchor="end">signup-recovery</text>
-<path class="s0" d="M132,848 h58.920000000000016 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-58.920000000000016 z"><title>signup-recovery · glovebox: 5.5 (2/2 passed)</title></path>
-<text class="value" x="198.92000000000002" y="856">5.5</text>
-<path class="s1" d="M132,859 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>signup-recovery · Anthropic computer use: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="867">5</text>
-<path class="s2" d="M132,870 h81.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.80000000000001 z"><title>signup-recovery · open-computer-use: 7.5 (2/2 passed)</title></path>
-<text class="value" x="221.8" y="878">7.5</text>
-<path class="s3" d="M132,881 h64.63999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.63999999999999 z"><title>signup-recovery · Codex computer use: 6 (1/2 passed)</title></path>
-<text class="value" x="204.64" y="889">6 · 1/2 passed</text>
-<path class="s4" d="M132,892 h98.95999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-98.95999999999998 z"><title>signup-recovery · agent-desktop: 9 (2/2 passed)</title></path>
-<text class="value" x="238.95999999999998" y="900">9</text>
-<path class="s5" d="M132,903 h156.16000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-156.16000000000003 z"><title>signup-recovery · Peekaboo: 14 (2/2 passed)</title></path>
-<text class="value" x="296.16" y="911">14</text>
-<text class="label" x="122" y="960" text-anchor="end">coexistence</text>
-<path class="s0" d="M132,924 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>coexistence · glovebox: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="932">3</text>
-<path class="s1" d="M132,935 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>coexistence · Anthropic computer use: 3 (0/2 passed)</title></path>
-<text class="value" x="170.32" y="943">3 · 0/2 passed</text>
-<path class="s2" d="M132,946 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>coexistence · open-computer-use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="954">3</text>
-<path class="s3" d="M132,957 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>coexistence · Codex computer use: 3 (2/2 passed)</title></path>
-<text class="value" x="170.32" y="965">3</text>
-<path class="s4" d="M132,968 h53.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.19999999999999 z"><title>coexistence · agent-desktop: 5 (2/2 passed)</title></path>
-<text class="value" x="193.2" y="976">5</text>
-<path class="s5" d="M132,979 h58.920000000000016 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-58.920000000000016 z"><title>coexistence · Peekaboo: 5.5 (2/2 passed)</title></path>
-<text class="value" x="198.92000000000002" y="987">5.5</text>
-<line class="axis" x1="132" x2="132" y1="88" y2="1000"/>
-<text class="title" x="132" y="1052">Median cost per task (USD, list price)</text>
-<line class="grid" x1="132" x2="132" y1="1066" y2="1978"/>
-<text class="tick" x="132" y="1992" text-anchor="middle">$0.0</text>
-<line class="grid" x1="275" x2="275" y1="1066" y2="1978"/>
-<text class="tick" x="275" y="1992" text-anchor="middle">$0.2</text>
-<line class="grid" x1="418" x2="418" y1="1066" y2="1978"/>
-<text class="tick" x="418" y="1992" text-anchor="middle">$0.4</text>
-<line class="grid" x1="561" x2="561" y1="1066" y2="1978"/>
-<text class="tick" x="561" y="1992" text-anchor="middle">$0.6</text>
-<line class="grid" x1="704" x2="704" y1="1066" y2="1978"/>
-<text class="tick" x="704" y="1992" text-anchor="middle">$0.8</text>
-<text class="label" x="122" y="1102" text-anchor="end">calculator</text>
-<path class="s0" d="M132,1066 h0.897750000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-0.897750000000002 z"><title>calculator · glovebox: $0.007 (2/2 passed)</title></path>
-<text class="value" x="140.89775" y="1074">$0.007</text>
-<path class="s1" d="M132,1077 h14.768750000000011 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-14.768750000000011 z"><title>calculator · Anthropic computer use: $0.026 (2/2 passed)</title></path>
-<text class="value" x="154.76875" y="1085">$0.026</text>
-<path class="s2" d="M132,1088 h89.0215 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-89.0215 z"><title>calculator · open-computer-use: $0.13 (2/2 passed)</title></path>
-<text class="value" x="229.0215" y="1096">$0.13</text>
-<path class="s3" d="M132,1099 h19.344750000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-19.344750000000005 z"><title>calculator · Codex computer use: $0.033 (2/2 passed)</title></path>
-<text class="value" x="159.34475" y="1107">$0.033</text>
-<path class="s4" d="M132,1110 h40.615999999999985 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-40.615999999999985 z"><title>calculator · agent-desktop: $0.062 (2/2 passed)</title></path>
-<text class="value" x="180.61599999999999" y="1118">$0.062</text>
-<path class="s5" d="M132,1121 h58.026250000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-58.026250000000005 z"><title>calculator · Peekaboo: $0.087 (2/2 passed)</title></path>
-<text class="value" x="198.02625" y="1129">$0.087</text>
-<text class="label" x="122" y="1178" text-anchor="end">textedit-edit</text>
-<path class="s0" d="M132,1142 h10.8005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-10.8005 z"><title>textedit-edit · glovebox: $0.021 (2/2 passed)</title></path>
-<text class="value" x="150.8005" y="1150">$0.021</text>
-<path class="s1" d="M132,1153 h82.5865 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-82.5865 z"><title>textedit-edit · Anthropic computer use: $0.12 (2/2 passed)</title></path>
-<text class="value" x="222.5865" y="1161">$0.12</text>
-<path class="s2" d="M132,1164 h18.80849999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.80849999999998 z"><title>textedit-edit · open-computer-use: $0.032 (2/2 passed)</title></path>
-<text class="value" x="158.80849999999998" y="1172">$0.032</text>
-<path class="s3" d="M132,1175 h18.915750000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.915750000000003 z"><title>textedit-edit · Codex computer use: $0.032 (2/2 passed)</title></path>
-<text class="value" x="158.91575" y="1183">$0.032</text>
-<path class="s4" d="M132,1186 h18.772750000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.772750000000002 z"><title>textedit-edit · agent-desktop: $0.032 (2/2 passed)</title></path>
-<text class="value" x="158.77275" y="1194">$0.032</text>
-<path class="s5" d="M132,1197 h64.21100000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.21100000000001 z"><title>textedit-edit · Peekaboo: $0.095 (2/2 passed)</title></path>
-<text class="value" x="204.211" y="1205">$0.095</text>
-<text class="label" x="122" y="1254" text-anchor="end">finder-rename</text>
-<path class="s0" d="M132,1218 h39.36474999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-39.36474999999999 z"><title>finder-rename · glovebox: $0.061 (2/2 passed)</title></path>
-<text class="value" x="179.36475" y="1226">$0.061</text>
-<path class="s1" d="M132,1229 h79.512 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-79.512 z"><title>finder-rename · Anthropic computer use: $0.12 (2/2 passed)</title></path>
-<text class="value" x="219.512" y="1237">$0.12</text>
-<path class="s2" d="M132,1240 h71.11075 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-71.11075 z"><title>finder-rename · open-computer-use: $0.11 (1/2 passed)</title></path>
-<text class="value" x="211.11075" y="1248">$0.11 · 1/2 passed</text>
-<path class="s3" d="M132,1251 h25.493750000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-25.493750000000006 z"><title>finder-rename · Codex computer use: $0.041 (2/2 passed)</title></path>
-<text class="value" x="165.49375" y="1259">$0.041</text>
-<path class="s4" d="M132,1262 h37.505750000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-37.505750000000006 z"><title>finder-rename · agent-desktop: $0.058 (0/2 passed)</title></path>
-<text class="value" x="177.50575" y="1270">$0.058 · 0/2 passed</text>
-<path class="s5" d="M132,1273 h136.64049999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-136.64049999999997 z"><title>finder-rename · Peekaboo: $0.20 (0/2 passed)</title></path>
-<text class="value" x="276.6405" y="1281">$0.20 · 0/2 passed</text>
-<text class="label" x="122" y="1330" text-anchor="end">textedit-setting</text>
-<path class="s0" d="M132,1294 h4.437000000000012 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-4.437000000000012 z"><title>textedit-setting · glovebox: $0.012 (2/2 passed)</title></path>
-<text class="value" x="144.437" y="1302">$0.012</text>
-<path class="s1" d="M132,1305 h28.747000000000014 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-28.747000000000014 z"><title>textedit-setting · Anthropic computer use: $0.046 (2/2 passed)</title></path>
-<text class="value" x="168.747" y="1313">$0.046</text>
-<path class="s2" d="M132,1316 h83.945 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-83.945 z"><title>textedit-setting · open-computer-use: $0.12 (2/2 passed)</title></path>
-<text class="value" x="223.945" y="1324">$0.12</text>
-<path class="s3" d="M132,1327 h26.244499999999988 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-26.244499999999988 z"><title>textedit-setting · Codex computer use: $0.042 (2/2 passed)</title></path>
-<text class="value" x="166.2445" y="1335">$0.042</text>
-<path class="s4" d="M132,1338 h28.782749999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-28.782749999999993 z"><title>textedit-setting · agent-desktop: $0.046 (2/2 passed)</title></path>
-<text class="value" x="168.78275" y="1346">$0.046</text>
-<path class="s5" d="M132,1349 h125.09325000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-125.09325000000001 z"><title>textedit-setting · Peekaboo: $0.18 (2/2 passed)</title></path>
-<text class="value" x="265.09325" y="1357">$0.18</text>
-<text class="label" x="122" y="1406" text-anchor="end">form</text>
-<path class="s0" d="M132,1370 h3.1500000000000057 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-3.1500000000000057 z"><title>form · glovebox: $0.010 (2/2 passed)</title></path>
-<text class="value" x="143.15" y="1378">$0.010</text>
-<path class="s1" d="M132,1381 h20.774749999999983 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-20.774749999999983 z"><title>form · Anthropic computer use: $0.035 (2/2 passed)</title></path>
-<text class="value" x="160.77474999999998" y="1389">$0.035</text>
-<path class="s2" d="M132,1392 h26.780750000000012 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-26.780750000000012 z"><title>form · open-computer-use: $0.043 (2/2 passed)</title></path>
-<text class="value" x="166.78075" y="1400">$0.043</text>
-<path class="s3" d="M132,1403 h22.454999999999984 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-22.454999999999984 z"><title>form · Codex computer use: $0.037 (2/2 passed)</title></path>
-<text class="value" x="162.45499999999998" y="1411">$0.037</text>
-<path class="s4" d="M132,1414 h19.13024999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-19.13024999999999 z"><title>form · agent-desktop: $0.032 (2/2 passed)</title></path>
-<text class="value" x="159.13025" y="1422">$0.032</text>
-<path class="s5" d="M132,1425 h118.15775 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-118.15775 z"><title>form · Peekaboo: $0.17 (2/2 passed)</title></path>
-<text class="value" x="258.15774999999996" y="1433">$0.17</text>
-<text class="label" x="122" y="1482" text-anchor="end">canvas</text>
-<path class="s0" d="M132,1446 h2.9354999999999905 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-2.9354999999999905 z"><title>canvas · glovebox: $0.010 (2/2 passed)</title></path>
-<text class="value" x="142.9355" y="1454">$0.010</text>
-<path class="s1" d="M132,1457 h15.448000000000008 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-15.448000000000008 z"><title>canvas · Anthropic computer use: $0.027 (2/2 passed)</title></path>
-<text class="value" x="155.448" y="1465">$0.027</text>
-<path class="s2" d="M132,1468 h13.946500000000015 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-13.946500000000015 z"><title>canvas · open-computer-use: $0.025 (0/2 passed)</title></path>
-<text class="value" x="153.94650000000001" y="1476">$0.025 · 0/2 passed</text>
-<path class="s3" d="M132,1479 h22.276250000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-22.276250000000005 z"><title>canvas · Codex computer use: $0.037 (2/2 passed)</title></path>
-<text class="value" x="162.27625" y="1487">$0.037</text>
-<path class="s4" d="M132,1490 h27.817499999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.817499999999995 z"><title>canvas · agent-desktop: $0.044 (2/2 passed)</title></path>
-<text class="value" x="167.8175" y="1498">$0.044</text>
-<path class="s5" d="M132,1501 h74.793 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-74.793 z"><title>canvas · Peekaboo: $0.11 (2/2 passed)</title></path>
-<text class="value" x="214.793" y="1509">$0.11</text>
-<text class="label" x="122" y="1558" text-anchor="end">form-repeat</text>
-<path class="s0" d="M132,1522 h14.840249999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-14.840249999999997 z"><title>form-repeat · glovebox: $0.026 (2/2 passed)</title></path>
-<text class="value" x="154.84025" y="1530">$0.026</text>
-<path class="s1" d="M132,1533 h55.094750000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-55.094750000000005 z"><title>form-repeat · Anthropic computer use: $0.083 (2/2 passed)</title></path>
-<text class="value" x="195.09475" y="1541">$0.083</text>
-<path class="s2" d="M132,1544 h128.09625 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-128.09625 z"><title>form-repeat · open-computer-use: $0.18 (2/2 passed)</title></path>
-<text class="value" x="268.09625" y="1552">$0.18</text>
-<path class="s3" d="M132,1555 h64.92599999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.92599999999999 z"><title>form-repeat · Codex computer use: $0.096 (1/2 passed)</title></path>
-<text class="value" x="204.926" y="1563">$0.096 · 1/2 passed</text>
-<path class="s4" d="M132,1566 h80.47725 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-80.47725 z"><title>form-repeat · agent-desktop: $0.12 (2/2 passed)</title></path>
-<text class="value" x="220.47725" y="1574">$0.12</text>
-<path class="s5" d="M132,1577 h384.63824999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-384.63824999999997 z"><title>form-repeat · Peekaboo: $0.54 (2/2 passed)</title></path>
-<text class="value" x="524.63825" y="1585">$0.54</text>
-<text class="label" x="122" y="1634" text-anchor="end">bulk-entry</text>
-<path class="s0" d="M132,1598 h8.977249999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-8.977249999999998 z"><title>bulk-entry · glovebox: $0.018 (2/2 passed)</title></path>
-<text class="value" x="148.97725" y="1606">$0.018</text>
-<path class="s1" d="M132,1609 h47.90899999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-47.90899999999999 z"><title>bulk-entry · Anthropic computer use: $0.073 (2/2 passed)</title></path>
-<text class="value" x="187.909" y="1617">$0.073</text>
-<path class="s2" d="M132,1620 h185.47500000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-185.47500000000002 z"><title>bulk-entry · open-computer-use: $0.27 (2/2 passed)</title></path>
-<text class="value" x="325.475" y="1628">$0.27</text>
-<path class="s3" d="M132,1631 h44.51274999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-44.51274999999998 z"><title>bulk-entry · Codex computer use: $0.068 (0/2 passed)</title></path>
-<text class="value" x="184.51274999999998" y="1639">$0.068 · 0/2 passed</text>
-<path class="s4" d="M132,1642 h73.649 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-73.649 z"><title>bulk-entry · agent-desktop: $0.11 (2/2 passed)</title></path>
-<text class="value" x="213.649" y="1650">$0.11</text>
-<path class="s5" d="M132,1653 h468.615 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-468.615 z"><title>bulk-entry · Peekaboo: $0.66 (0/2 passed)</title></path>
-<text class="value" x="608.615" y="1661">$0.66 · 0/2 passed</text>
-<text class="label" x="122" y="1710" text-anchor="end">large-table</text>
-<path class="s0" d="M132,1674 h41.18799999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-41.18799999999999 z"><title>large-table · glovebox: $0.063 (2/2 passed)</title></path>
-<text class="value" x="181.188" y="1682">$0.063</text>
-<path class="s1" d="M132,1685 h126.52324999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-126.52324999999996 z"><title>large-table · Anthropic computer use: $0.18 (2/2 passed)</title></path>
-<text class="value" x="266.52324999999996" y="1693">$0.18</text>
-<path class="s2" d="M132,1696 h166.99225 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-166.99225 z"><title>large-table · open-computer-use: $0.24 (2/2 passed)</title></path>
-<text class="value" x="306.99225" y="1704">$0.24</text>
-<path class="s3" d="M132,1707 h63.78199999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-63.78199999999998 z"><title>large-table · Codex computer use: $0.095 (2/2 passed)</title></path>
-<text class="value" x="203.78199999999998" y="1715">$0.095</text>
-<path class="s4" d="M132,1718 h283.0725 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-283.0725 z"><title>large-table · agent-desktop: $0.40 (2/2 passed)</title></path>
-<text class="value" x="423.0725" y="1726">$0.40</text>
-<path class="s5" d="M132,1729 h276.10125000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-276.10125000000005 z"><title>large-table · Peekaboo: $0.39 (2/2 passed)</title></path>
-<text class="value" x="416.10125000000005" y="1737">$0.39</text>
-<text class="label" x="122" y="1786" text-anchor="end">remote-desktop</text>
-<path class="s0" d="M132,1750 h21.91874999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-21.91874999999999 z"><title>remote-desktop · glovebox: $0.036 (2/2 passed)</title></path>
-<text class="value" x="161.91875" y="1758">$0.036</text>
-<path class="s1" d="M132,1761 h33.18000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-33.18000000000001 z"><title>remote-desktop · Anthropic computer use: $0.052 (2/2 passed)</title></path>
-<text class="value" x="173.18" y="1769">$0.052</text>
-<path class="s2" d="M132,1772 h105.64524999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-105.64524999999998 z"><title>remote-desktop · open-computer-use: $0.15 (2/2 passed)</title></path>
-<text class="value" x="245.64524999999998" y="1780">$0.15</text>
-<path class="s3" d="M132,1783 h102.85674999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-102.85674999999998 z"><title>remote-desktop · Codex computer use: $0.15 (2/2 passed)</title></path>
-<text class="value" x="242.85674999999998" y="1791">$0.15</text>
-<path class="s4" d="M132,1794 h111.9015 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-111.9015 z"><title>remote-desktop · agent-desktop: $0.16 (2/2 passed)</title></path>
-<text class="value" x="251.9015" y="1802">$0.16</text>
-<path class="s5" d="M132,1805 h88.3065 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-88.3065 z"><title>remote-desktop · Peekaboo: $0.13 (2/2 passed)</title></path>
-<text class="value" x="228.3065" y="1813">$0.13</text>
-<text class="label" x="122" y="1862" text-anchor="end">signup-recovery</text>
-<path class="s0" d="M132,1826 h5.0090000000000146 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-5.0090000000000146 z"><title>signup-recovery · glovebox: $0.013 (2/2 passed)</title></path>
-<text class="value" x="145.00900000000001" y="1834">$0.013</text>
-<path class="s1" d="M132,1837 h20.81049999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-20.81049999999999 z"><title>signup-recovery · Anthropic computer use: $0.035 (2/2 passed)</title></path>
-<text class="value" x="160.8105" y="1845">$0.035</text>
-<path class="s2" d="M132,1848 h32.96549999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-32.96549999999999 z"><title>signup-recovery · open-computer-use: $0.052 (2/2 passed)</title></path>
-<text class="value" x="172.9655" y="1856">$0.052</text>
-<path class="s3" d="M132,1859 h27.352750000000015 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.352750000000015 z"><title>signup-recovery · Codex computer use: $0.044 (1/2 passed)</title></path>
-<text class="value" x="167.35275000000001" y="1867">$0.044 · 1/2 passed</text>
-<path class="s4" d="M132,1870 h37.64875000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-37.64875000000001 z"><title>signup-recovery · agent-desktop: $0.058 (2/2 passed)</title></path>
-<text class="value" x="177.64875" y="1878">$0.058</text>
-<path class="s5" d="M132,1881 h117.29974999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-117.29974999999999 z"><title>signup-recovery · Peekaboo: $0.17 (2/2 passed)</title></path>
-<text class="value" x="257.29975" y="1889">$0.17</text>
-<text class="label" x="122" y="1938" text-anchor="end">coexistence</text>
-<path class="s0" d="M132,1902 h1.791499999999985 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-1.791499999999985 z"><title>coexistence · glovebox: $0.008 (2/2 passed)</title></path>
-<text class="value" x="141.79149999999998" y="1910">$0.008</text>
-<path class="s1" d="M132,1913 h15.591000000000008 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-15.591000000000008 z"><title>coexistence · Anthropic computer use: $0.027 (0/2 passed)</title></path>
-<text class="value" x="155.591" y="1921">$0.027 · 0/2 passed</text>
-<path class="s2" d="M132,1924 h16.413250000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-16.413250000000005 z"><title>coexistence · open-computer-use: $0.029 (2/2 passed)</title></path>
-<text class="value" x="156.41325" y="1932">$0.029</text>
-<path class="s3" d="M132,1935 h17.59299999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.59299999999999 z"><title>coexistence · Codex computer use: $0.030 (2/2 passed)</title></path>
-<text class="value" x="157.593" y="1943">$0.030</text>
-<path class="s4" d="M132,1946 h20.66749999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-20.66749999999999 z"><title>coexistence · agent-desktop: $0.035 (2/2 passed)</title></path>
-<text class="value" x="160.6675" y="1954">$0.035</text>
-<path class="s5" d="M132,1957 h67.67874999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-67.67874999999998 z"><title>coexistence · Peekaboo: $0.10 (2/2 passed)</title></path>
-<text class="value" x="207.67874999999998" y="1965">$0.10</text>
-<line class="axis" x1="132" x2="132" y1="1066" y2="1978"/>
-<text class="note" x="132" y="2014">144 runs · claude-sonnet-5-5 (effort medium) · medians per task, failed runs included</text>
+<rect class="s1" x="422" y="12" width="12" height="12" rx="3"/><text class="label" x="440" y="22">Anthropic toolset, run by glovebox</text>
+<rect class="s2" x="132" y="32" width="12" height="12" rx="3"/><text class="label" x="150" y="42">open-computer-use</text>
+<rect class="s3" x="422" y="32" width="12" height="12" rx="3"/><text class="label" x="440" y="42">Codex cua_repl, driven by Claude</text>
+<rect class="s4" x="132" y="52" width="12" height="12" rx="3"/><text class="label" x="150" y="62">agent-desktop</text>
+<rect class="s5" x="422" y="52" width="12" height="12" rx="3"/><text class="label" x="440" y="62">Peekaboo</text>
+<text class="title" x="132" y="94">Median model round trips per task</text>
+<line class="grid" x1="132" x2="132" y1="108" y2="1020"/>
+<text class="tick" x="132" y="1034" text-anchor="middle">0</text>
+<line class="grid" x1="237.60000000000002" x2="237.60000000000002" y1="108" y2="1020"/>
+<text class="tick" x="237.60000000000002" y="1034" text-anchor="middle">10</text>
+<line class="grid" x1="343.20000000000005" x2="343.20000000000005" y1="108" y2="1020"/>
+<text class="tick" x="343.20000000000005" y="1034" text-anchor="middle">20</text>
+<line class="grid" x1="448.8" x2="448.8" y1="108" y2="1020"/>
+<text class="tick" x="448.8" y="1034" text-anchor="middle">30</text>
+<line class="grid" x1="554.4000000000001" x2="554.4000000000001" y1="108" y2="1020"/>
+<text class="tick" x="554.4000000000001" y="1034" text-anchor="middle">40</text>
+<line class="grid" x1="660" x2="660" y1="108" y2="1020"/>
+<text class="tick" x="660" y="1034" text-anchor="middle">50</text>
+<text class="label" x="122" y="144" text-anchor="end">calculator</text>
+<path class="s0" d="M132,108 h17.120000000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.120000000000005 z"><title>calculator · glovebox: 2 (2/2 passed)</title></path>
+<text class="value" x="157.12" y="116">2</text>
+<path class="s1" d="M132,119 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>calculator · Anthropic toolset, run by glovebox: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="127">3</text>
+<path class="s2" d="M132,130 h59.360000000000014 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-59.360000000000014 z"><title>calculator · open-computer-use: 6 (2/2 passed)</title></path>
+<text class="value" x="199.36" y="138">6</text>
+<path class="s3" d="M132,141 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>calculator · Codex cua_repl, driven by Claude: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="149">3</text>
+<path class="s4" d="M132,152 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>calculator · agent-desktop: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="160">5</text>
+<path class="s5" d="M132,163 h38.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.24000000000001 z"><title>calculator · Peekaboo: 4 (2/2 passed)</title></path>
+<text class="value" x="178.24" y="171">4</text>
+<text class="label" x="122" y="220" text-anchor="end">textedit-edit</text>
+<path class="s0" d="M132,184 h54.079999999999984 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-54.079999999999984 z"><title>textedit-edit · glovebox: 5.5 (2/2 passed)</title></path>
+<text class="value" x="194.07999999999998" y="192">5.5</text>
+<path class="s1" d="M132,195 h128 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-128 z"><title>textedit-edit · Anthropic toolset, run by glovebox: 12.5 (2/2 passed)</title></path>
+<text class="value" x="268" y="203">12.5</text>
+<path class="s2" d="M132,206 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>textedit-edit · open-computer-use: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="214">3</text>
+<path class="s3" d="M132,217 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>textedit-edit · Codex cua_repl, driven by Claude: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="225">3</text>
+<path class="s4" d="M132,228 h38.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.24000000000001 z"><title>textedit-edit · agent-desktop: 4 (2/2 passed)</title></path>
+<text class="value" x="178.24" y="236">4</text>
+<path class="s5" d="M132,239 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>textedit-edit · Peekaboo: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="247">5</text>
+<text class="label" x="122" y="296" text-anchor="end">finder-rename</text>
+<path class="s0" d="M132,260 h85.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-85.75999999999999 z"><title>finder-rename · glovebox: 8.5 (2/2 passed)</title></path>
+<text class="value" x="225.76" y="268">8.5</text>
+<path class="s1" d="M132,271 h143.84000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-143.84000000000003 z"><title>finder-rename · Anthropic toolset, run by glovebox: 14 (2/2 passed)</title></path>
+<text class="value" x="283.84000000000003" y="279">14</text>
+<path class="s2" d="M132,282 h85.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-85.75999999999999 z"><title>finder-rename · open-computer-use: 8.5 (1/2 passed)</title></path>
+<text class="value" x="225.76" y="290">8.5 · 1/2 passed</text>
+<path class="s3" d="M132,293 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>finder-rename · Codex cua_repl, driven by Claude: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="301">3</text>
+<path class="s4" d="M132,304 h43.51999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-43.51999999999998 z"><title>finder-rename · agent-desktop: 4.5 (0/2 passed)</title></path>
+<text class="value" x="183.51999999999998" y="312">4.5 · 0/2 passed</text>
+<path class="s5" d="M132,315 h75.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-75.19999999999999 z"><title>finder-rename · Peekaboo: 7.5 (0/2 passed)</title></path>
+<text class="value" x="215.2" y="323">7.5 · 0/2 passed</text>
+<text class="label" x="122" y="372" text-anchor="end">textedit-setting</text>
+<path class="s0" d="M132,336 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>textedit-setting · glovebox: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="344">3</text>
+<path class="s1" d="M132,347 h59.360000000000014 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-59.360000000000014 z"><title>textedit-setting · Anthropic toolset, run by glovebox: 6 (2/2 passed)</title></path>
+<text class="value" x="199.36" y="355">6</text>
+<path class="s2" d="M132,358 h186.07999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-186.07999999999998 z"><title>textedit-setting · open-computer-use: 18 (2/2 passed)</title></path>
+<text class="value" x="326.08" y="366">18</text>
+<path class="s3" d="M132,369 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>textedit-setting · Codex cua_repl, driven by Claude: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="377">5</text>
+<path class="s4" d="M132,380 h69.92000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-69.92000000000002 z"><title>textedit-setting · agent-desktop: 7 (2/2 passed)</title></path>
+<text class="value" x="209.92000000000002" y="388">7</text>
+<path class="s5" d="M132,391 h138.56 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-138.56 z"><title>textedit-setting · Peekaboo: 13.5 (2/2 passed)</title></path>
+<text class="value" x="278.56" y="399">13.5</text>
+<text class="label" x="122" y="448" text-anchor="end">form</text>
+<path class="s0" d="M132,412 h38.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.24000000000001 z"><title>form · glovebox: 4 (2/2 passed)</title></path>
+<text class="value" x="178.24" y="420">4</text>
+<path class="s1" d="M132,423 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>form · Anthropic toolset, run by glovebox: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="431">5</text>
+<path class="s2" d="M132,434 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>form · open-computer-use: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="442">5</text>
+<path class="s3" d="M132,445 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>form · Codex cua_repl, driven by Claude: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="453">5</text>
+<path class="s4" d="M132,456 h38.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.24000000000001 z"><title>form · agent-desktop: 4 (2/2 passed)</title></path>
+<text class="value" x="178.24" y="464">4</text>
+<path class="s5" d="M132,467 h138.56 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-138.56 z"><title>form · Peekaboo: 13.5 (2/2 passed)</title></path>
+<text class="value" x="278.56" y="475">13.5</text>
+<text class="label" x="122" y="524" text-anchor="end">canvas</text>
+<path class="s0" d="M132,488 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>canvas · glovebox: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="496">3</text>
+<path class="s1" d="M132,499 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>canvas · Anthropic toolset, run by glovebox: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="507">3</text>
+<path class="s2" d="M132,510 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>canvas · open-computer-use: 3 (0/2 passed)</title></path>
+<text class="value" x="167.68" y="518">3 · 0/2 passed</text>
+<path class="s3" d="M132,521 h38.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.24000000000001 z"><title>canvas · Codex cua_repl, driven by Claude: 4 (2/2 passed)</title></path>
+<text class="value" x="178.24" y="529">4</text>
+<path class="s4" d="M132,532 h64.63999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.63999999999999 z"><title>canvas · agent-desktop: 6.5 (2/2 passed)</title></path>
+<text class="value" x="204.64" y="540">6.5</text>
+<path class="s5" d="M132,543 h75.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-75.19999999999999 z"><title>canvas · Peekaboo: 7.5 (2/2 passed)</title></path>
+<text class="value" x="215.2" y="551">7.5</text>
+<text class="label" x="122" y="600" text-anchor="end">form-repeat</text>
+<path class="s0" d="M132,564 h149.12 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-149.12 z"><title>form-repeat · glovebox: 14.5 (2/2 passed)</title></path>
+<text class="value" x="289.12" y="572">14.5</text>
+<path class="s1" d="M132,575 h175.51999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-175.51999999999998 z"><title>form-repeat · Anthropic toolset, run by glovebox: 17 (2/2 passed)</title></path>
+<text class="value" x="315.52" y="583">17</text>
+<path class="s2" d="M132,586 h207.20000000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-207.20000000000005 z"><title>form-repeat · open-computer-use: 20 (2/2 passed)</title></path>
+<text class="value" x="347.20000000000005" y="594">20</text>
+<path class="s3" d="M132,597 h196.64 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-196.64 z"><title>form-repeat · Codex cua_repl, driven by Claude: 19 (1/2 passed)</title></path>
+<text class="value" x="336.64" y="605">19 · 1/2 passed</text>
+<path class="s4" d="M132,608 h207.20000000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-207.20000000000005 z"><title>form-repeat · agent-desktop: 20 (2/2 passed)</title></path>
+<text class="value" x="347.20000000000005" y="616">20</text>
+<path class="s5" d="M132,619 h418.4000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-418.4000000000001 z"><title>form-repeat · Peekaboo: 40 (2/2 passed)</title></path>
+<text class="value" x="558.4000000000001" y="627">40</text>
+<text class="label" x="122" y="676" text-anchor="end">bulk-entry</text>
+<path class="s0" d="M132,640 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>bulk-entry · glovebox: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="648">5</text>
+<path class="s1" d="M132,651 h80.48000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-80.48000000000002 z"><title>bulk-entry · Anthropic toolset, run by glovebox: 8 (2/2 passed)</title></path>
+<text class="value" x="220.48000000000002" y="659">8</text>
+<path class="s2" d="M132,662 h106.88 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-106.88 z"><title>bulk-entry · open-computer-use: 10.5 (2/2 passed)</title></path>
+<text class="value" x="246.88" y="670">10.5</text>
+<path class="s3" d="M132,673 h85.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-85.75999999999999 z"><title>bulk-entry · Codex cua_repl, driven by Claude: 8.5 (0/2 passed)</title></path>
+<text class="value" x="225.76" y="681">8.5 · 0/2 passed</text>
+<path class="s4" d="M132,684 h80.48000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-80.48000000000002 z"><title>bulk-entry · agent-desktop: 8 (2/2 passed)</title></path>
+<text class="value" x="220.48000000000002" y="692">8</text>
+<path class="s5" d="M132,695 h524 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-524 z"><title>bulk-entry · Peekaboo: 50 (0/2 passed)</title></path>
+<text class="value" x="664" y="703">50 · 0/2 passed</text>
+<text class="label" x="122" y="752" text-anchor="end">large-table</text>
+<path class="s0" d="M132,716 h38.24000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.24000000000001 z"><title>large-table · glovebox: 4 (2/2 passed)</title></path>
+<text class="value" x="178.24" y="724">4</text>
+<path class="s1" d="M132,727 h112.16 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-112.16 z"><title>large-table · Anthropic toolset, run by glovebox: 11 (2/2 passed)</title></path>
+<text class="value" x="252.16" y="735">11</text>
+<path class="s2" d="M132,738 h223.03999999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-223.03999999999996 z"><title>large-table · open-computer-use: 21.5 (2/2 passed)</title></path>
+<text class="value" x="363.03999999999996" y="746">21.5</text>
+<path class="s3" d="M132,749 h80.48000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-80.48000000000002 z"><title>large-table · Codex cua_repl, driven by Claude: 8 (2/2 passed)</title></path>
+<text class="value" x="220.48000000000002" y="757">8</text>
+<path class="s4" d="M132,760 h133.27999999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-133.27999999999997 z"><title>large-table · agent-desktop: 13 (2/2 passed)</title></path>
+<text class="value" x="273.28" y="768">13</text>
+<path class="s5" d="M132,771 h106.88 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-106.88 z"><title>large-table · Peekaboo: 10.5 (2/2 passed)</title></path>
+<text class="value" x="246.88" y="779">10.5</text>
+<text class="label" x="122" y="828" text-anchor="end">remote-desktop</text>
+<path class="s0" d="M132,792 h59.360000000000014 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-59.360000000000014 z"><title>remote-desktop · glovebox: 6 (2/2 passed)</title></path>
+<text class="value" x="199.36" y="800">6</text>
+<path class="s1" d="M132,803 h59.360000000000014 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-59.360000000000014 z"><title>remote-desktop · Anthropic toolset, run by glovebox: 6 (2/2 passed)</title></path>
+<text class="value" x="199.36" y="811">6</text>
+<path class="s2" d="M132,814 h164.96000000000004 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-164.96000000000004 z"><title>remote-desktop · open-computer-use: 16 (2/2 passed)</title></path>
+<text class="value" x="304.96000000000004" y="822">16</text>
+<path class="s3" d="M132,825 h159.68 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-159.68 z"><title>remote-desktop · Codex cua_repl, driven by Claude: 15.5 (2/2 passed)</title></path>
+<text class="value" x="299.68" y="833">15.5</text>
+<path class="s4" d="M132,836 h164.96000000000004 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-164.96000000000004 z"><title>remote-desktop · agent-desktop: 16 (2/2 passed)</title></path>
+<text class="value" x="304.96000000000004" y="844">16</text>
+<path class="s5" d="M132,847 h85.75999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-85.75999999999999 z"><title>remote-desktop · Peekaboo: 8.5 (2/2 passed)</title></path>
+<text class="value" x="225.76" y="855">8.5</text>
+<text class="label" x="122" y="904" text-anchor="end">signup-recovery</text>
+<path class="s0" d="M132,868 h54.079999999999984 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-54.079999999999984 z"><title>signup-recovery · glovebox: 5.5 (2/2 passed)</title></path>
+<text class="value" x="194.07999999999998" y="876">5.5</text>
+<path class="s1" d="M132,879 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>signup-recovery · Anthropic toolset, run by glovebox: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="887">5</text>
+<path class="s2" d="M132,890 h75.19999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-75.19999999999999 z"><title>signup-recovery · open-computer-use: 7.5 (2/2 passed)</title></path>
+<text class="value" x="215.2" y="898">7.5</text>
+<path class="s3" d="M132,901 h59.360000000000014 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-59.360000000000014 z"><title>signup-recovery · Codex cua_repl, driven by Claude: 6 (1/2 passed)</title></path>
+<text class="value" x="199.36" y="909">6 · 1/2 passed</text>
+<path class="s4" d="M132,912 h91.03999999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-91.03999999999999 z"><title>signup-recovery · agent-desktop: 9 (2/2 passed)</title></path>
+<text class="value" x="231.04" y="920">9</text>
+<path class="s5" d="M132,923 h143.84000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-143.84000000000003 z"><title>signup-recovery · Peekaboo: 14 (2/2 passed)</title></path>
+<text class="value" x="283.84000000000003" y="931">14</text>
+<text class="label" x="122" y="980" text-anchor="end">coexistence</text>
+<path class="s0" d="M132,944 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>coexistence · glovebox: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="952">3</text>
+<path class="s1" d="M132,955 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>coexistence · Anthropic toolset, run by glovebox: 3 (0/2 passed)</title></path>
+<text class="value" x="167.68" y="963">3 · 0/2 passed</text>
+<path class="s2" d="M132,966 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>coexistence · open-computer-use: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="974">3</text>
+<path class="s3" d="M132,977 h27.680000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.680000000000007 z"><title>coexistence · Codex cua_repl, driven by Claude: 3 (2/2 passed)</title></path>
+<text class="value" x="167.68" y="985">3</text>
+<path class="s4" d="M132,988 h48.80000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.80000000000001 z"><title>coexistence · agent-desktop: 5 (2/2 passed)</title></path>
+<text class="value" x="188.8" y="996">5</text>
+<path class="s5" d="M132,999 h54.079999999999984 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-54.079999999999984 z"><title>coexistence · Peekaboo: 5.5 (2/2 passed)</title></path>
+<text class="value" x="194.07999999999998" y="1007">5.5</text>
+<line class="axis" x1="132" x2="132" y1="108" y2="1020"/>
+<text class="title" x="132" y="1072">Median cost per task (USD, list price)</text>
+<line class="grid" x1="132" x2="132" y1="1086" y2="1998"/>
+<text class="tick" x="132" y="2012" text-anchor="middle">$0.0</text>
+<line class="grid" x1="264" x2="264" y1="1086" y2="1998"/>
+<text class="tick" x="264" y="2012" text-anchor="middle">$0.2</text>
+<line class="grid" x1="396" x2="396" y1="1086" y2="1998"/>
+<text class="tick" x="396" y="2012" text-anchor="middle">$0.4</text>
+<line class="grid" x1="528" x2="528" y1="1086" y2="1998"/>
+<text class="tick" x="528" y="2012" text-anchor="middle">$0.6</text>
+<line class="grid" x1="660" x2="660" y1="1086" y2="1998"/>
+<text class="tick" x="660" y="2012" text-anchor="middle">$0.8</text>
+<text class="label" x="122" y="1122" text-anchor="end">calculator</text>
+<path class="s0" d="M132,1086 h0.5209999999999866 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-0.5209999999999866 z"><title>calculator · glovebox: $0.007 (2/2 passed)</title></path>
+<text class="value" x="140.521" y="1094">$0.007</text>
+<path class="s1" d="M132,1097 h13.324999999999989 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-13.324999999999989 z"><title>calculator · Anthropic toolset, run by glovebox: $0.026 (2/2 passed)</title></path>
+<text class="value" x="153.325" y="1105">$0.026</text>
+<path class="s2" d="M132,1108 h81.86599999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.86599999999999 z"><title>calculator · open-computer-use: $0.13 (2/2 passed)</title></path>
+<text class="value" x="221.86599999999999" y="1116">$0.13</text>
+<path class="s3" d="M132,1119 h17.549000000000007 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.549000000000007 z"><title>calculator · Codex cua_repl, driven by Claude: $0.033 (2/2 passed)</title></path>
+<text class="value" x="157.549" y="1127">$0.033</text>
+<path class="s4" d="M132,1130 h37.184 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-37.184 z"><title>calculator · agent-desktop: $0.062 (2/2 passed)</title></path>
+<text class="value" x="177.184" y="1138">$0.062</text>
+<path class="s5" d="M132,1141 h53.254999999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.254999999999995 z"><title>calculator · Peekaboo: $0.087 (2/2 passed)</title></path>
+<text class="value" x="193.255" y="1149">$0.087</text>
+<text class="label" x="122" y="1198" text-anchor="end">textedit-edit</text>
+<path class="s0" d="M132,1162 h9.662000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-9.662000000000006 z"><title>textedit-edit · glovebox: $0.021 (2/2 passed)</title></path>
+<text class="value" x="149.662" y="1170">$0.021</text>
+<path class="s1" d="M132,1173 h75.92599999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-75.92599999999999 z"><title>textedit-edit · Anthropic toolset, run by glovebox: $0.12 (2/2 passed)</title></path>
+<text class="value" x="215.926" y="1181">$0.12</text>
+<path class="s2" d="M132,1184 h17.054000000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.054000000000002 z"><title>textedit-edit · open-computer-use: $0.032 (2/2 passed)</title></path>
+<text class="value" x="157.054" y="1192">$0.032</text>
+<path class="s3" d="M132,1195 h17.15299999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.15299999999999 z"><title>textedit-edit · Codex cua_repl, driven by Claude: $0.032 (2/2 passed)</title></path>
+<text class="value" x="157.153" y="1203">$0.032</text>
+<path class="s4" d="M132,1206 h17.021000000000015 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.021000000000015 z"><title>textedit-edit · agent-desktop: $0.032 (2/2 passed)</title></path>
+<text class="value" x="157.02100000000002" y="1214">$0.032</text>
+<path class="s5" d="M132,1217 h58.964 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-58.964 z"><title>textedit-edit · Peekaboo: $0.095 (2/2 passed)</title></path>
+<text class="value" x="198.964" y="1225">$0.095</text>
+<text class="label" x="122" y="1274" text-anchor="end">finder-rename</text>
+<path class="s0" d="M132,1238 h36.028999999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-36.028999999999996 z"><title>finder-rename · glovebox: $0.061 (2/2 passed)</title></path>
+<text class="value" x="176.029" y="1246">$0.061</text>
+<path class="s1" d="M132,1249 h73.088 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-73.088 z"><title>finder-rename · Anthropic toolset, run by glovebox: $0.12 (2/2 passed)</title></path>
+<text class="value" x="213.088" y="1257">$0.12</text>
+<path class="s2" d="M132,1260 h65.333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-65.333 z"><title>finder-rename · open-computer-use: $0.11 (1/2 passed)</title></path>
+<text class="value" x="205.333" y="1268">$0.11 · 1/2 passed</text>
+<path class="s3" d="M132,1271 h23.224999999999994 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-23.224999999999994 z"><title>finder-rename · Codex cua_repl, driven by Claude: $0.041 (2/2 passed)</title></path>
+<text class="value" x="163.225" y="1279">$0.041</text>
+<path class="s4" d="M132,1282 h34.31299999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-34.31299999999999 z"><title>finder-rename · agent-desktop: $0.058 (0/2 passed)</title></path>
+<text class="value" x="174.313" y="1290">$0.058 · 0/2 passed</text>
+<path class="s5" d="M132,1293 h125.822 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-125.822 z"><title>finder-rename · Peekaboo: $0.20 (0/2 passed)</title></path>
+<text class="value" x="265.822" y="1301">$0.20 · 0/2 passed</text>
+<text class="label" x="122" y="1350" text-anchor="end">textedit-setting</text>
+<path class="s0" d="M132,1314 h3.788000000000011 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-3.788000000000011 z"><title>textedit-setting · glovebox: $0.012 (2/2 passed)</title></path>
+<text class="value" x="143.788" y="1322">$0.012</text>
+<path class="s1" d="M132,1325 h26.22800000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-26.22800000000001 z"><title>textedit-setting · Anthropic toolset, run by glovebox: $0.046 (2/2 passed)</title></path>
+<text class="value" x="166.228" y="1333">$0.046</text>
+<path class="s2" d="M132,1336 h77.18 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-77.18 z"><title>textedit-setting · open-computer-use: $0.12 (2/2 passed)</title></path>
+<text class="value" x="217.18" y="1344">$0.12</text>
+<path class="s3" d="M132,1347 h23.918000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-23.918000000000006 z"><title>textedit-setting · Codex cua_repl, driven by Claude: $0.042 (2/2 passed)</title></path>
+<text class="value" x="163.918" y="1355">$0.042</text>
+<path class="s4" d="M132,1358 h26.260999999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-26.260999999999996 z"><title>textedit-setting · agent-desktop: $0.046 (2/2 passed)</title></path>
+<text class="value" x="166.261" y="1366">$0.046</text>
+<path class="s5" d="M132,1369 h115.16300000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-115.16300000000001 z"><title>textedit-setting · Peekaboo: $0.18 (2/2 passed)</title></path>
+<text class="value" x="255.163" y="1377">$0.18</text>
+<text class="label" x="122" y="1426" text-anchor="end">form</text>
+<path class="s0" d="M132,1390 h2.5999999999999943 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-2.5999999999999943 z"><title>form · glovebox: $0.010 (2/2 passed)</title></path>
+<text class="value" x="142.6" y="1398">$0.010</text>
+<path class="s1" d="M132,1401 h18.869 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.869 z"><title>form · Anthropic toolset, run by glovebox: $0.035 (2/2 passed)</title></path>
+<text class="value" x="158.869" y="1409">$0.035</text>
+<path class="s2" d="M132,1412 h24.41300000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.41300000000001 z"><title>form · open-computer-use: $0.043 (2/2 passed)</title></path>
+<text class="value" x="164.413" y="1420">$0.043</text>
+<path class="s3" d="M132,1423 h20.419999999999987 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-20.419999999999987 z"><title>form · Codex cua_repl, driven by Claude: $0.037 (2/2 passed)</title></path>
+<text class="value" x="160.42" y="1431">$0.037</text>
+<path class="s4" d="M132,1434 h17.351 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-17.351 z"><title>form · agent-desktop: $0.032 (2/2 passed)</title></path>
+<text class="value" x="157.351" y="1442">$0.032</text>
+<path class="s5" d="M132,1445 h108.761 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-108.761 z"><title>form · Peekaboo: $0.17 (2/2 passed)</title></path>
+<text class="value" x="248.761" y="1453">$0.17</text>
+<text class="label" x="122" y="1502" text-anchor="end">canvas</text>
+<path class="s0" d="M132,1466 h2.401999999999987 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-2.401999999999987 z"><title>canvas · glovebox: $0.010 (2/2 passed)</title></path>
+<text class="value" x="142.402" y="1474">$0.010</text>
+<path class="s1" d="M132,1477 h13.951999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-13.951999999999998 z"><title>canvas · Anthropic toolset, run by glovebox: $0.027 (2/2 passed)</title></path>
+<text class="value" x="153.952" y="1485">$0.027</text>
+<path class="s2" d="M132,1488 h12.566000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-12.566000000000003 z"><title>canvas · open-computer-use: $0.025 (0/2 passed)</title></path>
+<text class="value" x="152.566" y="1496">$0.025 · 0/2 passed</text>
+<path class="s3" d="M132,1499 h20.254999999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-20.254999999999995 z"><title>canvas · Codex cua_repl, driven by Claude: $0.037 (2/2 passed)</title></path>
+<text class="value" x="160.255" y="1507">$0.037</text>
+<path class="s4" d="M132,1510 h25.370000000000005 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-25.370000000000005 z"><title>canvas · agent-desktop: $0.044 (2/2 passed)</title></path>
+<text class="value" x="165.37" y="1518">$0.044</text>
+<path class="s5" d="M132,1521 h68.73199999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-68.73199999999997 z"><title>canvas · Peekaboo: $0.11 (2/2 passed)</title></path>
+<text class="value" x="208.73199999999997" y="1529">$0.11</text>
+<text class="label" x="122" y="1578" text-anchor="end">form-repeat</text>
+<path class="s0" d="M132,1542 h13.390999999999991 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-13.390999999999991 z"><title>form-repeat · glovebox: $0.026 (2/2 passed)</title></path>
+<text class="value" x="153.391" y="1550">$0.026</text>
+<path class="s1" d="M132,1553 h50.54900000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-50.54900000000001 z"><title>form-repeat · Anthropic toolset, run by glovebox: $0.083 (2/2 passed)</title></path>
+<text class="value" x="190.549" y="1561">$0.083</text>
+<path class="s2" d="M132,1564 h117.935 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-117.935 z"><title>form-repeat · open-computer-use: $0.18 (2/2 passed)</title></path>
+<text class="value" x="257.935" y="1572">$0.18</text>
+<path class="s3" d="M132,1575 h59.623999999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-59.623999999999995 z"><title>form-repeat · Codex cua_repl, driven by Claude: $0.096 (1/2 passed)</title></path>
+<text class="value" x="199.624" y="1583">$0.096 · 1/2 passed</text>
+<path class="s4" d="M132,1586 h73.97899999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-73.97899999999998 z"><title>form-repeat · agent-desktop: $0.12 (2/2 passed)</title></path>
+<text class="value" x="213.97899999999998" y="1594">$0.12</text>
+<path class="s5" d="M132,1597 h354.74299999999994 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-354.74299999999994 z"><title>form-repeat · Peekaboo: $0.54 (2/2 passed)</title></path>
+<text class="value" x="494.74299999999994" y="1605">$0.54</text>
+<text class="label" x="122" y="1654" text-anchor="end">bulk-entry</text>
+<path class="s0" d="M132,1618 h7.978999999999985 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-7.978999999999985 z"><title>bulk-entry · glovebox: $0.018 (2/2 passed)</title></path>
+<text class="value" x="147.97899999999998" y="1626">$0.018</text>
+<path class="s1" d="M132,1629 h43.916 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-43.916 z"><title>bulk-entry · Anthropic toolset, run by glovebox: $0.073 (2/2 passed)</title></path>
+<text class="value" x="183.916" y="1637">$0.073</text>
+<path class="s2" d="M132,1640 h170.89999999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-170.89999999999998 z"><title>bulk-entry · open-computer-use: $0.27 (2/2 passed)</title></path>
+<text class="value" x="310.9" y="1648">$0.27</text>
+<path class="s3" d="M132,1651 h40.781000000000006 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-40.781000000000006 z"><title>bulk-entry · Codex cua_repl, driven by Claude: $0.068 (0/2 passed)</title></path>
+<text class="value" x="180.781" y="1659">$0.068 · 0/2 passed</text>
+<path class="s4" d="M132,1662 h67.67599999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-67.67599999999999 z"><title>bulk-entry · agent-desktop: $0.11 (2/2 passed)</title></path>
+<text class="value" x="207.676" y="1670">$0.11</text>
+<path class="s5" d="M132,1673 h432.26 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-432.26 z"><title>bulk-entry · Peekaboo: $0.66 (0/2 passed)</title></path>
+<text class="value" x="572.26" y="1681">$0.66 · 0/2 passed</text>
+<text class="label" x="122" y="1730" text-anchor="end">large-table</text>
+<path class="s0" d="M132,1694 h37.71199999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-37.71199999999999 z"><title>large-table · glovebox: $0.063 (2/2 passed)</title></path>
+<text class="value" x="177.712" y="1702">$0.063</text>
+<path class="s1" d="M132,1705 h116.483 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-116.483 z"><title>large-table · Anthropic toolset, run by glovebox: $0.18 (2/2 passed)</title></path>
+<text class="value" x="256.483" y="1713">$0.18</text>
+<path class="s2" d="M132,1716 h153.83899999999994 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-153.83899999999994 z"><title>large-table · open-computer-use: $0.24 (2/2 passed)</title></path>
+<text class="value" x="293.83899999999994" y="1724">$0.24</text>
+<path class="s3" d="M132,1727 h58.567999999999984 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-58.567999999999984 z"><title>large-table · Codex cua_repl, driven by Claude: $0.095 (2/2 passed)</title></path>
+<text class="value" x="198.56799999999998" y="1735">$0.095</text>
+<path class="s4" d="M132,1738 h260.98999999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-260.98999999999995 z"><title>large-table · agent-desktop: $0.40 (2/2 passed)</title></path>
+<text class="value" x="400.98999999999995" y="1746">$0.40</text>
+<path class="s5" d="M132,1749 h254.555 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-254.555 z"><title>large-table · Peekaboo: $0.39 (2/2 passed)</title></path>
+<text class="value" x="394.555" y="1757">$0.39</text>
+<text class="label" x="122" y="1806" text-anchor="end">remote-desktop</text>
+<path class="s0" d="M132,1770 h19.92500000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-19.92500000000001 z"><title>remote-desktop · glovebox: $0.036 (2/2 passed)</title></path>
+<text class="value" x="159.925" y="1778">$0.036</text>
+<path class="s1" d="M132,1781 h30.319999999999993 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.319999999999993 z"><title>remote-desktop · Anthropic toolset, run by glovebox: $0.052 (2/2 passed)</title></path>
+<text class="value" x="170.32" y="1789">$0.052</text>
+<path class="s2" d="M132,1792 h97.21099999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-97.21099999999998 z"><title>remote-desktop · open-computer-use: $0.15 (2/2 passed)</title></path>
+<text class="value" x="237.21099999999998" y="1800">$0.15</text>
+<path class="s3" d="M132,1803 h94.637 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-94.637 z"><title>remote-desktop · Codex cua_repl, driven by Claude: $0.15 (2/2 passed)</title></path>
+<text class="value" x="234.637" y="1811">$0.15</text>
+<path class="s4" d="M132,1814 h102.98599999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-102.98599999999999 z"><title>remote-desktop · agent-desktop: $0.16 (2/2 passed)</title></path>
+<text class="value" x="242.986" y="1822">$0.16</text>
+<path class="s5" d="M132,1825 h81.20599999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-81.20599999999999 z"><title>remote-desktop · Peekaboo: $0.13 (2/2 passed)</title></path>
+<text class="value" x="221.206" y="1833">$0.13</text>
+<text class="label" x="122" y="1882" text-anchor="end">signup-recovery</text>
+<path class="s0" d="M132,1846 h4.3160000000000025 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-4.3160000000000025 z"><title>signup-recovery · glovebox: $0.013 (2/2 passed)</title></path>
+<text class="value" x="144.316" y="1854">$0.013</text>
+<path class="s1" d="M132,1857 h18.901999999999987 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.901999999999987 z"><title>signup-recovery · Anthropic toolset, run by glovebox: $0.035 (2/2 passed)</title></path>
+<text class="value" x="158.902" y="1865">$0.035</text>
+<path class="s2" d="M132,1868 h30.121999999999986 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.121999999999986 z"><title>signup-recovery · open-computer-use: $0.052 (2/2 passed)</title></path>
+<text class="value" x="170.12199999999999" y="1876">$0.052</text>
+<path class="s3" d="M132,1879 h24.941000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.941000000000003 z"><title>signup-recovery · Codex cua_repl, driven by Claude: $0.044 (1/2 passed)</title></path>
+<text class="value" x="164.941" y="1887">$0.044 · 1/2 passed</text>
+<path class="s4" d="M132,1890 h34.44499999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-34.44499999999999 z"><title>signup-recovery · agent-desktop: $0.058 (2/2 passed)</title></path>
+<text class="value" x="174.445" y="1898">$0.058</text>
+<path class="s5" d="M132,1901 h107.969 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-107.969 z"><title>signup-recovery · Peekaboo: $0.17 (2/2 passed)</title></path>
+<text class="value" x="247.969" y="1909">$0.17</text>
+<text class="label" x="122" y="1958" text-anchor="end">coexistence</text>
+<path class="s0" d="M132,1922 h1.3460000000000036 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-1.3460000000000036 z"><title>coexistence · glovebox: $0.008 (2/2 passed)</title></path>
+<text class="value" x="141.346" y="1930">$0.008</text>
+<path class="s1" d="M132,1933 h14.084000000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-14.084000000000003 z"><title>coexistence · Anthropic toolset, run by glovebox: $0.027 (0/2 passed)</title></path>
+<text class="value" x="154.084" y="1941">$0.027 · 0/2 passed</text>
+<path class="s2" d="M132,1944 h14.84299999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-14.84299999999999 z"><title>coexistence · open-computer-use: $0.029 (2/2 passed)</title></path>
+<text class="value" x="154.843" y="1952">$0.029</text>
+<path class="s3" d="M132,1955 h15.931999999999988 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-15.931999999999988 z"><title>coexistence · Codex cua_repl, driven by Claude: $0.030 (2/2 passed)</title></path>
+<text class="value" x="155.932" y="1963">$0.030</text>
+<path class="s4" d="M132,1966 h18.77000000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-18.77000000000001 z"><title>coexistence · agent-desktop: $0.035 (2/2 passed)</title></path>
+<text class="value" x="158.77" y="1974">$0.035</text>
+<path class="s5" d="M132,1977 h62.16499999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-62.16499999999999 z"><title>coexistence · Peekaboo: $0.10 (2/2 passed)</title></path>
+<text class="value" x="202.165" y="1985">$0.10</text>
+<line class="axis" x1="132" x2="132" y1="1086" y2="1998"/>
+<text class="note" x="132" y="2034">144 runs · claude-sonnet-5-5 (effort medium) · medians per task, failed runs included</text>
 </svg>

@@ -6,6 +6,11 @@ are raw JSON lines in `results/raw/`, one per run.
 
 This folder is not part of the published package.
 
+> Latest results: [results/v2/summary.md](results/v2/summary.md), with caveats at
+> the top, and [results/v2/transcripts.tar.gz](results/v2/transcripts.tar.gz), the
+> transcripts of those runs plus the 12 superseded Peekaboo runs. App and process
+> names outside the test, and the home folder name, are redacted.
+
 ## Setups
 
 | Setup | What the model gets | Notes |
