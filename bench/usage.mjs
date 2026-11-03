@@ -7,7 +7,8 @@
 //       every 5 minutes, compare the bench key's usage since the file began
 //       with the file's records, and estimate the org's spend this billing
 //       cycle. Send SIGINT to the run and exit 3 if the org's spend is within
-//       $1 of the cap, or exit 4 if the API side is well ahead of the harness.
+//       $1 of the cap, or exit 4 if the API side is well ahead of the harness
+//       or three checks in a row fail.
 import fs from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -31,14 +32,31 @@ const adminKey = secret("ANTHROPIC_ADMIN_KEY");
 const benchKey = secret("ANTHROPIC_API_KEY");
 if (!adminKey) throw new Error("ANTHROPIC_ADMIN_KEY is not set in bench/.env");
 
+// Retries rate limits, server errors, and network failures.
+async function fetchJson(url, what) {
+  for (let attempt = 1; ; attempt++) {
+    let failure;
+    try {
+      const response = await fetch(url, { headers: { "x-api-key": adminKey, "anthropic-version": "2023-06-01" } });
+      const body = await response.json();
+      if (response.ok) return body;
+      failure = new Error(`${response.status} ${what}: ${body.error?.message}`);
+      if (response.status !== 429 && response.status < 500) throw Object.assign(failure, { final: true });
+    } catch (error) {
+      if (error.final) throw error;
+      failure = error;
+    }
+    if (attempt === 3) throw failure;
+    await new Promise((r) => setTimeout(r, attempt * 2000));
+  }
+}
+
 async function get(pathAndQuery) {
   const out = [];
   let page = null;
   do {
     const url = `https://api.anthropic.com/v1/organizations/${pathAndQuery}${page ? `&page=${page}` : ""}`;
-    const response = await fetch(url, { headers: { "x-api-key": adminKey, "anthropic-version": "2023-06-01" } });
-    const body = await response.json();
-    if (!response.ok) throw new Error(`${response.status} ${pathAndQuery.split("?")[0]}: ${body.error?.message}`);
+    const body = await fetchJson(url, pathAndQuery.split("?")[0]);
     if (!body.data) return body;
     out.push(...body.data);
     page = body.has_more ? body.next_page : null;
@@ -157,39 +175,54 @@ async function report() {
   }
 }
 
+function stopRun(why, code) {
+  console.log(`${why}; sending SIGINT to ${opts.pid ?? "(no pid)"}.`);
+  if (opts.pid) process.kill(Number(opts.pid), "SIGINT");
+  process.exit(code);
+}
+
+async function check(since, id) {
+  const usage = await usageSince(since);
+  const mine = ledger([opts.file], "");
+  let api = 0;
+  let harness = 0;
+  for (const [model, l] of mine) {
+    harness += l.cost;
+    api += listCost(model, usage.get(`${id}\t${model}`) ?? { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 }) ?? 0;
+  }
+  const stamp = new Date().toISOString().slice(11, 16);
+  let line = `${stamp} bench key since ${since.slice(11, 16)}Z: API ${usd(api)}, harness ${usd(harness)}`;
+  let stop = null;
+  // API data lags the harness, so API ahead by much means the harness undercounts.
+  if (api > harness * 1.2 + 0.5) stop = { code: 4, why: "API usage is ahead of the harness records" };
+  if (opts["org-cap"]) {
+    const cap = Number(opts["org-cap"]);
+    const org = await orgSpend(`${opts["cycle-start"]}T00:00:00Z`);
+    // Runs the usage data has not caught up with yet count too.
+    const total = org.billed + org.recent + Math.max(0, harness - api);
+    line += `; org this cycle ${usd(total)} of ${usd(cap)}`;
+    if (total >= cap - 1) stop = { code: 3, why: `org spend ${usd(total)} is within $1 of the ${usd(cap)} cap` };
+  }
+  console.log(line);
+  if (stop) stopRun(stop.why, stop.code);
+}
+
 async function watch() {
   const minutes = Number(opts.watch);
   if (!opts.file) throw new Error("--watch needs --file <run.jsonl>");
   const header = readJsonLines(opts.file).find((r) => r.type === "header");
   const since = new Date(header?.date ?? Date.now()).toISOString().slice(0, 13) + ":00:00Z";
-  const { id } = await benchKeyId();
+  let id = null;
+  let failures = 0;
   for (;;) {
-    const usage = await usageSince(since);
-    const mine = ledger([opts.file], "");
-    let api = 0;
-    let harness = 0;
-    for (const [model, l] of mine) {
-      harness += l.cost;
-      api += listCost(model, usage.get(`${id}\t${model}`) ?? { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 }) ?? 0;
-    }
-    const stamp = new Date().toISOString().slice(11, 16);
-    let line = `${stamp} bench key since ${since.slice(11, 16)}Z: API ${usd(api)}, harness ${usd(harness)}`;
-    let stop = null;
-    // API data lags the harness, so API ahead by much means the harness undercounts.
-    if (api > harness * 1.2 + 0.5) stop = { code: 4, why: "API usage is ahead of the harness records" };
-    if (opts["org-cap"]) {
-      const cap = Number(opts["org-cap"]);
-      const org = await orgSpend(`${opts["cycle-start"]}T00:00:00Z`);
-      // Runs the usage data has not caught up with yet count too.
-      const total = org.billed + org.recent + Math.max(0, harness - api);
-      line += `; org this cycle ${usd(total)} of ${usd(cap)}`;
-      if (total >= cap - 1) stop = { code: 3, why: `org spend ${usd(total)} is within $1 of the ${usd(cap)} cap` };
-    }
-    console.log(line);
-    if (stop) {
-      console.log(`${stop.why}; sending SIGINT to ${opts.pid ?? "(no pid)"}.`);
-      if (opts.pid) process.kill(Number(opts.pid), "SIGINT");
-      process.exit(stop.code);
+    try {
+      id ??= (await benchKeyId()).id;
+      await check(since, id);
+      failures = 0;
+    } catch (error) {
+      // Never let a run go on unwatched: three failed checks in a row stop it.
+      console.log(`Usage check failed: ${error.message}`);
+      if (++failures === 3) stopRun("Three usage checks failed in a row", 4);
     }
     await new Promise((r) => setTimeout(r, minutes * 60_000));
   }
