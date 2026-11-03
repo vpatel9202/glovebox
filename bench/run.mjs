@@ -5,6 +5,7 @@
 //   node bench/run.mjs --dry-run
 //   node bench/run.mjs --setups glovebox,cu,ocu --tasks all --n 3 --budget 30 --stop-after-rep 1
 //   node bench/run.mjs --resume bench/results/raw/<file>.jsonl --n 3 --budget 30
+//       (add --accept-sha <sha> if the code changed in a way that cannot affect the recorded runs)
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -29,6 +30,7 @@ const { values: opts } = parseArgs({
     "run-cap": { type: "string" },
     "max-turns": { type: "string" },
     resume: { type: "string" },
+    "accept-sha": { type: "string" },
     label: { type: "string", default: "" },
     "stop-after-rep": { type: "string" },
     "allow-dirty": { type: "boolean", default: false },
@@ -183,11 +185,13 @@ async function benchmark() {
   if (opts.resume) {
     outFile = path.resolve(opts.resume);
     const lines = readJsonLines(outFile);
-    const header = lines.find((r) => r.type === "header");
+    const header = lines.filter((r) => r.type === "header").at(-1);
     if (!header) fail(`${outFile} has no header record; it was written by an older harness`);
-    if (header.sha !== sha || header.dirty !== dirty) fail(`${outFile} was recorded at ${header.sha}${header.dirty ? " (dirty)" : ""}; this checkout is ${sha}${dirty ? " (dirty)" : ""}`);
+    if ((header.sha !== sha && header.sha !== opts["accept-sha"]) || header.dirty !== dirty) fail(`${outFile} was recorded at ${header.sha}${header.dirty ? " (dirty)" : ""}; this checkout is ${sha}${dirty ? " (dirty)" : ""}. Pass --accept-sha ${header.sha} only if the change cannot affect the runs already recorded.`);
     if (header.model !== opts.model || header.effort !== opts.effort) fail(`${outFile} is ${header.model} ${header.effort}; pass the same --model and --effort`);
     records = lines.filter((r) => r.type !== "header");
+    // Each resume gets its own header, so the file shows which SHA ran what.
+    fs.appendFileSync(outFile, `${JSON.stringify({ type: "header", date: new Date().toISOString(), model: opts.model, effort: opts.effort, sha, dirty, versions: versions(), resumedFrom: header.sha })}\n`);
   } else {
     const stamp = new Date().toISOString().slice(0, 10);
     outFile = path.join(rawDir, `${stamp}-${opts.model}-${opts.effort}${opts.label ? `-${opts.label}` : ""}.jsonl`);

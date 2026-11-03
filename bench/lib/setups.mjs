@@ -377,6 +377,8 @@ export const SETUPS = {
   cu: (task) => computerUseSetup(task),
   "codex-cu": () => codexSetup(),
   "agent-desktop": () => agentDesktopSetup(),
-  // Peekaboo's agent and analyze tools call their own configured AI model.
-  peekaboo: () => mcpSetup("peekaboo", process.execPath, [path.join(benchDir, "node_modules", "@steipete", "peekaboo", "peekaboo-mcp.js")], { withhold: ["agent", "analyze"] }),
+  // Peekaboo's agent and analyze tools call their own configured AI model. Its
+  // server is background-only without --allow-foreground, which would leave it
+  // the one tool that cannot reach the foreground when a task needs it.
+  peekaboo: () => mcpSetup("peekaboo", path.join(benchDir, "node_modules", "@steipete", "peekaboo", "peekaboo"), ["mcp", "serve", "--allow-foreground"], { withhold: ["agent", "analyze"] }),
 };

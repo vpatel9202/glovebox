@@ -51,6 +51,12 @@ async function fetchJson(url, what) {
   }
 }
 
+// The cost report has no days to give for a range that starts today.
+function costReport(since) {
+  const today = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`;
+  return since >= today ? Promise.resolve([]) : get(`cost_report?starting_at=${since}&limit=31`);
+}
+
 async function get(pathAndQuery) {
   const out = [];
   let page = null;
@@ -102,7 +108,7 @@ function listCost(model, t) {
 // PRICES for a model it lacks, so the estimate errs high).
 async function orgSpend(cycleStart) {
   const today = `${new Date().toISOString().slice(0, 10)}T00:00:00Z`;
-  const days = (await get(`cost_report?starting_at=${cycleStart}&limit=31`)).filter((d) => d.results.length && d.ending_at <= today);
+  const days = (await costReport(cycleStart)).filter((d) => d.results.length && d.ending_at <= today);
   const billed = days.flatMap((d) => d.results).reduce((s, r) => s + Number(r.amount) / 100, 0);
   const pricedFrom = days.at(-1)?.ending_at ?? cycleStart;
   const priciest = Object.keys(PRICES).sort((a, b) => PRICES[b].output - PRICES[a].output)[0];
@@ -144,7 +150,7 @@ async function report() {
   const [{ id, names }, usage, costDays] = await Promise.all([
     benchKeyId(),
     usageSince(since),
-    get(`cost_report?starting_at=${since}&limit=31`),
+    costReport(since),
   ]);
 
   // cost_report amounts are in cents.
@@ -181,9 +187,12 @@ function stopRun(why, code) {
   process.exit(code);
 }
 
-async function check(since, id) {
+async function check(id) {
+  // Only this session: the file's last header, since a resume adds one.
+  const header = readJsonLines(opts.file).filter((r) => r.type === "header").at(-1);
+  const since = new Date(header?.date ?? Date.now()).toISOString().slice(0, 13) + ":00:00Z";
   const usage = await usageSince(since);
-  const mine = ledger([opts.file], "");
+  const mine = ledger([opts.file], since);
   let api = 0;
   let harness = 0;
   for (const [model, l] of mine) {
@@ -210,14 +219,12 @@ async function check(since, id) {
 async function watch() {
   const minutes = Number(opts.watch);
   if (!opts.file) throw new Error("--watch needs --file <run.jsonl>");
-  const header = readJsonLines(opts.file).find((r) => r.type === "header");
-  const since = new Date(header?.date ?? Date.now()).toISOString().slice(0, 13) + ":00:00Z";
   let id = null;
   let failures = 0;
   for (;;) {
     try {
       id ??= (await benchKeyId()).id;
-      await check(since, id);
+      await check(id);
       failures = 0;
     } catch (error) {
       // Never let a run go on unwatched: three failed checks in a row stop it.

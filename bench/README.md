@@ -15,7 +15,7 @@ This folder is not part of the published package.
 | `ocu` | The 11 tools from [open-computer-use](https://github.com/iFurySt/open-computer-use) 1.1.3 (`ocu mcp`) | One action per call over the accessibility tree. |
 | `codex-cu` | Codex computer use: the `js` and `js_reset` tools of the `cua_repl` MCP server bundled in the ChatGPT app, started with the command and environment from its Codex plugin config | No Codex and no OpenAI model; the same Claude loop as every other setup. App approvals arrive as MCP elicitations; the harness approves only the bench apps, for the session. The harness sends `turn_ended` after each user turn, as Codex does. Its first call returns about 20,000 characters of documentation, counted as shipped. |
 | `agent-desktop` | One tool that runs the [agent-desktop](https://github.com/vercel-labs/agent-desktop) 1.1.0 CLI, described by its bundled `desktop` and macOS guides | Agents normally run it from a shell; here the tool runs only that binary. Screenshots come back as images. |
-| `peekaboo` | The MCP tools of [Peekaboo](https://github.com/openclaw/Peekaboo) 4.9.7, without `agent` and `analyze` | Those two call their own AI model, so they are withheld. |
+| `peekaboo` | The MCP tools of [Peekaboo](https://github.com/openclaw/Peekaboo) 4.9.7, started with `--allow-foreground`, without `agent` and `analyze` | Those two call their own AI model, so they are withheld. |
 
 Choices that affect the comparison:
 
@@ -150,8 +150,9 @@ Spend and restarts:
   `stopReason: "run-cap"` before it crosses the cap.
 - `--stop-after-rep 1` stops after the first pass so you can look at it;
   `--resume <file>` continues a file, skipping every run already recorded.
-  The file's first line records the git SHA and tool versions, and resume
-  refuses a different SHA. Paid runs need a clean checkout (`--allow-dirty`
+  The file's first line records the git SHA and tool versions, and each resume
+  adds a line. Resume refuses a different SHA unless you pass `--accept-sha
+  <sha>`, for a change that cannot affect the runs already recorded. Paid runs need a clean checkout (`--allow-dirty`
   for throwaway runs).
 - Infrastructure failures (a task or tool server that fails to start, an API
   error past 8 retries, a verify that throws) are recorded with
