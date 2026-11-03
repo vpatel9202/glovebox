@@ -14,7 +14,7 @@
   .tool { fill: var(--tool); } .model { fill: var(--model); }
 </style>
 <rect class="bg" width="760" height="1248" rx="8"/>
-<text class="title" x="160" y="22">Total time on the 7 tasks every setup passed</text>
+<text class="title" x="160" y="22">Total time on the 8 tasks every setup passed</text>
 <rect class="tool" x="160" y="30" width="12" height="12" rx="3"/><text class="label" x="178" y="40">Tool time</text>
 <rect class="model" x="270" y="30" width="12" height="12" rx="3"/><text class="label" x="288" y="40">Model time</text>
 <line class="grid" x1="160" x2="160" y1="52" y2="184"/>
@@ -28,29 +28,29 @@
 <line class="grid" x1="610" x2="610" y1="52" y2="184"/>
 <text class="tick" x="610" y="198" text-anchor="middle">400 s</text>
 <text class="label" x="150" y="66" text-anchor="end">glovebox</text>
-<rect class="tool" x="160" y="55" width="41.990625" height="13"><title>glovebox: tool time 37 s</title></rect>
-<path class="model" d="M203.990625,55 h67.3455 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-67.3455 z"><title>glovebox: model time 65 s</title></path>
-<text class="value" x="281.336125" y="66">103 s · tool 37 s</text>
-<text class="label" x="150" y="88" text-anchor="end">Anthropic computer use</text>
-<rect class="tool" x="160" y="77" width="46.72125" height="13"><title>Anthropic computer use: tool time 42 s</title></rect>
-<path class="model" d="M208.72125,77 h134.945625 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-134.945625 z"><title>Anthropic computer use: model time 125 s</title></path>
-<text class="value" x="353.666875" y="88">167 s · tool 42 s</text>
-<text class="label" x="150" y="110" text-anchor="end">agent-desktop</text>
-<rect class="tool" x="160" y="99" width="53.915625000000006" height="13"><title>agent-desktop: tool time 48 s</title></rect>
-<path class="model" d="M215.915625,99 h156.76612500000002 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-156.76612500000002 z"><title>agent-desktop: model time 145 s</title></path>
-<text class="value" x="382.68175" y="110">193 s · tool 48 s</text>
-<text class="label" x="150" y="132" text-anchor="end">Peekaboo</text>
-<rect class="tool" x="160" y="121" width="42.073875" height="13"><title>Peekaboo: tool time 37 s</title></rect>
-<path class="model" d="M204.073875,121 h179.15362500000003 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-179.15362500000003 z"><title>Peekaboo: model time 165 s</title></path>
-<text class="value" x="393.2275" y="132">202 s · tool 37 s</text>
-<text class="label" x="150" y="154" text-anchor="end">Codex computer use</text>
-<rect class="tool" x="160" y="143" width="120.02175000000001" height="13"><title>Codex computer use: tool time 107 s</title></rect>
-<path class="model" d="M282.02175,143 h129.9945 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-129.9945 z"><title>Codex computer use: model time 121 s</title></path>
-<text class="value" x="422.01625" y="154">228 s · tool 107 s</text>
+<rect class="tool" x="160" y="55" width="49.134375000000006" height="13"><title>glovebox: tool time 44 s</title></rect>
+<path class="model" d="M211.134375,55 h77.85243750000001 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-77.85243750000001 z"><title>glovebox: model time 75 s</title></path>
+<text class="value" x="298.98681250000004" y="66">118 s · tool 44 s</text>
+<text class="label" x="150" y="88" text-anchor="end">agent-desktop</text>
+<rect class="tool" x="160" y="77" width="59.96475" height="13"><title>agent-desktop: tool time 53 s</title></rect>
+<path class="model" d="M221.96475,77 h180.07725 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-180.07725 z"><title>agent-desktop: model time 165 s</title></path>
+<text class="value" x="412.04200000000003" y="88">219 s · tool 53 s</text>
+<text class="label" x="150" y="110" text-anchor="end">Anthropic computer use</text>
+<rect class="tool" x="160" y="99" width="97.1319375" height="13"><title>Anthropic computer use: tool time 86 s</title></rect>
+<path class="model" d="M259.1319375,99 h160.6029375 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-160.6029375 z"><title>Anthropic computer use: model time 148 s</title></path>
+<text class="value" x="429.734875" y="110">234 s · tool 86 s</text>
+<text class="label" x="150" y="132" text-anchor="end">Codex computer use</text>
+<rect class="tool" x="160" y="121" width="132.90300000000002" height="13"><title>Codex computer use: tool time 118 s</title></rect>
+<path class="model" d="M294.903,121 h143.43993749999996 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-143.43993749999996 z"><title>Codex computer use: model time 133 s</title></path>
+<text class="value" x="448.34293749999995" y="132">251 s · tool 118 s</text>
+<text class="label" x="150" y="154" text-anchor="end">Peekaboo</text>
+<rect class="tool" x="160" y="143" width="55.3348125" height="13"><title>Peekaboo: tool time 49 s</title></rect>
+<path class="model" d="M217.3348125,143 h231.0369375 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-231.0369375 z"><title>Peekaboo: model time 211 s</title></path>
+<text class="value" x="458.37175" y="154">260 s · tool 49 s</text>
 <text class="label" x="150" y="176" text-anchor="end">open-computer-use</text>
-<rect class="tool" x="160" y="165" width="158.67562500000003" height="13"><title>open-computer-use: tool time 141 s</title></rect>
-<path class="model" d="M320.675625,165 h200.19674999999998 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-200.19674999999998 z"><title>open-computer-use: model time 183 s</title></path>
-<text class="value" x="530.872375" y="176">324 s · tool 141 s</text>
+<rect class="tool" x="160" y="165" width="196.77599999999998" height="13"><title>open-computer-use: tool time 175 s</title></rect>
+<path class="model" d="M358.77599999999995,165 h229.02599999999998 a4,4 0 0 1 4,4 v5 a4,4 0 0 1 -4,4 h-229.02599999999998 z"><title>open-computer-use: model time 209 s</title></path>
+<text class="value" x="597.8019999999999" y="176">384 s · tool 175 s</text>
 <line class="axis" x1="160" x2="160" y1="52" y2="184"/>
 <rect class="s0" x="132" y="218" width="12" height="12" rx="3"/><text class="label" x="150" y="228">glovebox</text>
 <rect class="s1" x="322" y="218" width="12" height="12" rx="3"/><text class="label" x="340" y="228">Anthropic computer use</text>
@@ -68,153 +68,155 @@
 <line class="grid" x1="704" x2="704" y1="290" y2="1202"/>
 <text class="tick" x="704" y="1216" text-anchor="middle">150 s</text>
 <text class="label" x="122" y="326" text-anchor="end">calculator</text>
-<path class="s0" d="M132,290 h10.475413333333336 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-10.475413333333336 z"><title>calculator · glovebox: 4 s (1/1 passed)</title></path>
-<text class="value" x="150.47541333333334" y="298">4 s</text>
-<path class="s1" d="M132,301 h28.973893333333336 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-28.973893333333336 z"><title>calculator · Anthropic computer use: 9 s (1/1 passed)</title></path>
-<text class="value" x="168.97389333333334" y="309">9 s</text>
-<path class="s2" d="M132,312 h122.38149333333331 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-122.38149333333331 z"><title>calculator · open-computer-use: 33 s (1/1 passed)</title></path>
-<text class="value" x="262.3814933333333" y="320">33 s</text>
-<path class="s3" d="M132,323 h36.23447999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-36.23447999999999 z"><title>calculator · Codex computer use: 11 s (1/1 passed)</title></path>
-<text class="value" x="176.23448" y="331">11 s</text>
-<path class="s4" d="M132,334 h64.76584 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-64.76584 z"><title>calculator · agent-desktop: 18 s (1/1 passed)</title></path>
-<text class="value" x="204.76584" y="342">18 s</text>
-<path class="s5" d="M132,345 h37.40517333333332 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-37.40517333333332 z"><title>calculator · Peekaboo: 11 s (1/1 passed)</title></path>
-<text class="value" x="177.40517333333332" y="353">11 s</text>
+<path class="s0" d="M132,290 h11.331506666666655 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-11.331506666666655 z"><title>calculator · glovebox: 4 s (2/2 passed)</title></path>
+<text class="value" x="151.33150666666666" y="298">4 s</text>
+<path class="s1" d="M132,301 h24.630506666666662 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.630506666666662 z"><title>calculator · Anthropic computer use: 8 s (2/2 passed)</title></path>
+<text class="value" x="164.63050666666666" y="309">8 s</text>
+<path class="s2" d="M132,312 h240.63105333333328 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-240.63105333333328 z"><title>calculator · open-computer-use: 64 s (2/2 passed)</title></path>
+<text class="value" x="380.6310533333333" y="320">64 s</text>
+<path class="s3" d="M132,323 h31.940666666666687 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-31.940666666666687 z"><title>calculator · Codex computer use: 9 s (2/2 passed)</title></path>
+<text class="value" x="171.9406666666667" y="331">9 s</text>
+<path class="s4" d="M132,334 h66.05093333333332 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-66.05093333333332 z"><title>calculator · agent-desktop: 18 s (2/2 passed)</title></path>
+<text class="value" x="206.05093333333332" y="342">18 s</text>
+<path class="s5" d="M132,345 h36.56433333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-36.56433333333334 z"><title>calculator · Peekaboo: 11 s (2/2 passed)</title></path>
+<text class="value" x="176.56433333333334" y="353">11 s</text>
 <text class="label" x="122" y="402" text-anchor="end">textedit-edit</text>
-<path class="s0" d="M132,366 h55.56045333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-55.56045333333333 z"><title>textedit-edit · glovebox: 16 s (1/1 passed)</title></path>
-<text class="value" x="195.56045333333333" y="374">16 s</text>
-<path class="s1" d="M132,377 h48.24266666666665 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.24266666666665 z"><title>textedit-edit · Anthropic computer use: 14 s (1/1 passed)</title></path>
-<text class="value" x="188.24266666666665" y="385">14 s</text>
-<path class="s2" d="M132,388 h26.769786666666676 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-26.769786666666676 z"><title>textedit-edit · open-computer-use: 8 s (1/1 passed)</title></path>
-<text class="value" x="166.76978666666668" y="396">8 s</text>
-<path class="s3" d="M132,399 h29.648853333333335 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-29.648853333333335 z"><title>textedit-edit · Codex computer use: 9 s (1/1 passed)</title></path>
-<text class="value" x="169.64885333333334" y="407">9 s</text>
-<path class="s4" d="M132,410 h31.048346666666674 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-31.048346666666674 z"><title>textedit-edit · agent-desktop: 9 s (1/1 passed)</title></path>
-<text class="value" x="171.04834666666667" y="418">9 s</text>
-<path class="s5" d="M132,421 h39.18981333333335 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-39.18981333333335 z"><title>textedit-edit · Peekaboo: 11 s (1/1 passed)</title></path>
-<text class="value" x="179.18981333333335" y="429">11 s</text>
+<path class="s0" d="M132,366 h47.36941333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-47.36941333333334 z"><title>textedit-edit · glovebox: 13 s (2/2 passed)</title></path>
+<text class="value" x="187.36941333333334" y="374">13 s</text>
+<path class="s1" d="M132,377 h256.3381733333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-256.3381733333333 z"><title>textedit-edit · Anthropic computer use: 68 s (2/2 passed)</title></path>
+<text class="value" x="396.3381733333333" y="385">68 s</text>
+<path class="s2" d="M132,388 h25.763066666666674 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-25.763066666666674 z"><title>textedit-edit · open-computer-use: 8 s (2/2 passed)</title></path>
+<text class="value" x="165.76306666666667" y="396">8 s</text>
+<path class="s3" d="M132,399 h27.856586666666658 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.856586666666658 z"><title>textedit-edit · Codex computer use: 8 s (2/2 passed)</title></path>
+<text class="value" x="167.85658666666666" y="407">8 s</text>
+<path class="s4" d="M132,410 h30.61553333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.61553333333333 z"><title>textedit-edit · agent-desktop: 9 s (2/2 passed)</title></path>
+<text class="value" x="170.61553333333333" y="418">9 s</text>
+<path class="s5" d="M132,421 h43.48934666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-43.48934666666668 z"><title>textedit-edit · Peekaboo: 12 s (2/2 passed)</title></path>
+<text class="value" x="183.48934666666668" y="429">12 s</text>
 <text class="label" x="122" y="478" text-anchor="end">finder-rename</text>
-<path class="s0" d="M132,442 h147.09951999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-147.09951999999998 z"><title>finder-rename · glovebox: 40 s (1/1 passed)</title></path>
-<text class="value" x="287.09952" y="450">40 s</text>
-<path class="s1" d="M132,453 h217.83685333333335 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-217.83685333333335 z"><title>finder-rename · Anthropic computer use: 58 s (1/1 passed)</title></path>
-<text class="value" x="357.83685333333335" y="461">58 s</text>
-<text class="value" x="136" y="472">open-computer-use: no pass</text>
-<path class="s3" d="M132,475 h25.42367999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-25.42367999999999 z"><title>finder-rename · Codex computer use: 8 s (1/1 passed)</title></path>
-<text class="value" x="165.42368" y="483">8 s</text>
+<path class="s0" d="M132,442 h98.55197333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-98.55197333333334 z"><title>finder-rename · glovebox: 27 s (2/2 passed)</title></path>
+<text class="value" x="238.55197333333334" y="450">27 s</text>
+<path class="s1" d="M132,453 h211.41520000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-211.41520000000003 z"><title>finder-rename · Anthropic computer use: 56 s (2/2 passed)</title></path>
+<text class="value" x="351.4152" y="461">56 s</text>
+<path class="s2" d="M132,464 h112.03210666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-112.03210666666666 z"><title>finder-rename · open-computer-use: 30 s (1/2 passed)</title></path>
+<text class="value" x="252.03210666666666" y="472">30 s · 1/2 passed</text>
+<path class="s3" d="M132,475 h24.88409333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.88409333333334 z"><title>finder-rename · Codex computer use: 8 s (2/2 passed)</title></path>
+<text class="value" x="164.88409333333334" y="483">8 s</text>
 <text class="value" x="136" y="494">agent-desktop: no pass</text>
 <text class="value" x="136" y="505">Peekaboo: no pass</text>
 <text class="label" x="122" y="554" text-anchor="end">textedit-setting</text>
-<path class="s0" d="M132,518 h23.74962666666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-23.74962666666667 z"><title>textedit-setting · glovebox: 7 s (1/1 passed)</title></path>
-<text class="value" x="163.74962666666667" y="526">7 s</text>
-<path class="s1" d="M132,529 h50.584053333333344 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-50.584053333333344 z"><title>textedit-setting · Anthropic computer use: 14 s (1/1 passed)</title></path>
-<text class="value" x="190.58405333333334" y="537">14 s</text>
-<path class="s2" d="M132,540 h135.0532 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-135.0532 z"><title>textedit-setting · open-computer-use: 36 s (1/1 passed)</title></path>
-<text class="value" x="275.0532" y="548">36 s</text>
-<path class="s3" d="M132,551 h33.87402666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-33.87402666666668 z"><title>textedit-setting · Codex computer use: 10 s (1/1 passed)</title></path>
-<text class="value" x="173.87402666666668" y="559">10 s</text>
-<path class="s4" d="M132,562 h37.172560000000004 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-37.172560000000004 z"><title>textedit-setting · agent-desktop: 11 s (1/1 passed)</title></path>
-<text class="value" x="177.17256" y="570">11 s</text>
-<path class="s5" d="M132,573 h117.16485333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-117.16485333333333 z"><title>textedit-setting · Peekaboo: 32 s (1/1 passed)</title></path>
-<text class="value" x="257.1648533333333" y="581">32 s</text>
+<path class="s0" d="M132,518 h22.769599999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-22.769599999999997 z"><title>textedit-setting · glovebox: 7 s (2/2 passed)</title></path>
+<text class="value" x="162.7696" y="526">7 s</text>
+<path class="s1" d="M132,529 h47.806039999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-47.806039999999996 z"><title>textedit-setting · Anthropic computer use: 14 s (2/2 passed)</title></path>
+<text class="value" x="187.80604" y="537">14 s</text>
+<path class="s2" d="M132,540 h157.49275999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-157.49275999999998 z"><title>textedit-setting · open-computer-use: 42 s (2/2 passed)</title></path>
+<text class="value" x="297.49276" y="548">42 s</text>
+<path class="s3" d="M132,551 h35.48897333333332 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-35.48897333333332 z"><title>textedit-setting · Codex computer use: 10 s (2/2 passed)</title></path>
+<text class="value" x="175.48897333333332" y="559">10 s</text>
+<path class="s4" d="M132,562 h40.92488 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-40.92488 z"><title>textedit-setting · agent-desktop: 12 s (2/2 passed)</title></path>
+<text class="value" x="180.92488" y="570">12 s</text>
+<path class="s5" d="M132,573 h94.65284000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-94.65284000000003 z"><title>textedit-setting · Peekaboo: 26 s (2/2 passed)</title></path>
+<text class="value" x="234.65284000000003" y="581">26 s</text>
 <text class="label" x="122" y="630" text-anchor="end">form</text>
-<path class="s0" d="M132,594 h29.54970666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-29.54970666666668 z"><title>form · glovebox: 9 s (1/1 passed)</title></path>
-<text class="value" x="169.54970666666668" y="602">9 s</text>
-<path class="s1" d="M132,605 h38.94957333333332 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-38.94957333333332 z"><title>form · Anthropic computer use: 11 s (1/1 passed)</title></path>
-<text class="value" x="178.94957333333332" y="613">11 s</text>
-<path class="s2" d="M132,616 h70.11213333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-70.11213333333333 z"><title>form · open-computer-use: 19 s (1/1 passed)</title></path>
-<text class="value" x="210.11213333333333" y="624">19 s</text>
-<path class="s3" d="M132,627 h36.013306666666665 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-36.013306666666665 z"><title>form · Codex computer use: 10 s (1/1 passed)</title></path>
-<text class="value" x="176.01330666666667" y="635">10 s</text>
-<path class="s4" d="M132,638 h30.14458666666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.14458666666667 z"><title>form · agent-desktop: 9 s (1/1 passed)</title></path>
-<text class="value" x="170.14458666666667" y="646">9 s</text>
-<path class="s5" d="M132,649 h80.68269333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-80.68269333333333 z"><title>form · Peekaboo: 22 s (1/1 passed)</title></path>
-<text class="value" x="220.68269333333333" y="657">22 s</text>
+<path class="s0" d="M132,594 h25.623879999999986 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-25.623879999999986 z"><title>form · glovebox: 8 s (2/2 passed)</title></path>
+<text class="value" x="165.62387999999999" y="602">8 s</text>
+<path class="s1" d="M132,605 h39.33853333333332 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-39.33853333333332 z"><title>form · Anthropic computer use: 11 s (2/2 passed)</title></path>
+<text class="value" x="179.33853333333332" y="613">11 s</text>
+<path class="s2" d="M132,616 h69.93290666666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-69.93290666666667 z"><title>form · open-computer-use: 19 s (2/2 passed)</title></path>
+<text class="value" x="209.93290666666667" y="624">19 s</text>
+<path class="s3" d="M132,627 h36.489973333333324 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-36.489973333333324 z"><title>form · Codex computer use: 11 s (2/2 passed)</title></path>
+<text class="value" x="176.48997333333332" y="635">11 s</text>
+<path class="s4" d="M132,638 h30.028279999999995 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-30.028279999999995 z"><title>form · agent-desktop: 9 s (2/2 passed)</title></path>
+<text class="value" x="170.02828" y="646">9 s</text>
+<path class="s5" d="M132,649 h90.69460000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-90.69460000000001 z"><title>form · Peekaboo: 25 s (2/2 passed)</title></path>
+<text class="value" x="230.6946" y="657">25 s</text>
 <text class="label" x="122" y="706" text-anchor="end">canvas</text>
-<path class="s0" d="M132,670 h24.22629333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.22629333333333 z"><title>canvas · glovebox: 7 s (1/1 passed)</title></path>
-<text class="value" x="164.22629333333333" y="678">7 s</text>
-<path class="s1" d="M132,681 h22.159466666666674 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-22.159466666666674 z"><title>canvas · Anthropic computer use: 7 s (1/1 passed)</title></path>
-<text class="value" x="162.15946666666667" y="689">7 s</text>
+<path class="s0" d="M132,670 h21.47878666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-21.47878666666668 z"><title>canvas · glovebox: 7 s (2/2 passed)</title></path>
+<text class="value" x="161.47878666666668" y="678">7 s</text>
+<path class="s1" d="M132,681 h24.533266666666663 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-24.533266666666663 z"><title>canvas · Anthropic computer use: 7 s (2/2 passed)</title></path>
+<text class="value" x="164.53326666666666" y="689">7 s</text>
 <text class="value" x="136" y="700">open-computer-use: no pass</text>
-<path class="s3" d="M132,703 h31.22757333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-31.22757333333334 z"><title>canvas · Codex computer use: 9 s (1/1 passed)</title></path>
-<text class="value" x="171.22757333333334" y="711">9 s</text>
-<path class="s4" d="M132,714 h48.181653333333315 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-48.181653333333315 z"><title>canvas · agent-desktop: 14 s (1/1 passed)</title></path>
-<text class="value" x="188.18165333333332" y="722">14 s</text>
-<path class="s5" d="M132,725 h51.190373333333326 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-51.190373333333326 z"><title>canvas · Peekaboo: 14 s (1/1 passed)</title></path>
-<text class="value" x="191.19037333333333" y="733">14 s</text>
+<path class="s3" d="M132,703 h32.04553333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-32.04553333333334 z"><title>canvas · Codex computer use: 9 s (2/2 passed)</title></path>
+<text class="value" x="172.04553333333334" y="711">9 s</text>
+<path class="s4" d="M132,714 h49.90718666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-49.90718666666666 z"><title>canvas · agent-desktop: 14 s (2/2 passed)</title></path>
+<text class="value" x="189.90718666666666" y="722">14 s</text>
+<path class="s5" d="M132,725 h53.45168000000001 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-53.45168000000001 z"><title>canvas · Peekaboo: 15 s (2/2 passed)</title></path>
+<text class="value" x="193.45168" y="733">15 s</text>
 <text class="label" x="122" y="782" text-anchor="end">form-repeat</text>
-<path class="s0" d="M132,746 h87.03189333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-87.03189333333333 z"><title>form-repeat · glovebox: 24 s (1/1 passed)</title></path>
-<text class="value" x="227.03189333333333" y="754">24 s</text>
-<path class="s1" d="M132,757 h174.47162666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-174.47162666666668 z"><title>form-repeat · Anthropic computer use: 47 s (1/1 passed)</title></path>
-<text class="value" x="314.4716266666667" y="765">47 s</text>
-<path class="s2" d="M132,768 h360.3220533333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-360.3220533333333 z"><title>form-repeat · open-computer-use: 96 s (1/1 passed)</title></path>
-<text class="value" x="500.3220533333333" y="776">96 s</text>
-<path class="s3" d="M132,779 h169.47997333333336 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-169.47997333333336 z"><title>form-repeat · Codex computer use: 45 s (1/1 passed)</title></path>
-<text class="value" x="309.47997333333336" y="787">45 s</text>
-<path class="s4" d="M132,790 h127.45322666666664 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-127.45322666666664 z"><title>form-repeat · agent-desktop: 34 s (1/1 passed)</title></path>
-<text class="value" x="267.45322666666664" y="798">34 s</text>
-<path class="s5" d="M132,801 h280.41746666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-280.41746666666666 z"><title>form-repeat · Peekaboo: 75 s (1/1 passed)</title></path>
-<text class="value" x="420.41746666666666" y="809">75 s</text>
+<path class="s0" d="M132,746 h95.63477333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-95.63477333333333 z"><title>form-repeat · glovebox: 26 s (2/2 passed)</title></path>
+<text class="value" x="235.63477333333333" y="754">26 s</text>
+<path class="s1" d="M132,757 h172.4925066666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-172.4925066666667 z"><title>form-repeat · Anthropic computer use: 46 s (2/2 passed)</title></path>
+<text class="value" x="312.4925066666667" y="765">46 s</text>
+<path class="s2" d="M132,768 h339.8082266666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-339.8082266666667 z"><title>form-repeat · open-computer-use: 90 s (2/2 passed)</title></path>
+<text class="value" x="479.8082266666667" y="776">90 s</text>
+<path class="s3" d="M132,779 h169.47997333333336 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-169.47997333333336 z"><title>form-repeat · Codex computer use: 45 s (1/2 passed)</title></path>
+<text class="value" x="309.47997333333336" y="787">45 s · 1/2 passed</text>
+<path class="s4" d="M132,790 h128.00425333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-128.00425333333334 z"><title>form-repeat · agent-desktop: 35 s (2/2 passed)</title></path>
+<text class="value" x="268.00425333333334" y="798">35 s</text>
+<path class="s5" d="M132,801 h334.7536533333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-334.7536533333333 z"><title>form-repeat · Peekaboo: 89 s (2/2 passed)</title></path>
+<text class="value" x="474.7536533333333" y="809">89 s</text>
 <text class="label" x="122" y="858" text-anchor="end">bulk-entry</text>
-<path class="s0" d="M132,822 h75.04658666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-75.04658666666666 z"><title>bulk-entry · glovebox: 21 s (1/1 passed)</title></path>
-<text class="value" x="215.04658666666666" y="830">21 s</text>
-<path class="s1" d="M132,833 h174.39535999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-174.39535999999998 z"><title>bulk-entry · Anthropic computer use: 47 s (1/1 passed)</title></path>
-<text class="value" x="314.39536" y="841">47 s</text>
-<path class="s2" d="M132,844 h549.2536533333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-549.2536533333333 z"><title>bulk-entry · open-computer-use: 145 s (1/1 passed)</title></path>
-<text class="value" x="689.2536533333333" y="852">145 s</text>
+<path class="s0" d="M132,822 h72.219 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-72.219 z"><title>bulk-entry · glovebox: 20 s (2/2 passed)</title></path>
+<text class="value" x="212.219" y="830">20 s</text>
+<path class="s1" d="M132,833 h177.15812 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-177.15812 z"><title>bulk-entry · Anthropic computer use: 48 s (2/2 passed)</title></path>
+<text class="value" x="317.15812" y="841">48 s</text>
+<path class="s2" d="M132,844 h529.3633066666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-529.3633066666666 z"><title>bulk-entry · open-computer-use: 140 s (2/2 passed)</title></path>
+<text class="value" x="669.3633066666666" y="852">140 s</text>
 <text class="value" x="136" y="863">Codex computer use: no pass</text>
-<path class="s4" d="M132,866 h121.53111999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-121.53111999999999 z"><title>bulk-entry · agent-desktop: 33 s (1/1 passed)</title></path>
-<text class="value" x="261.53112" y="874">33 s</text>
+<path class="s4" d="M132,866 h134.20092 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-134.20092 z"><title>bulk-entry · agent-desktop: 36 s (2/2 passed)</title></path>
+<text class="value" x="274.20092" y="874">36 s</text>
 <text class="value" x="136" y="885">Peekaboo: no pass</text>
 <text class="label" x="122" y="934" text-anchor="end">large-table</text>
-<path class="s0" d="M132,898 h28.916693333333342 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-28.916693333333342 z"><title>large-table · glovebox: 9 s (1/1 passed)</title></path>
-<text class="value" x="168.91669333333334" y="906">9 s</text>
-<path class="s1" d="M132,909 h179.90562666666665 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-179.90562666666665 z"><title>large-table · Anthropic computer use: 48 s (1/1 passed)</title></path>
-<text class="value" x="319.90562666666665" y="917">48 s</text>
-<path class="s2" d="M132,920 h341.5718933333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-341.5718933333334 z"><title>large-table · open-computer-use: 91 s (1/1 passed)</title></path>
-<text class="value" x="481.5718933333334" y="928">91 s</text>
-<path class="s3" d="M132,931 h304.3041866666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-304.3041866666667 z"><title>large-table · Codex computer use: 81 s (1/1 passed)</title></path>
-<text class="value" x="444.3041866666667" y="939">81 s</text>
-<path class="s4" d="M132,942 h215.80434666666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-215.80434666666667 z"><title>large-table · agent-desktop: 58 s (1/1 passed)</title></path>
-<text class="value" x="355.8043466666667" y="950">58 s</text>
-<path class="s5" d="M132,953 h96.56904 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-96.56904 z"><title>large-table · Peekaboo: 26 s (1/1 passed)</title></path>
-<text class="value" x="236.56904" y="961">26 s</text>
+<path class="s0" d="M132,898 h31.570773333333335 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-31.570773333333335 z"><title>large-table · glovebox: 9 s (2/2 passed)</title></path>
+<text class="value" x="171.57077333333334" y="906">9 s</text>
+<path class="s1" d="M132,909 h168.17581333333328 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-168.17581333333328 z"><title>large-table · Anthropic computer use: 45 s (2/2 passed)</title></path>
+<text class="value" x="308.1758133333333" y="917">45 s</text>
+<path class="s2" d="M132,920 h321.21822666666674 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-321.21822666666674 z"><title>large-table · open-computer-use: 85 s (2/2 passed)</title></path>
+<text class="value" x="461.21822666666674" y="928">85 s</text>
+<path class="s3" d="M132,931 h345.7169866666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-345.7169866666667 z"><title>large-table · Codex computer use: 92 s (2/2 passed)</title></path>
+<text class="value" x="485.7169866666667" y="939">92 s</text>
+<path class="s4" d="M132,942 h210.03858666666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-210.03858666666667 z"><title>large-table · agent-desktop: 56 s (2/2 passed)</title></path>
+<text class="value" x="350.0385866666667" y="950">56 s</text>
+<path class="s5" d="M132,953 h140.4452533333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-140.4452533333333 z"><title>large-table · Peekaboo: 38 s (2/2 passed)</title></path>
+<text class="value" x="280.4452533333333" y="961">38 s</text>
 <text class="label" x="122" y="1010" text-anchor="end">remote-desktop</text>
-<path class="s0" d="M132,974 h127.69346666666667 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-127.69346666666667 z"><title>remote-desktop · glovebox: 35 s (1/1 passed)</title></path>
-<text class="value" x="267.69346666666667" y="982">35 s</text>
-<path class="s1" d="M132,985 h87.02807999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-87.02807999999999 z"><title>remote-desktop · Anthropic computer use: 24 s (1/1 passed)</title></path>
-<text class="value" x="227.02808" y="993">24 s</text>
-<path class="s2" d="M132,996 h152.60597333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-152.60597333333334 z"><title>remote-desktop · open-computer-use: 41 s (1/1 passed)</title></path>
-<text class="value" x="292.60597333333334" y="1004">41 s</text>
-<path class="s3" d="M132,1007 h230.32551999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-230.32551999999998 z"><title>remote-desktop · Codex computer use: 61 s (1/1 passed)</title></path>
-<text class="value" x="370.32552" y="1015">61 s</text>
-<path class="s4" d="M132,1018 h200.10485333333338 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-200.10485333333338 z"><title>remote-desktop · agent-desktop: 54 s (1/1 passed)</title></path>
-<text class="value" x="340.1048533333334" y="1026">54 s</text>
-<path class="s5" d="M132,1029 h90.81472000000002 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-90.81472000000002 z"><title>remote-desktop · Peekaboo: 25 s (1/1 passed)</title></path>
-<text class="value" x="230.81472000000002" y="1037">25 s</text>
+<path class="s0" d="M132,974 h134.06935999999996 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-134.06935999999996 z"><title>remote-desktop · glovebox: 36 s (2/2 passed)</title></path>
+<text class="value" x="274.06935999999996" y="982">36 s</text>
+<path class="s1" d="M132,985 h80.14119999999997 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-80.14119999999997 z"><title>remote-desktop · Anthropic computer use: 22 s (2/2 passed)</title></path>
+<text class="value" x="220.14119999999997" y="993">22 s</text>
+<path class="s2" d="M132,996 h191.03484000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-191.03484000000003 z"><title>remote-desktop · open-computer-use: 51 s (2/2 passed)</title></path>
+<text class="value" x="331.03484000000003" y="1004">51 s</text>
+<path class="s3" d="M132,1007 h212.41238666666663 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-212.41238666666663 z"><title>remote-desktop · Codex computer use: 57 s (2/2 passed)</title></path>
+<text class="value" x="352.41238666666663" y="1015">57 s</text>
+<path class="s4" d="M132,1018 h219.14101333333338 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-219.14101333333338 z"><title>remote-desktop · agent-desktop: 59 s (2/2 passed)</title></path>
+<text class="value" x="359.1410133333334" y="1026">59 s</text>
+<path class="s5" d="M132,1029 h82.31098666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-82.31098666666668 z"><title>remote-desktop · Peekaboo: 23 s (2/2 passed)</title></path>
+<text class="value" x="222.31098666666668" y="1037">23 s</text>
 <text class="label" x="122" y="1086" text-anchor="end">signup-recovery</text>
-<path class="s0" d="M132,1050 h42.75146666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-42.75146666666666 z"><title>signup-recovery · glovebox: 12 s (1/1 passed)</title></path>
-<text class="value" x="182.75146666666666" y="1058">12 s</text>
-<path class="s1" d="M132,1061 h72.11032 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-72.11032 z"><title>signup-recovery · Anthropic computer use: 20 s (1/1 passed)</title></path>
-<text class="value" x="212.11032" y="1069">20 s</text>
-<path class="s2" d="M132,1072 h85.00319999999999 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-85.00319999999999 z"><title>signup-recovery · open-computer-use: 23 s (1/1 passed)</title></path>
-<text class="value" x="225.0032" y="1080">23 s</text>
-<text class="value" x="136" y="1091">Codex computer use: no pass</text>
-<path class="s4" d="M132,1094 h62.11938666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-62.11938666666666 z"><title>signup-recovery · agent-desktop: 17 s (1/1 passed)</title></path>
-<text class="value" x="202.11938666666666" y="1102">17 s</text>
-<path class="s5" d="M132,1105 h137.88269333333335 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-137.88269333333335 z"><title>signup-recovery · Peekaboo: 37 s (1/1 passed)</title></path>
-<text class="value" x="277.88269333333335" y="1113">37 s</text>
+<path class="s0" d="M132,1050 h50.43342666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-50.43342666666666 z"><title>signup-recovery · glovebox: 14 s (2/2 passed)</title></path>
+<text class="value" x="190.43342666666666" y="1058">14 s</text>
+<path class="s1" d="M132,1061 h73.08462666666668 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-73.08462666666668 z"><title>signup-recovery · Anthropic computer use: 20 s (2/2 passed)</title></path>
+<text class="value" x="213.08462666666668" y="1069">20 s</text>
+<path class="s2" d="M132,1072 h85.80781333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-85.80781333333334 z"><title>signup-recovery · open-computer-use: 24 s (2/2 passed)</title></path>
+<text class="value" x="225.80781333333334" y="1080">24 s</text>
+<path class="s3" d="M132,1083 h65.74205333333333 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-65.74205333333333 z"><title>signup-recovery · Codex computer use: 18 s (1/2 passed)</title></path>
+<text class="value" x="205.74205333333333" y="1091">18 s · 1/2 passed</text>
+<path class="s4" d="M132,1094 h77.21065333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-77.21065333333334 z"><title>signup-recovery · agent-desktop: 21 s (2/2 passed)</title></path>
+<text class="value" x="217.21065333333334" y="1102">21 s</text>
+<path class="s5" d="M132,1105 h136.15334666666666 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-136.15334666666666 z"><title>signup-recovery · Peekaboo: 37 s (2/2 passed)</title></path>
+<text class="value" x="276.15334666666666" y="1113">37 s</text>
 <text class="label" x="122" y="1162" text-anchor="end">coexistence</text>
-<path class="s0" d="M132,1126 h14.117146666666656 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-14.117146666666656 z"><title>coexistence · glovebox: 5 s (1/1 passed)</title></path>
-<text class="value" x="154.11714666666666" y="1134">5 s</text>
+<path class="s0" d="M132,1126 h14.887439999999998 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-14.887439999999998 z"><title>coexistence · glovebox: 5 s (2/2 passed)</title></path>
+<text class="value" x="154.88744" y="1134">5 s</text>
 <text class="value" x="136" y="1145">Anthropic computer use: no pass</text>
-<path class="s2" d="M132,1148 h47.27789333333334 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-47.27789333333334 z"><title>coexistence · open-computer-use: 13 s (1/1 passed)</title></path>
-<text class="value" x="187.27789333333334" y="1156">13 s</text>
-<path class="s3" d="M132,1159 h27.402800000000013 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-27.402800000000013 z"><title>coexistence · Codex computer use: 8 s (1/1 passed)</title></path>
-<text class="value" x="167.4028" y="1167">8 s</text>
-<path class="s4" d="M132,1170 h45.138613333333325 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-45.138613333333325 z"><title>coexistence · agent-desktop: 13 s (1/1 passed)</title></path>
-<text class="value" x="185.13861333333332" y="1178">13 s</text>
-<path class="s5" d="M132,1181 h31.841520000000003 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-31.841520000000003 z"><title>coexistence · Peekaboo: 9 s (1/1 passed)</title></path>
-<text class="value" x="171.84152" y="1189">9 s</text>
+<path class="s2" d="M132,1148 h43.966013333333336 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-43.966013333333336 z"><title>coexistence · open-computer-use: 13 s (2/2 passed)</title></path>
+<text class="value" x="183.96601333333334" y="1156">13 s</text>
+<path class="s3" d="M132,1159 h35.149586666666664 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-35.149586666666664 z"><title>coexistence · Codex computer use: 10 s (2/2 passed)</title></path>
+<text class="value" x="175.14958666666666" y="1167">10 s</text>
+<path class="s4" d="M132,1170 h43.71052 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-43.71052 z"><title>coexistence · agent-desktop: 13 s (2/2 passed)</title></path>
+<text class="value" x="183.71052" y="1178">13 s</text>
+<path class="s5" d="M132,1181 h34.44412 a4,4 0 0 1 4,4 v1 a4,4 0 0 1 -4,4 h-34.44412 z"><title>coexistence · Peekaboo: 10 s (2/2 passed)</title></path>
+<text class="value" x="174.44412" y="1189">10 s</text>
 <line class="axis" x1="132" x2="132" y1="290" y2="1202"/>
-<text class="note" x="132" y="1238">72 runs · claude-sonnet-5-5 (effort medium) · passing runs only, so a fast failure does not count as fast</text>
+<text class="note" x="132" y="1238">144 runs · claude-sonnet-5-5 (effort medium) · passing runs only, so a fast failure does not count as fast</text>
 </svg>
