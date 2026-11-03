@@ -1,6 +1,7 @@
 #!/bin/zsh
-# Runs bench/run.mjs with the usage watcher beside it. If the watcher stops the
-# run at the org spend cap, commits the results and pushes. See bench/README.md.
+# Runs bench/run.mjs with the usage watcher beside it. When the run finishes or
+# the watcher stops it at the org spend cap, reports the results, commits them,
+# and pushes. See bench/README.md.
 #
 #   CYCLE_START=2026-10-10 bench/session.sh --model claude-sonnet-5-5 --n 3 --stop-after-rep 1 --budget 30
 #
@@ -54,17 +55,25 @@ else
 fi
 echo "SESSION: run exit $runcode, watcher exit $watchcode"
 
-if [[ $watchcode -eq 3 ]]; then
-  echo "SESSION: org spend cap reached; committing and pushing results"
-  run git add "$file"
-  run git commit -q -m "bench: partial results, stopped at the org spend cap
+publish() {
+  node bench/report.mjs --out "${REPORT_DIR:-bench/results/v2}" "$file" || echo "SESSION: report failed; pushing the results anyway"
+  run git add "$file" "${REPORT_DIR:-bench/results/v2}"
+  run git commit -q -m "$1
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   run git push -u origin "$(git branch --show-current)"
   run bd dolt push
+}
+
+if [[ $watchcode -eq 3 ]]; then
+  echo "SESSION: org spend cap reached; committing and pushing results"
+  publish "bench: partial results, stopped at the org spend cap"
   echo "SESSION: CAP-STOP pushed; resume with --resume $file"
 elif [[ $watchcode -eq 4 ]]; then
   echo "SESSION: WATCH-STOP usage drifted from the records or checks kept failing; nothing pushed"
+elif [[ $runcode -eq 0 ]]; then
+  publish "bench: record results from $(basename "$file")"
+  echo "SESSION: FINISHED pushed; resume with --resume $file"
 else
-  echo "SESSION: run finished on its own; nothing pushed"
+  echo "SESSION: run exited with code $runcode; nothing pushed"
 fi

@@ -1,16 +1,21 @@
 #!/usr/bin/env node
-// Summarizes bench/results/raw/*.jsonl into results/summary.md and the README
-// chart results/chart.svg. Medians are per task and setup across reps.
+// Summarizes bench/results/raw/*.jsonl into results/summary.md, the README chart
+// results/chart.svg, and results/speed.svg. Medians are per task and setup
+// across reps.
 //
-//   node bench/report.mjs [results/raw/file.jsonl ...]
+//   node bench/report.mjs [--out results/v2] [results/raw/file.jsonl ...]
 import fs from "node:fs";
 import path from "node:path";
+import { parseArgs } from "node:util";
 import { benchDir } from "./lib/env.mjs";
 import { TASKS } from "./lib/tasks.mjs";
 
+const { values: opts, positionals } = parseArgs({ options: { out: { type: "string" } }, allowPositionals: true });
+const outDir = opts.out ? path.resolve(opts.out) : path.join(benchDir, "results");
+fs.mkdirSync(outDir, { recursive: true });
 const rawDir = path.join(benchDir, "results", "raw");
-const files = process.argv.slice(2).length
-  ? process.argv.slice(2)
+const files = positionals.length
+  ? positionals
   : fs.readdirSync(rawDir).filter((f) => f.endsWith(".jsonl")).map((f) => path.join(rawDir, f));
 // Header records and infrastructure failures (setup crashes, API errors past
 // the retries) are not runs of the task.
@@ -41,7 +46,12 @@ function cell(task, setup) {
   const rs = records.filter((r) => r.task === task && r.setup === setup);
   if (!rs.length) return null;
   const sum = (f) => rs.reduce((n, r) => n + (f(r) ?? 0), 0);
+  // Speed counts passing runs only: a fast failure is not fast.
+  const passing = rs.filter((r) => r.success);
   return {
+    passWallS: median(passing.map((r) => r.wallMs / 1000)),
+    passModelS: median(passing.map((r) => r.modelMs / 1000)),
+    passToolS: median(passing.map((r) => r.toolMs / 1000)),
     runs: rs.length,
     passed: rs.filter((r) => r.success).length,
     roundTrips: median(rs.map((r) => r.roundTrips)),
@@ -109,12 +119,32 @@ if (reads.length) {
     `Screenshots on tasks the tree can solve: ${textRuns.reduce((n, r) => n + (r.screenshotsOnTextTask ?? 0), 0)} across ${textRuns.length} runs.`,
   );
 }
+// The fair comparison: only tasks every setup passed at least once.
+const commonTasks = tasks.filter((t) => SETUPS.every((s) => cell(t, s.id)?.passed > 0));
+const speedTotals = SETUPS.map((s) => {
+  const total = (key) => commonTasks.reduce((n, t) => n + (cell(t, s.id)[key] ?? 0), 0);
+  return { ...s, wall: total("passWallS"), model: total("passModelS"), tool: total("passToolS") };
+}).sort((a, b) => a.wall - b.wall);
+if (commonTasks.length) {
+  lines.push(
+    "",
+    "## Speed",
+    "",
+    `Medians over passing runs, summed across the ${commonTasks.length} tasks every setup passed: ${commonTasks.join(", ")}. Tool time is the tool's own work, including waits it chooses and the harness's image downscaling. Model time depends on how many round trips the tool needs, how much it returns, and API load at the time.`,
+    "",
+    "| Setup | Total (s) | Tool (s) | Model (s) |",
+    "|---|---|---|---|",
+  );
+  for (const s of speedTotals) lines.push(`| ${s.label} | ${s.wall.toFixed(0)} | ${s.tool.toFixed(0)} | ${s.model.toFixed(0)} |`);
+}
+lines.push("", "### Median seconds per task, passing runs", "", `| Task | ${SETUPS.map((s) => s.label).join(" | ")} |`, `|---|${SETUPS.map(() => "---").join("|")}|`);
+for (const task of tasks) lines.push(`| ${task} | ${SETUPS.map((s) => (cell(task, s.id)?.passWallS == null ? "no pass" : cell(task, s.id).passWallS.toFixed(0))).join(" | ")} |`);
 const failures = records.filter((r) => !r.success);
 if (failures.length) {
   lines.push("", "## Failed runs", "");
   for (const r of failures) lines.push(`- ${r.task} × ${r.setup} (rep ${r.rep + 1}): ${r.error ?? r.detail}`);
 }
-fs.writeFileSync(path.join(benchDir, "results", "summary.md"), `${lines.join("\n")}\n`);
+fs.writeFileSync(path.join(outDir, "summary.md"), `${lines.join("\n")}\n`);
 
 // ---- chart.svg --------------------------------------------------------------
 // Two panels with their own axes (never a dual axis): median round trips and
@@ -161,8 +191,12 @@ function panel(y0, title, key, format) {
     SETUPS.forEach((s, si) => {
       const c = cell(task, s.id);
       if (!c) return;
-      const v = c[key] ?? 0;
       const by = gy + si * (BAR + GAP);
+      if (c[key] == null) {
+        out.push(`<text class="value" x="${LEFT + 4}" y="${by + BAR - 1}">${esc(s.label)}: no pass</text>`);
+        return;
+      }
+      const v = c[key];
       const w = Math.max(1, x(v) - LEFT);
       // Square at the baseline, 4px rounded at the data end.
       const r = Math.min(4, w, BAR / 2);
@@ -177,35 +211,98 @@ function panel(y0, title, key, format) {
   return { svg: out.join("\n"), bottom: top + height + 22 };
 }
 
-const legend = SETUPS.map((s, i) => {
-  const lx = LEFT + i * 190;
-  return `<rect class="s${i}" x="${lx}" y="12" width="12" height="12" rx="3"/><text class="label" x="${lx + 18}" y="22">${esc(s.label)}</text>`;
-}).join("\n");
-// format(value, tickDecimals): tickDecimals is set only for axis ticks.
-const p1 = panel(40, "Median model round trips per task", "roundTrips", (v, d) => (d == null ? fmt.n(v) : v.toFixed(d)));
-const p2 = panel(p1.bottom + 16, "Median cost per task (USD, list price)", "cost", (v, d) => (d == null ? fmt.usd(v) : `$${v.toFixed(d)}`));
-const H = p2.bottom + 24;
-const note = `${records.length} runs · ${esc(models)} · medians per task, failed runs included`;
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-labelledby="t d">
-<title id="t">glovebox benchmark: round trips and cost per task</title>
-<desc id="d">Grouped bars comparing glovebox, Anthropic computer use, and open-computer-use on ${tasks.length} macOS tasks. Full numbers are in bench/results/summary.md.</desc>
+// Setups in rows of three, so six still fit the chart's width.
+const LEGEND_ROW = 20;
+const legendRows = Math.ceil(SETUPS.length / 3);
+const legendAt = (y0) =>
+  SETUPS.map((s, i) => {
+    const lx = LEFT + (i % 3) * 190;
+    const ly = y0 + Math.floor(i / 3) * LEGEND_ROW;
+    return `<rect class="s${i}" x="${lx}" y="${ly}" width="12" height="12" rx="3"/><text class="label" x="${lx + 18}" y="${ly + 10}">${esc(s.label)}</text>`;
+  }).join("\n");
+
+function writeChart(file, { title, desc, height, body, note }) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${height}" width="${W}" height="${height}" role="img" aria-labelledby="t d">
+<title id="t">${esc(title)}</title>
+<desc id="d">${esc(desc)}</desc>
 <style>
-  svg { --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --grid: #e4e3df; --s0: #2a78d6; --s1: #eb6834; --s2: #1baf7a; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-  @media (prefers-color-scheme: dark) { svg { --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --grid: #34332f; --s0: #3987e5; --s1: #d95926; --s2: #199e70; } }
+  svg { --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --grid: #e4e3df; --s0: #2a78d6; --s1: #eb6834; --s2: #1baf7a; --s3: #eda100; --s4: #e87ba4; --s5: #008300; --tool: #6250d6; --model: #e34948; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  @media (prefers-color-scheme: dark) { svg { --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --grid: #34332f; --s0: #3987e5; --s1: #d95926; --s2: #199e70; --s3: #c98500; --s4: #d55181; --s5: #008300; --tool: #9085e9; --model: #e66767; } }
   .bg { fill: var(--surface); }
   .title { fill: var(--ink); font-size: 13px; font-weight: 600; }
   .label { fill: var(--ink); font-size: 12px; }
   .value, .tick, .note { fill: var(--ink-2); font-size: 10.5px; }
   .grid { stroke: var(--grid); stroke-width: 1; }
   .axis { stroke: var(--ink-2); stroke-width: 1; }
-  .s0 { fill: var(--s0); } .s1 { fill: var(--s1); } .s2 { fill: var(--s2); }
+  .s0 { fill: var(--s0); } .s1 { fill: var(--s1); } .s2 { fill: var(--s2); } .s3 { fill: var(--s3); } .s4 { fill: var(--s4); } .s5 { fill: var(--s5); }
+  .tool { fill: var(--tool); } .model { fill: var(--model); }
 </style>
-<rect class="bg" width="${W}" height="${H}" rx="8"/>
-${legend}
-${p1.svg}
-${p2.svg}
-<text class="note" x="${LEFT}" y="${H - 10}">${note}</text>
+<rect class="bg" width="${W}" height="${height}" rx="8"/>
+${body}
+<text class="note" x="${LEFT}" y="${height - 10}">${esc(note)}</text>
 </svg>
 `;
-fs.writeFileSync(path.join(benchDir, "results", "chart.svg"), svg);
-console.log(`Wrote results/summary.md and results/chart.svg from ${records.length} runs.`);
+  fs.writeFileSync(path.join(outDir, file), svg);
+}
+
+const setupNames = SETUPS.map((s) => s.label).join(", ");
+// format(value, tickDecimals): tickDecimals is set only for axis ticks.
+const firstPanel = 12 + legendRows * LEGEND_ROW + 8;
+const p1 = panel(firstPanel, "Median model round trips per task", "roundTrips", (v, d) => (d == null ? fmt.n(v) : v.toFixed(d)));
+const p2 = panel(p1.bottom + 16, "Median cost per task (USD, list price)", "cost", (v, d) => (d == null ? fmt.usd(v) : `$${v.toFixed(d)}`));
+writeChart("chart.svg", {
+  title: "glovebox benchmark: round trips and cost per task",
+  desc: `Grouped bars comparing ${setupNames} on ${tasks.length} macOS tasks. Full numbers are in summary.md.`,
+  height: p2.bottom + 24,
+  body: `${legendAt(12)}\n${p1.svg}\n${p2.svg}`,
+  note: `${records.length} runs · ${models} · medians per task, failed runs included`,
+});
+
+// ---- speed.svg --------------------------------------------------------------
+// One stacked bar per setup, fastest first, with tool time on the baseline so
+// tools compare directly. Below it, per-task time grouped by setup.
+const STACK_LEFT = 160;
+const STACK_RIGHT = 150;
+
+function stackPanel(y0) {
+  const { step, max } = niceScale(Math.max(...speedTotals.map((s) => s.wall)));
+  const x = (v) => (v / max) * (W - STACK_LEFT - STACK_RIGHT);
+  const top = y0 + 44;
+  const rowH = 22;
+  const barH = 13;
+  const out = [`<text class="title" x="${STACK_LEFT}" y="${y0 + 14}">${esc(`Total time on the ${commonTasks.length} tasks every setup passed`)}</text>`];
+  for (const [i, part] of [["tool", "Tool time"], ["model", "Model time"]].entries()) {
+    const lx = STACK_LEFT + i * 110;
+    out.push(`<rect class="${part[0]}" x="${lx}" y="${y0 + 22}" width="12" height="12" rx="3"/><text class="label" x="${lx + 18}" y="${y0 + 32}">${part[1]}</text>`);
+  }
+  const height = speedTotals.length * rowH;
+  for (let v = 0; v <= max + step / 2; v += step) {
+    out.push(`<line class="grid" x1="${STACK_LEFT + x(v)}" x2="${STACK_LEFT + x(v)}" y1="${top}" y2="${top + height}"/>`);
+    out.push(`<text class="tick" x="${STACK_LEFT + x(v)}" y="${top + height + 14}" text-anchor="middle">${v.toFixed(0)} s</text>`);
+  }
+  speedTotals.forEach((s, i) => {
+    const by = top + i * rowH + 3;
+    const toolW = Math.max(1, x(s.tool));
+    const modelW = Math.max(1, x(s.model) - 2);
+    const modelX = STACK_LEFT + toolW + 2;
+    const r = Math.min(4, modelW, barH / 2);
+    out.push(`<text class="label" x="${STACK_LEFT - 10}" y="${by + 11}" text-anchor="end">${esc(s.label)}</text>`);
+    out.push(`<rect class="tool" x="${STACK_LEFT}" y="${by}" width="${toolW}" height="${barH}"><title>${esc(`${s.label}: tool time ${s.tool.toFixed(0)} s`)}</title></rect>`);
+    out.push(`<path class="model" d="M${modelX},${by} h${modelW - r} a${r},${r} 0 0 1 ${r},${r} v${barH - 2 * r} a${r},${r} 0 0 1 -${r},${r} h-${modelW - r} z"><title>${esc(`${s.label}: model time ${s.model.toFixed(0)} s`)}</title></path>`);
+    out.push(`<text class="value" x="${modelX + modelW + 6}" y="${by + 11}">${s.wall.toFixed(0)} s · tool ${s.tool.toFixed(0)} s</text>`);
+  });
+  out.push(`<line class="axis" x1="${STACK_LEFT}" x2="${STACK_LEFT}" y1="${top}" y2="${top + height}"/>`);
+  return { svg: out.join("\n"), bottom: top + height + 22 };
+}
+
+const stack = commonTasks.length ? stackPanel(8) : { svg: "", bottom: 8 };
+const speedLegend = stack.bottom + 12;
+const p3 = panel(speedLegend + legendRows * LEGEND_ROW + 4, "Median seconds per task, passing runs", "passWallS", (v, d) => (d == null ? `${v.toFixed(0)} s` : `${v.toFixed(d)} s`));
+writeChart("speed.svg", {
+  title: "glovebox benchmark: speed",
+  desc: `Total tool and model time for ${setupNames}, then median seconds per task on passing runs. Full numbers are in summary.md.`,
+  height: p3.bottom + 24,
+  body: `${stack.svg}\n${legendAt(speedLegend)}\n${p3.svg}`,
+  note: `${records.length} runs · ${models} · passing runs only, so a fast failure does not count as fast`,
+});
+console.log(`Wrote summary.md, chart.svg, and speed.svg to ${path.relative(process.cwd(), outDir) || "."} from ${records.length} runs.`);

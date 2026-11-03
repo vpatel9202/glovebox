@@ -168,8 +168,8 @@ Spend and restarts:
   `--org-cap 90 --cycle-start <YYYY-MM-DD>` to also stop when the org's
   spend this billing cycle comes within $1 of $90.
   `bench/session.sh <run.mjs options>` runs both together, with `CYCLE_START`
-  set to the cycle's first day, and on a cap stop commits the results and
-  pushes.
+  set to the cycle's first day. When the run finishes, or the cap stops it, it
+  writes the report to `results/v2/`, commits, and pushes.
 
 ## What each record holds
 
@@ -196,6 +196,10 @@ Spend and restarts:
 Per-run tool calls and results, without images, go to `results/transcripts/`
 (gitignored; they can include window contents).
 
-`node bench/report.mjs` writes `results/summary.md` and `results/chart.svg`
-from everything in `results/raw/`. `results/pilot/` holds the first pass (one
+`node bench/report.mjs` writes `results/summary.md`, `results/chart.svg`, and
+`results/speed.svg` from everything in `results/raw/`; pass files and `--out
+<dir>` to report on one run. Speed counts passing runs only, and its totals
+cover only the tasks every setup passed, so a fast failure does not look fast.
+Tool time is the tool's own work, and model time depends on how many round trips
+the tool needs and on API load. `results/pilot/` holds the first pass (one
 run per task and setup), kept apart so it doesn't mix with the full runs.
