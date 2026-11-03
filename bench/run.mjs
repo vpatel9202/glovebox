@@ -47,7 +47,7 @@ const n = Number(opts.n);
 // Per run; tasks with several records or user turns set their own.
 const maxTurns = Number(opts["max-turns"] ?? 40);
 // $0.75 on Sonnet; never under $0.15, which a Haiku run on a 200-row table can reach.
-const runCap = Number(opts["run-cap"] ?? Math.max(0.15, 0.375 * (PRICES[opts.model]?.input ?? 2)));
+const runCap = Number(opts["run-cap"] ?? Math.max(0.3, 0.375 * (PRICES[opts.model]?.input ?? 2)));
 const budget = { cap: Number(opts.budget), spent: 0 };
 
 function fail(message) {

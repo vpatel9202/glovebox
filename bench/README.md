@@ -145,7 +145,7 @@ Spend and restarts:
   is skipped, and the file stops, when the remaining budget is under three
   times that task and setup's most expensive runs so far (p90).
 - `--run-cap` caps one run (default $0.75 on Sonnet, scaled by input price,
-  never under $0.15).
+  never under $0.30).
   It is checked before each request, so a looping run ends as
   `stopReason: "run-cap"` before it crosses the cap.
 - `--stop-after-rep 1` stops after the first pass so you can look at it;
