@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const VERSION = "0.3.1";
+export const VERSION = "0.3.2";
 
 export function homeDir() {
   return process.env.GLOVEBOX_HOME || path.join(os.homedir(), ".glovebox");

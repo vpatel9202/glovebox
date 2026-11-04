@@ -1,0 +1,28 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.vpatel9202/glovebox",
+  "title": "glovebox",
+  "description": "Computer use for coding agents on macOS: JS scripts, accessibility diffs, background input.",
+  "repository": {
+    "url": "https://github.com/vpatel9202/glovebox",
+    "source": "github"
+  },
+  "version": "0.3.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@vashp2029/glovebox",
+      "version": "0.3.2",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "mcp"
+        }
+      ]
+    }
+  ]
+}

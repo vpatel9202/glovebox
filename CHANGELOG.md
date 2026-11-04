@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 (2026-11-03)
+
+- List glovebox in the official MCP Registry. No change to behavior.
+
 ## 0.3.1 (2026-11-03)
 
 - Fix: the drawn agent cursor now glides to every action. Its animation never
