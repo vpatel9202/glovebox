@@ -158,8 +158,8 @@ Computer use can click anything, so approval is part of the product:
   Editor, Automator, and the helper itself are blocked by default and never
   offered in a dialog. Only an explicit `glovebox allow` unlocks one. The
   full list is in `SECURITY.md`.
-- Switching to another app stops the running script. A script brings an app
-  forward at most once per call; if the app is no longer in front later in
+- Switching away stops a script on the foreground route; background scripts
+  keep running. A script brings an app forward at most once per call; if the app is no longer in front later in
   the same call, the user took over, and the script stops rather than taking
   focus back. (An earlier version re-activated before every key and fought
   the user for focus.)

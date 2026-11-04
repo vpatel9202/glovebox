@@ -119,10 +119,11 @@ windows).
 
 The first time a session touches an app, the user sees a dialog: Allow for
 This Session, Always Allow, or Deny. Terminals, password managers, and System
-Settings are blocked unless the user runs `glovebox allow <app>`. If the user
-switches to another app while a script runs, the script stops with a
-"Stopped: ..." message. Escape stops it too, but only when the user has
-granted Input Monitoring. Do not continue GUI work until the user asks.
+Settings are blocked unless the user runs `glovebox allow <app>`. If a script
+brought an app forward and the user switches away, the script stops with a
+"Stopped: ..." message. Background scripts keep running while the user works in
+other apps. Escape stops any script, but only when the user has granted Input
+Monitoring. Do not continue GUI work until the user asks.
 On the foreground route a script brings an app forward at most once per call.
 Every action is appended to `~/.glovebox/actions.log` (typed text is logged
 as a length only).
@@ -134,6 +135,9 @@ as a length only).
   word you type can land in its field. Keep the time the menu is open short: open
   it and pick the item in one script, with no read in between. A dedicated
   `app.select(popup, item)` is planned.
+- **Window controls during background typing.** A target window can show active
+  window controls while it receives background keys, even though your app stays
+  frontmost and keeps your keyboard.
 - **One-node trees.** Remote desktops such as Citrix expose a single accessibility
   node, so work there runs on screenshots and pixel clicks.
 

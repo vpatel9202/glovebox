@@ -20,7 +20,7 @@ import Foundation
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
-let helperVersion = "0.2.0"
+let helperVersion = "0.3.1"
 // Marks events we synthesize so the Escape watcher ignores them.
 let syntheticMarker: Int64 = 0x676C_6F76
 
@@ -1078,26 +1078,33 @@ final class AgentCursor {
     // Blocks until the move animation finishes so the action lines up with it.
     func move(to point: CGPoint, above windowId: Int?) {
         guard enabled else { return }
+        var from = NSPoint.zero
+        var target = NSPoint.zero
         var duration: TimeInterval = 0
         DispatchQueue.main.sync {
             let w = self.window ?? self.makeWindow()
             self.window = w
             guard let primary = NSScreen.screens.first else { return }
             // AppKit frames are bottom-left origin; the arrow tip is the frame's top-left.
-            let target = NSPoint(x: point.x - 4, y: primary.frame.height - point.y - self.size.height + 3)
-            let from = w.isVisible ? w.frame.origin : target
+            target = NSPoint(x: point.x - 4, y: primary.frame.height - point.y - self.size.height + 3)
+            from = w.isVisible ? w.frame.origin : target
             let distance = hypot(target.x - from.x, target.y - from.y)
             duration = w.isVisible ? min(0.45, 0.12 + Double(distance) / 2400) : 0
             if let id = windowId { w.order(.above, relativeTo: id) } else { w.orderFrontRegardless() }
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = duration
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                w.animator().setFrameOrigin(target)
-            }
+            if duration == 0 { w.setFrameOrigin(target) }
             self.hideTimer?.invalidate()
             self.hideTimer = Timer.scheduledTimer(withTimeInterval: 4, repeats: false) { _ in self.hide() }
         }
-        if duration > 0 { usleep(useconds_t(duration * 1_000_000)) }
+        guard duration > 0 else { return }
+        // Stepped by hand: an animator() frame move left the window where it was.
+        let steps = max(1, Int(duration * 60))
+        for step in 1...steps {
+            let t = Double(step) / Double(steps)
+            let eased = t * t * (3 - 2 * t)
+            let next = NSPoint(x: from.x + (target.x - from.x) * eased, y: from.y + (target.y - from.y) * eased)
+            DispatchQueue.main.sync { self.window?.setFrameOrigin(next) }
+            usleep(useconds_t(duration / Double(steps) * 1_000_000))
+        }
     }
 
     func hide() {

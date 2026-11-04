@@ -8,7 +8,7 @@
 **Computer use for coding agents on macOS: one JavaScript call per step,
 accessibility diffs instead of screenshots, and your screen stays yours.**
 
-<!-- demo: docs/demo.gif goes here once recorded -->
+![Someone browses Wikipedia in Safari while an agent works Calculator and types the result into TextEdit in the background](https://raw.githubusercontent.com/vpatel9202/glovebox/main/media/demo.gif)
 
 ```js
 const calc = await gb.getApp("Calculator");
@@ -164,8 +164,10 @@ OpenAI's actual runtime and already have the ChatGPT app (lcu).
 The first time a session touches an app, you get a dialog: Allow for This
 Session, Always Allow, or Deny. Terminals, password managers, System Settings,
 and a few others are blocked unless you run `glovebox allow <bundle id>`; the
-list is in [SECURITY.md](SECURITY.md#blocked-apps). Switching to another app
-stops a running script (Escape too, with Input Monitoring). Every action is
+list is in [SECURITY.md](SECURITY.md#blocked-apps). A script that had to bring
+an app forward stops if you switch away. Scripts running in the background keep
+going while you use other apps, and Escape stops any script if you grant Input
+Monitoring. Every action is
 logged to `~/.glovebox/actions.log`.
 
 An approved app is approved for everything in it: allowing a browser lets the

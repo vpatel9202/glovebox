@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 (2026-11-03)
+
+- Fix: the drawn agent cursor now glides to every action. Its animation never
+  moved the window, so it froze after the first action, and launching the helper
+  hidden could keep it from appearing at all.
+- Add a demo to the README.
+
 ## 0.3.0 (2026-11-03)
 
 - First npm release, as `@vashp2029/glovebox`. CI runs the unit tests on every

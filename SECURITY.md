@@ -14,10 +14,12 @@ computer. Treat it with the same care as giving someone remote control.
   (see the list below). An agent with terminal access could otherwise use the
   GUI to run commands its sandbox would not allow. An app on the `deny` list
   is refused even if it is also allowed.
-- **Taking over stops a script.** If you switch to another app while a
-  script is driving one, the script stops instead of taking focus back. With
-  the optional Input Monitoring permission, pressing Escape also stops it
-  (glovebox marks its own key events, so its own Escapes do not count).
+- **Taking over stops a script.** If a script had to bring an app forward and
+  you switch away, the script stops instead of taking focus back. A script
+  working in the background keeps running while you use other apps, so switching
+  apps does not stop it. With the optional Input Monitoring permission, pressing
+  Escape stops any script (glovebox marks its own key events, so its own Escapes
+  do not count).
 - **Menu-bar item.** While an agent is connected, Glovebox Helper shows a
   menu-bar item listing each session and its approved apps. Stop Running
   Scripts stops every running script. Revoke Session Approvals clears the

@@ -135,7 +135,7 @@ export async function build({ log = () => {} } = {}) {
 
 // Starts the helper through LaunchServices so it is its own responsible process.
 export async function launch({ requestPermissions = false } = {}) {
-  const args = ["-g", "-j", "-a", appPath()];
+  const args = ["-g", "-a", appPath()]; // Not -j: a hidden app cannot show the agent cursor.
   for (const name of ["GLOVEBOX_HOME", "GLOVEBOX_APPROVAL", "GLOVEBOX_SOCKET"]) {
     if (process.env[name]) args.push("--env", `${name}=${process.env[name]}`);
   }
