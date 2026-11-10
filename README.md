@@ -5,6 +5,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](#status)
 
+[![glovebox MCP server](https://mcprush.com/badge/vpatel9202-glovebox-mcp/card.svg)](https://mcprush.com/to/vpatel9202-glovebox-mcp?ref=badge)
+
 **Computer use for coding agents on macOS: one JavaScript call per step,
 accessibility diffs instead of screenshots, and your screen stays yours.**
 
