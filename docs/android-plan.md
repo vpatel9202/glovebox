@@ -14,10 +14,11 @@ assume one macOS backend per kernel. Nothing in this plan has been run on a
 device, so the first phase is a throwaway spike, and every later phase
 depends on it.
 
-**Who it is for.** Coding agents testing Android apps that the user builds,
-on an emulator or a dedicated test phone. Driving a personal phone comes
-later and carries the limits in [Security model](#security-model); it is not
-the v1 target.
+**Who it is for.** One user and their agent, on the user's own devices,
+personal phone included: the agent should be able to do anything on the phone
+that the user could. A human stays in the loop. glovebox asks the user before
+sensitive steps, but it does not forbid any action the user approves at the
+time. Decided 2026-11-18.
 
 **Target architecture.** The host (Mac or Linux) runs the kernel and daemon
 as today. Over ADB it starts a server on the phone with shell privileges
@@ -26,8 +27,9 @@ no APK to install. That server reads the accessibility tree through
 `UiAutomation`, injects input, captures the screen, and runs each session on
 its own virtual display so the user's real screen is never touched. The
 default display is the fallback, the same role the foreground route plays on
-macOS. The first target is the Android emulator, not a phone: it is testable
-now, has no vendor variance, and is the right home for unattended work anyway.
+macOS. The first targets are the emulators and the user's own phone (a
+Galaxy S24 Ultra) together: emulators carry CI and risky tests, the phone is
+where the work is.
 
 **What parity means.** Three things, all measured:
 
@@ -82,7 +84,7 @@ the order of `api.md`, then `design.md` and `SECURITY.md`.
 | Menu-bar status item (sessions, stop, revoke) | Host tray item; on-phone indicator through a notification if shell can post one, else an optional companion app | Redesign |
 | Escape to stop | Host Escape as today; on the phone, a hardware key pattern, or unplugging (server death stops everything) | Redesign |
 | Approval dialog in the helper | Prompt on the host; the phone server enforces the decision | Redesign |
-| Blocked apps | New Android list, checked against the package of the window being acted on, not only the app launched | Redesign |
+| Blocked apps | New Android ask-first list (approval, not a block), checked against the package of the window being acted on, not only the app launched | Redesign |
 | Action log | Host log as today, plus device serial and display id | Port |
 | `setup`, `doctor`, `smoke` | ADB discovery and server push; capability probes that name the vendor toggle; smoke against an owned fixture app | Redesign |
 | `signing` (keep grants across rebuilds) | Not needed: no grant is tied to the server's signature | No equivalent |
@@ -233,7 +235,7 @@ time on the fixture is measured and recorded.
 
 - `keys`, `type` (the set-text, key events, paste ladder with read-back),
   `click`, `scroll`, `drag`, plus `swipe`, `longPress` and global actions.
-- Approval on the host, enforced in the server; blocked apps checked against
+- Approval on the host, enforced in the server; ask-first apps checked against
   the acted-on window's package; action log with device serial.
 - Server death stops everything (no `nohup` in v1); detection of a competing
   automation tool holding the accessibility slot.
@@ -308,13 +310,13 @@ memory, not from a source.
 | Text can be entered reliably | Setting text skips validation listeners and fails in WebView, Flutter and games; key injection has no emoji or CJK; paste overwrites the user's clipboard; the keyboard may appear on the phone screen | Fixture text screens, including a split one-time-code field | Ladder with read-back after each step; paste off by default | A minimal input method glovebox ships (APK) |
 | Apps behave on a virtual display | One task per app; launcher trampolines relaunch on the phone screen; billing, permission and biometric sheets may land there (unconfirmed which); integrity checks | Spike pass rate over about 20 apps | Check the task's display before each action; stop with a coded error | Per-app `foregroundApps`, which the config already has |
 | Shell can set the display flags it needs | Trusted, own-group and always-unlocked flags vary by API level (unconfirmed); the secure flag is out of shell's reach, so secure windows capture black | Flags in `dumpsys display` after creation | Copy scrcpy's per-API flag choices | Default display |
-| Work continues while locked or screen-off | Doze, app standby and vendor battery killers; keyguard behaviour on a virtual display unknown | The same script locked and unlocked, with frame timestamps | Keep-active; refuse while locked unless opted in | Unattended work on the emulator |
+| Work continues while locked or screen-off | Doze, app standby and vendor battery killers; keyguard behaviour on a virtual display unknown | The same script locked and unlocked, with frame timestamps | Keep-active; ask before acting while locked | Unattended work on the emulator |
 | Clean teardown | An ADB drop kills the server; a display removed without destroying its content moves agent apps onto the user's screen | Kill test in the spike | Always destroy content on removal | Server death is the kill switch, by design |
 | Hidden APIs and vendor gates hold | scrcpy needs fixes for most releases; Xiaomi needs "USB debugging (Security settings)" for injection; Samsung Auto Blocker may block USB commands (unconfirmed) | `SecurityException` on the first injection | Reuse scrcpy's wrapper classes (Apache-2.0); `doctor` probes each capability | Per-vendor setup notes |
 | Element indices stay stable | Lists reuse nodes for new rows; window ids change when an activity is recreated; WebView ids reset on reload | Fixture list and WebView screens | Generation counter so a reused index raises `stale_index` | Read again |
 | Sensitive views are visible | Android 16 lets apps hide views from accessibility services that are not accessibility tools; unknown whether a shell connection counts as one | Fixture screen with a flagged view | Treat hidden views as blocked, which is the safe outcome | Screenshot, black if the window is also secure |
 | Advanced Protection leaves shell alone | Android 17 revokes accessibility from non-tool apps when it is on; effect on a shell connection unknown | Physical test with Advanced Protection on | Detect it in `doctor` | Document as unsupported |
-| Apps run with developer options on | Banking apps and some games refuse | Launch error or app message | Block those apps | None: by design |
+| Apps run with developer options on | Banking apps and some games refuse | Launch error or app message | Tell the user; nothing glovebox can fix | None: by design |
 
 Tree read speed is a smaller risk than it looks: expect roughly 100 to 500 ms
 for an 800-node tree, slower in WebView (unconfirmed). Polling is acceptable
@@ -347,24 +349,27 @@ skip glovebox entirely. On macOS the helper holds the grants, so an agent's
 terminal cannot do that. These go into an Android section of
 [SECURITY.md](../SECURITY.md).
 
-1. **Key custody.** Keep the ADB key under a different OS user or on a
-   different machine, and let agents reach glovebox only over MCP. Without
-   this, a prompt-injected coding agent bypasses everything.
+1. **Key custody.** The ADB key stays on the Mac (open decision 3). An agent
+   with a shell there can bypass glovebox through `adb`, so the user's
+   approval of that shell is the control, as on macOS today.
 2. **No raw shell over the wire.** The server exposes named methods only;
    nothing the kernel can call runs arbitrary commands.
 3. **Gate each window, not each app.** Payment sheets, permission dialogs,
    passkey and password sheets, autofill, share choosers and the package
    installer appear inside an approved app's task under other packages. Check
-   the package of the window being acted on, every action. Deny by default:
-   Play purchase screens, the permission controller, the credential manager,
+   the package of the window being acted on, every action, and ask the user
+   first for: Play purchase screens, the permission controller, the credential manager,
    the package installer and system UI.
-4. **Blocked apps by default.** Settings, Play Store, Shizuku, banking and
+4. **Ask first, never forbid.** Settings, Play Store, Shizuku, banking and
    wallet apps, password managers, authenticator apps, Messages, the phone
-   dialer, launchers and the notification shade. Messages and notifications
-   matter most, because one-time codes land there.
-5. **Locked phone.** Refuse to act while a personal phone is locked unless the
-   user opts in; a display that stays unlocked behind the lock screen is a
-   lock-screen bypass for whoever holds the host.
+   dialer, launchers and the notification shade need the user's approval at
+   the time, not a standing block. Messages and notifications matter most,
+   because one-time codes land there. (Decided 2026-11-18: the tooling must
+   not prevent an action the user approves.)
+5. **Locked phone.** Ask before acting while the phone is locked. The spike
+   showed a virtual display keeps working behind a PIN lock screen, so this
+   is a lock-screen bypass for whoever holds the host; the prompt is the
+   control.
 6. **Make it visible.** A virtual display shows the user nothing, so an
    on-phone indicator and a physical stop are required, not optional.
 7. **Shared state.** Clipboard, notifications and signed-in accounts are
@@ -422,8 +427,12 @@ device matrix.
 
 ## Open decisions
 
-One choice is made; four are needed before Phase 1, with the recommended
-answer listed first.
+All five are decided (2026-11-18). Android is the only platform in scope
+for now. The gates are decided too: Gate B is met, so there is no APK. Gate A
+goes to the default display first. The Phase 1 server then creates its own
+virtual display with `STEAL_TOP_FOCUS_DISABLED` and tests reading it without
+focus; if that works, Phase 3 makes it the default route. Original options
+are kept below for the record.
 
 1. **How a script names a device (decided).**
    `gb.device("emulator-5554").getApp(...)`, which keeps the App API
@@ -431,14 +440,15 @@ answer listed first.
    overloads one string with two meanings, and one device per session, which
    rules out a script that checks the Mac and the phone together. The kernel
    changes above follow from this choice.
-2. **First target.** Emulator only for v1 (recommended), or the S24 Ultra
-   alongside it. Either way the S24 is in the Phase 0 spike.
-3. **Where the ADB key lives.** On a separate machine, reached over MCP
-   (recommended), or on the Mac.
-4. **Server language.** Java, matching scrcpy's wrapper classes (recommended),
-   or Kotlin.
-5. **Licensing.** Reusing scrcpy's Apache-2.0 classes in an MIT repo needs a
-   NOTICE file and per-file headers; confirm that is acceptable.
+2. **First target (decided).** Emulators and the S24 Ultra together. The
+   S24 is the real target, and the emulators carry CI and anything risky.
+3. **Where the ADB key lives (decided).** On the Mac. With one user in the
+   loop, a separate key machine adds cost and no real protection. An agent
+   with a shell on the Mac can still bypass glovebox through `adb`; the
+   control is the user's approval of that shell, as it is today.
+4. **Server language (decided).** Java, matching scrcpy's wrapper classes.
+5. **Licensing (decided).** Reuse scrcpy's Apache-2.0 classes, with a NOTICE
+   file and per-file headers.
 
 ## Sources
 
