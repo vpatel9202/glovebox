@@ -17,6 +17,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Base64;
@@ -105,6 +106,30 @@ final class Device {
                 return hitTest(p.getString("pid"), p.getDouble("x"), p.getDouble("y"));
             case "screenshot":
                 return screenshot(p);
+            case "keys":
+            case "type":
+            case "click":
+            case "scroll":
+            case "drag":
+            case "longPress":
+                return input(method, p);
+            case "performAction":
+                Input.perform(tree.node(p.getInt("index")), p.getString("action"));
+                return new JSONObject();
+            case "setValue":
+                Input.setText(tree.node(p.getInt("index")), p.optString("value"));
+                return new JSONObject();
+            case "focusElement":
+                Input.focus(tree.node(p.getInt("index")));
+                return new JSONObject();
+            case "selectText": {
+                AccessibilityNodeInfo n = tree.node(p.getInt("index"));
+                CharSequence text = n.getText();
+                int length = text == null ? 0 : text.length();
+                int start = p.has("start") ? p.getInt("start") : 0;
+                Input.select(n, start, p.has("length") ? p.getInt("length") : length - start);
+                return new JSONObject();
+            }
             case "cursor":
                 return new JSONObject().put("enabled", false);
             case "forget":
@@ -230,7 +255,16 @@ final class Device {
         return root == null || root.getPackageName() == null ? null : root.getPackageName().toString();
     }
 
+    // The app in front: the package that started the top task (its base
+    // activity), so an app's screens that belong to another package (Settings'
+    // search, a share sheet, a sign-in flow) still count as that app.
     private String topPackage() {
+        String base = topTaskBase();
+        if (base != null) return base;
+        return topWindowPackage();
+    }
+
+    private String topWindowPackage() {
         if (automation == null) return null;
         for (AccessibilityWindowInfo w : displayWindows(DEFAULT_DISPLAY)) {
             if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
@@ -241,15 +275,30 @@ final class Device {
         return null;
     }
 
+    @SuppressWarnings("deprecation")
+    private String topTaskBase() {
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            List<android.app.ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(1);
+            if (tasks == null || tasks.isEmpty() || tasks.get(0).baseActivity == null) return null;
+            return tasks.get(0).baseActivity.getPackageName();
+        } catch (Throwable e) {
+            return null; // fall back to the top window's package
+        }
+    }
+
     // The windows a read of `pkg` shows: its top application window and every
     // window above it (dialogs, sheets, the keyboard, system prompts), minus the
-    // status and navigation bars. Top first.
+    // status and navigation bars. Top first. When `pkg`'s task is in front, its
+    // top window counts even if another package drew it.
     List<AccessibilityWindowInfo> appWindows(String pkg) {
         List<AccessibilityWindowInfo> all = displayWindows(DEFAULT_DISPLAY);
+        boolean taskInFront = pkg.equals(topTaskBase());
         int appIndex = -1;
         for (int i = 0; i < all.size(); i++) {
             AccessibilityWindowInfo w = all.get(i);
-            if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION && pkg.equals(windowPackage(w))) {
+            if (w.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
+            if (taskInFront || pkg.equals(windowPackage(w))) {
                 appIndex = i;
                 break;
             }
@@ -298,7 +347,7 @@ final class Device {
         List<AccessibilityWindowInfo> shown = appWindows(pkg);
         AccessibilityWindowInfo app = shown.get(shown.size() - 1);
         CharSequence title = app.getTitle();
-        Tree.Walk walk = tree.walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200));
+        Tree.Walk walk = tree.walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200), p.optBoolean("keyboard", false));
         return new JSONObject()
                 .put("window", new JSONObject().put("windowId", DEFAULT_DISPLAY).put("title", title == null ? pkg : title.toString()))
                 .put("nodes", walk.nodes)
@@ -322,6 +371,95 @@ final class Device {
                 .put("role", Tree.role(hit))
                 .put("actions", Tree.actions(hit))
                 .put("frame", Tree.frame(hit));
+    }
+
+    // ---- input (display 0; the virtual-display route comes in Phase 3)
+
+    private Input input;
+
+    private JSONObject input(String method, JSONObject p) throws Exception {
+        requireAutomation();
+        if ("background".equals(p.optString("mode"))) {
+            throw new Server.Coded("background_unavailable", "Android input goes to the phone's screen for now");
+        }
+        if (input == null) input = new Input(automation);
+        switch (method) {
+            case "keys": {
+                JSONArray chords = p.getJSONArray("chords");
+                for (int i = 0; i < chords.length(); i++) {
+                    JSONObject c = chords.getJSONObject(i);
+                    input.chord(c.getString("key"), c.optJSONArray("mods"));
+                }
+                return Input.ok("keys");
+            }
+            case "type":
+                return type(p.getString("text"));
+            case "click": {
+                float x = (float) p.getDouble("x"), y = (float) p.getDouble("y");
+                if ("right".equals(p.optString("button"))) input.longPress(x, y, 0);
+                else input.tap(x, y, Math.max(1, p.optInt("count", 1)));
+                return Input.ok("touch");
+            }
+            case "longPress":
+                input.longPress((float) p.getDouble("x"), (float) p.getDouble("y"), p.optLong("ms", 0));
+                return Input.ok("touch");
+            case "scroll": {
+                // dy/dx are lines (positive dy: content moves up, as a wheel
+                // scrolls down). One line is 48 dp of finger travel.
+                Point size = displaySize();
+                float line = 48f * context.getResources().getDisplayMetrics().density;
+                float x = (float) p.getDouble("x"), y = (float) p.getDouble("y");
+                float tx = clamp(x - (float) p.optDouble("dx", 0) * line, 1, size.x - 2);
+                float ty = clamp(y - (float) p.optDouble("dy", 0) * line, 1, size.y - 2);
+                JSONArray path = new JSONArray().put(new JSONArray().put(x).put(y)).put(new JSONArray().put(tx).put(ty));
+                input.path(path, 350, false);
+                return Input.ok("touch");
+            }
+            case "drag":
+                input.path(p.getJSONArray("path"), p.optLong("ms", 400), p.optBoolean("hold", false));
+                return Input.ok("touch");
+            default:
+                throw new Server.Coded("bad_request", "Unknown input method " + method);
+        }
+    }
+
+    private static float clamp(float v, float lo, float hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+
+    // Text into the focused field. First the field's own set-text action
+    // (no keyboard, any characters), spliced at the selection and read back;
+    // if the field is not editable or does not keep it, key events.
+    private JSONObject type(String text) throws Exception {
+        AccessibilityNodeInfo field = automation.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+        if (field != null && field.isEditable()) {
+            boolean hint = Build.VERSION.SDK_INT >= 26 && field.isShowingHintText();
+            String before = field.getText() == null || hint ? "" : field.getText().toString();
+            int start = field.getTextSelectionStart(), end = field.getTextSelectionEnd();
+            if (start < 0 || start > before.length()) start = end = before.length();
+            if (end < start || end > before.length()) end = start;
+            String expected = before.substring(0, start) + text + before.substring(end);
+            Bundle args = new Bundle();
+            args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, expected);
+            if (field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {
+                Bundle sel = new Bundle();
+                sel.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, start + text.length());
+                sel.putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, start + text.length());
+                field.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, sel);
+                sleep(60);
+                field.refresh();
+                String now = field.getText() == null ? "" : field.getText().toString();
+                if (now.equals(expected)) return Input.ok("set-text");
+                if (now.equals(before)) {
+                    // The field ignored it: fall through to key events.
+                } else {
+                    // It took the text and reformatted it (a phone number, a mask).
+                    return Input.ok("set-text").put("value", now);
+                }
+            }
+        }
+        if (input.typeKeys(text)) return Input.ok("keys");
+        throw new Server.Coded("bad_key", "This text has characters with no key on the virtual keyboard, and no focused field took it directly");
     }
 
     // ---- screenshots

@@ -55,6 +55,17 @@ const NAMES = {
   bracketleft: "bracketleft",
   bracketright: "bracketright",
   caps_lock: "Caps_Lock",
+  // Android system keys (other backends answer bad_key).
+  back: "Back",
+  homescreen: "HomeScreen",
+  home_screen: "HomeScreen",
+  recents: "Recents",
+  app_switch: "Recents",
+  notifications: "Notifications",
+  quick_settings: "QuickSettings",
+  volume_up: "VolumeUp",
+  volume_down: "VolumeDown",
+  menu: "Menu",
 };
 
 for (let n = 1; n <= 20; n++) NAMES[`f${n}`] = `F${n}`;

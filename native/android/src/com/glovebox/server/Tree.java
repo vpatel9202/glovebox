@@ -76,6 +76,12 @@ final class Tree {
 
     // Windows top first. Each window is one AXWindow node at depth 0.
     Walk walk(List<AccessibilityWindowInfo> windows, int maxNodes, int maxDepth, int maxText) throws Exception {
+        return walk(windows, maxNodes, maxDepth, maxText, false);
+    }
+
+    // The on-screen keyboard prints as one window line unless `keyboard` is
+    // set: its keys are dozens of buttons that typeText never needs.
+    Walk walk(List<AccessibilityWindowInfo> windows, int maxNodes, int maxDepth, int maxText, boolean keyboard) throws Exception {
         Walk walk = new Walk();
         for (AccessibilityWindowInfo w : windows) {
             AccessibilityNodeInfo root = w.getRoot();
@@ -94,6 +100,10 @@ final class Tree {
             CharSequence title = w.getTitle();
             if (title != null && title.length() > 0) win.put("title", clip(title, maxText));
             walk.nodes.put(win);
+            if (w.getType() == AccessibilityWindowInfo.TYPE_INPUT_METHOD && !keyboard) {
+                win.put("title", "keyboard (pass {keyboard: true} to list its keys)");
+                continue;
+            }
             for (int i = 0; i < root.getChildCount(); i++) visit(root.getChild(i), 1, walk, maxNodes, maxDepth, maxText);
         }
         return walk;

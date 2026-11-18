@@ -134,8 +134,9 @@ as a length only).
 
 ## Android
 
-Early support (read-only): reads, screenshots and bringing an app forward
-work; clicks, keys and typing do not yet.
+Reads, screenshots, clicks, keys, typing, scrolling, swipes and long presses
+work. Input goes to the phone's screen (the app is brought forward first);
+a hidden-screen route is planned. There is no approval prompt yet.
 
 ```js
 const phone = gb.device();               // or gb.device("emulator-5554")
@@ -152,6 +153,19 @@ await clock.getAXState();
   `not_visible`. Call `app.activate()` first, which takes over the phone's
   screen.
 - `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
+- `click(index)` presses the element through accessibility; `click([x, y])`
+  taps. `rightClick` and `app.longPress(target, {ms})` press and hold.
+  `app.swipe(from, to, {ms})` moves a finger without a long press first (pagers,
+  sheets, pull to refresh); `drag` holds first, to pick up an item.
+  `scroll(target, dy)` swipes about 48 dp per line.
+- `typeText` puts text straight into the focused field (no keyboard, any
+  characters), then falls back to key events for fields that refuse it.
+  `lastRoute` says which: `foreground (set-text)` or `foreground (keys)`.
+- System keys for `pressKey`: `Back`, `HomeScreen`, `Recents`,
+  `Notifications`, `QuickSettings`, `VolumeUp`, `VolumeDown`, `Menu`. `Home`
+  and `End` move the text cursor.
+- The keyboard shows as one `window "keyboard"` line; pass
+  `getAXState({keyboard: true})` to list its keys.
 - Coordinates are image pixels as on macOS; the image is the screen scaled so
   its long side is at most 1568.
 - Needs `adb` and a built server: `npm run build:android` (Android SDK and a

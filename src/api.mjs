@@ -111,9 +111,13 @@ export class App {
 
   async #act(action, detail, fn) {
     this.#ctx.checkAbort();
-    this.#ctx.log({ app: this.bundleId ?? this.name, action, ...detail });
+    const device = this.platform === "android" ? { device: this.#backend.label } : {};
+    this.#ctx.log({ app: this.bundleId ?? this.name, action, ...device, ...detail });
     const result = await fn();
     await this.#ctx.settle();
+    // Android UI animates most changes for about 300 ms; a read right after
+    // an action would catch it halfway.
+    if (this.platform === "android") await new Promise((r) => setTimeout(r, this.#ctx.config.androidSettleMs ?? 300));
     return result;
   }
 
@@ -163,6 +167,7 @@ export class App {
       maxDepth: options.maxDepth ?? ax.maxDepth,
       maxText: ax.maxTextLength,
       menus,
+      keyboard: options.keyboard === true,
     });
     // `base` has no frames, so a plain read after a {frames: true} read still
     // diffs. Element indices are stable ids, so the baseline is kept per window
@@ -397,6 +402,8 @@ export class App {
   // this handle, the config, or the app's entry in foregroundApps says so.
   #useBackground(options) {
     if (options.foreground === true || options.background === false || this.foreground) return false;
+    // Android input goes to the phone's screen until the virtual-display route lands.
+    if (this.platform === "android") return false;
     const config = this.#ctx.config;
     if (config.input === "foreground") return false;
     const names = [this.bundleId, this.name].filter(Boolean).map((n) => n.toLowerCase());
@@ -422,8 +429,9 @@ export class App {
       }
     }
     await this.#activate();
-    await this.#call(method, params);
-    this.lastRoute = "foreground";
+    const result = await this.#call(method, params);
+    // Android says how it got there (touch, keys, set-text).
+    this.lastRoute = result?.route ? `foreground (${result.route})` : "foreground";
   }
 
   // Moves the drawn agent cursor to a screen point above the app's window.
@@ -466,8 +474,26 @@ export class App {
       const path = [];
       for (const point of points) path.push(await this.#screenPoint(point));
       await this.#pointCursor(path[0]);
-      await this.#deliver("drag", { path, button: options.button ?? "left" }, options);
+      const touch = this.platform === "android" ? { hold: options.hold ?? true, ms: options.ms } : {};
+      await this.#deliver("drag", { path, button: options.button ?? "left", ...touch }, options);
       await this.#pointCursor(path.at(-1));
+    });
+  }
+
+  // Touch screens (Android): a finger swipe with no long press first, for
+  // pagers, sheets and lists. `ms` is how long the finger moves.
+  async swipe(from, to, options = {}) {
+    return this.#act("swipe", { path: `${describeTarget(from)} -> ${describeTarget(to)}` }, async () => {
+      const path = [await this.#screenPoint(from), await this.#screenPoint(to)];
+      await this.#deliver("drag", { path, hold: false, ms: options.ms ?? 300 }, options);
+    });
+  }
+
+  // Touch screens (Android): press and hold. rightClick does the same.
+  async longPress(target, options = {}) {
+    return this.#act("longPress", { target: describeTarget(target) }, async () => {
+      const [x, y] = await this.#screenPoint(target);
+      await this.#deliver("longPress", { x, y, ms: options.ms ?? 0 }, options);
     });
   }
 
