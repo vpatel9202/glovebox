@@ -76,6 +76,24 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   keychain and signs only the helper you build. Without it, macOS ties
   privacy grants to an ad-hoc signature and a rebuild means granting again.
 
+## Android devices
+
+- **ADB is the grant.** The glovebox server on a phone runs with shell
+  privileges over ADB. Anything else on the Mac that can run `adb` (an agent
+  with a terminal, for one) can do the same without glovebox, so approve
+  terminal access with that in mind.
+- **Ask first, never forbid.** glovebox asks before acting in apps and screens
+  that can move money, read messages or one-time codes, or change the phone's
+  settings, even under `allow-all`, and it asks again when one of them shows
+  inside an app you already approved. It does not block an action you approve.
+- **Locked phones.** The server can reach apps behind the lock screen, so
+  acting on a locked phone asks once per session.
+- **No socket.** The server talks only over the `adb shell` that started it,
+  and exits when that connection closes.
+- **Personal phones.** Developer options and USB debugging are themselves a
+  weaker security setting. Use the emulator, or a phone set aside for agents,
+  when you can.
+
 ## Reporting a vulnerability
 
 Please open a private security advisory at

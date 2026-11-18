@@ -136,7 +136,16 @@ as a length only).
 
 Reads, screenshots, clicks, keys, typing, scrolling, swipes and long presses
 work. Input goes to the phone's screen (the app is brought forward first);
-a hidden-screen route is planned. There is no approval prompt yet.
+a hidden-screen route is planned.
+
+Approval uses the same `approval`, `allow` and `deny` settings as macOS, with
+a dialog on the Mac (zenity on Linux). Nothing is blocked outright: apps and
+screens that can move money, read messages or codes, or change the phone's
+settings (Play Store, Messages, Phone, Settings, wallets, password managers,
+authenticators, Google sign-in, permission prompts) ask first even under
+`allow-all`. A screen from one of them inside an approved app asks again, and
+acting on a locked phone asks once per session. `glovebox allow <package>`
+skips the dialog. Without a dialog, the error code is `needs_approval`.
 
 ```js
 const phone = gb.device();               // or gb.device("emulator-5554")

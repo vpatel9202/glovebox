@@ -130,6 +130,8 @@ final class Device {
                 Input.select(n, start, p.has("length") ? p.getInt("length") : length - start);
                 return new JSONObject();
             }
+            case "inspect":
+                return inspect(p);
             case "cursor":
                 return new JSONObject().put("enabled", false);
             case "forget":
@@ -371,6 +373,56 @@ final class Device {
                 .put("role", Tree.role(hit))
                 .put("actions", Tree.actions(hit))
                 .put("frame", Tree.frame(hit));
+    }
+
+    // ---- approval support: what an action would act on
+
+    // The package of the window an action lands in (the element's window, the
+    // window under the point, or the focused window for keys), and whether
+    // the phone is locked.
+    private JSONObject inspect(JSONObject p) throws Exception {
+        String pkg = null;
+        if (p.has("index")) {
+            try {
+                CharSequence c = tree.node(p.getInt("index")).getPackageName();
+                pkg = c == null ? null : c.toString();
+            } catch (Server.Coded ignored) {
+                // A stale index fails later, in the action itself.
+            }
+        } else if (p.has("x") && automation != null) {
+            int x = (int) p.getDouble("x"), y = (int) p.getDouble("y");
+            for (AccessibilityWindowInfo w : displayWindows(DEFAULT_DISPLAY)) {
+                Rect b = new Rect();
+                w.getBoundsInScreen(b);
+                if (b.contains(x, y)) {
+                    pkg = windowPackage(w);
+                    break;
+                }
+            }
+        } else if (automation != null) {
+            AccessibilityNodeInfo focus = automation.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if (focus != null && focus.getPackageName() != null) pkg = focus.getPackageName().toString();
+            if (pkg == null) pkg = topWindowPackage();
+        }
+        boolean locked = false;
+        try {
+            android.app.KeyguardManager km = (android.app.KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+            locked = km != null && km.isKeyguardLocked();
+        } catch (Throwable ignored) {
+            // Unknown counts as unlocked; the action shows the lock screen if not.
+        }
+        JSONObject out = new JSONObject().put("locked", locked);
+        if (pkg != null) out.put("windowPackage", pkg).putOpt("windowLabel", label(pkg));
+        return out;
+    }
+
+    private String label(String pkg) {
+        try {
+            PackageManager pm = context.getPackageManager();
+            return String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)));
+        } catch (Throwable e) {
+            return null;
+        }
     }
 
     // ---- input (display 0; the virtual-display route comes in Phase 3)

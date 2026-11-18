@@ -183,3 +183,42 @@ test("gb.device binds getApp to that device and keeps handles apart", async () =
   assert.equal(await gb.device("emulator-5554").getApp("Clock"), droid);
   assert.deepEqual(calls.map(([p, m]) => `${p}:${m}`), ["macos:resolveApp", "android:resolveApp", "android:resolveApp"]);
 });
+
+test("device approval asks first for sensitive apps and never blocks outright", async () => {
+  const { authorize, authorizeLocked, isAskFirst } = await import("../src/approval.mjs");
+  const asked = [];
+  const answer = (value) => async (q) => (asked.push(q.detail), value);
+  const base = { client: "Agent", device: "Phone", approved: new Set() };
+  const cfg = (approval, extra = {}) => ({ approval, allow: [], deny: [], ...extra });
+
+  // allow-all: ordinary apps pass silently; ask-first apps still ask.
+  await authorize({ ...base, pkg: "com.example.notes", config: cfg("allow-all"), prompt: answer("deny") });
+  assert.equal(asked.length, 0);
+  await assert.rejects(authorize({ ...base, pkg: "com.android.vending", config: cfg("allow-all"), prompt: answer("deny") }), { code: "denied" });
+  assert.equal(asked.length, 1);
+  assert.ok(isAskFirst("com.google.android.apps.messaging"));
+
+  // ask: one prompt per app per session.
+  const approved = new Set();
+  await authorize({ ...base, approved, pkg: "com.example.maps", config: cfg("ask"), prompt: answer("session") });
+  await authorize({ ...base, approved, pkg: "com.example.maps", config: cfg("ask"), prompt: answer("deny") });
+  assert.equal(asked.length, 2);
+
+  // allowlist: ordinary apps need `allow`; ask-first apps can still be approved.
+  await assert.rejects(authorize({ ...base, pkg: "com.example.x", config: cfg("allowlist"), prompt: answer("session") }), { code: "not_allowed" });
+  await authorize({ ...base, pkg: "com.android.settings", config: cfg("allowlist"), prompt: answer("session") });
+
+  // deny wins; allow skips the prompt even for ask-first apps.
+  await assert.rejects(authorize({ ...base, pkg: "com.example.y", config: cfg("allow-all", { deny: ["com.example.y"] }) }), { code: "denied" });
+  const before = asked.length;
+  await authorize({ ...base, pkg: "com.android.vending", config: cfg("ask", { allow: ["com.android.vending"] }), prompt: answer("deny") });
+  assert.equal(asked.length, before);
+
+  // No dialog on this host: a coded error that says how to approve.
+  await assert.rejects(authorize({ ...base, pkg: "com.example.z", config: cfg("ask"), prompt: async () => null }), { code: "needs_approval" });
+
+  // A locked phone asks once per session.
+  const lockApproved = new Set();
+  await authorizeLocked({ ...base, approved: lockApproved, prompt: answer("session") });
+  await authorizeLocked({ ...base, approved: lockApproved, prompt: answer("deny") });
+});

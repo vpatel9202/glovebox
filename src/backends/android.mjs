@@ -9,12 +9,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { authorize, authorizeLocked, isAskFirst } from "../approval.mjs";
 
 const execFileAsync = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_DEX = path.join(here, "..", "..", "native", "android", "build", "glovebox-server.dex");
 const REMOTE_DEX = "/data/local/tmp/glovebox-server.dex";
 const SERVER_CLASS = "com.glovebox.server.Server";
+
+// Methods that only read the app list or the server's own state.
+const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor", "inspect", "_createDisplay", "_displayTree"]);
+// Methods that act. Each checks the window it acts on and the lock screen.
+const ACTING = new Set(["activate", "keys", "type", "click", "scroll", "drag", "longPress", "performAction", "setValue", "focusElement", "selectText"]);
 
 function adbPath() {
   if (process.env.GLOVEBOX_ADB) return process.env.GLOVEBOX_ADB;
@@ -77,10 +83,13 @@ async function hardwareSerial(transport) {
 export class AndroidBackend extends EventEmitter {
   platform = "android";
 
-  constructor({ serial = null, client = "An agent" } = {}) {
+  constructor({ serial = null, client = "An agent", prompt } = {}) {
     super();
     this.serial = serial;
     this.client = client;
+    this.prompt = prompt; // approval dialog; tests replace it
+    this.approved = new Set(); // packages approved this session, and lock grants
+    this.names = new Map(); // package -> label, for dialogs
     this.transport = null;
     this.child = null;
     this.pending = new Map();
@@ -163,7 +172,34 @@ export class AndroidBackend extends EventEmitter {
 
   async request(method, params = {}, { timeout = 30_000 } = {}) {
     if (!this.child) await this.connect();
-    return this.#send(method, params, timeout);
+    if (!UNGATED.has(method)) await this.#gate(method, params);
+    const result = await this.#send(method, params, timeout);
+    if (method === "listApps") for (const a of result) this.names.set(a.bundleId, a.name);
+    if (method === "resolveApp") this.names.set(result.bundleId, result.name);
+    return result;
+  }
+
+  // The approval gate (src/approval.mjs): the app, then for actions the
+  // package of the window acted on (a payment sheet or permission prompt
+  // inside an approved app asks again) and the lock screen.
+  async #gate(method, params) {
+    const pkg = params.pid;
+    if (typeof pkg !== "string" || !pkg) throw codedError(`${method} needs an app (pid)`, "bad_request");
+    const common = { client: this.client, device: this.label, approved: this.approved, ...(this.prompt ? { prompt: this.prompt } : {}) };
+    const name = this.names.get(pkg);
+    await authorize({ ...common, pkg, name });
+    if (!ACTING.has(method)) return;
+    const point = params.path?.[0] ?? (params.x != null ? [params.x, params.y] : null);
+    const info = await this.#send(
+      "inspect",
+      { pid: pkg, ...(point ? { x: point[0], y: point[1] } : {}), ...(Number.isInteger(params.index) ? { index: params.index } : {}) },
+      10_000,
+    );
+    if (info.locked) await authorizeLocked(common);
+    const inner = info.windowPackage;
+    if (inner && inner !== pkg && isAskFirst(inner)) {
+      await authorize({ ...common, pkg: inner, name: info.windowLabel ?? this.names.get(inner), reason: `It is showing inside ${name ?? pkg}.` });
+    }
   }
 
   #send(method, params, timeout) {
