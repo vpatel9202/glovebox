@@ -35,10 +35,14 @@ on it, then reads that display through `UiAutomation.getWindowsOnAllDisplays`.
 | Emulator API 36 | `0x1fdcb` | 0 | yes, 18 nodes |
 | Emulator API 37 | `0x1fdcb` | 0 | yes, 19 nodes |
 | Each emulator | `0xfdcb` (no steal flag) | the virtual display | yes |
-| Galaxy S24 Ultra | | not run yet | |
+| Galaxy S24 Ultra (Samsung Clock) | `0x1fdcb` | 0 | yes, 37 nodes |
+| Galaxy S24 Ultra | `0xfdcb` (no steal flag) | the virtual display | yes |
 
-So on emulators the hidden screen works end to end: the user's screen keeps
-focus, and glovebox can still read the agent's app. The first read after
+So the hidden screen works end to end on emulators and on the S24, over
+wireless ADB: the user's screen keeps focus, and glovebox can still read the
+agent's app. Samsung honours `STEAL_TOP_FOCUS_DISABLED`. (On Samsung the
+server's system context also needs a `ConfigurationController`, the same
+workaround scrcpy carries.) The first read after
 creating the display took 0.25 to 1.6 s; later reads are fast.
 
 ## By device

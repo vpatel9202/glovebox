@@ -418,6 +418,20 @@ final class Device {
             Field system = at.getDeclaredField("mSystemThread");
             system.setAccessible(true);
             system.setBoolean(thread, true);
+            // Samsung: building the system context reads the display info,
+            // which calls ActivityThread.getConfiguration() and needs a
+            // ConfigurationController (absent on stock builds that don't).
+            try {
+                Class<?> controller = Class.forName("android.app.ConfigurationController");
+                Class<?> internal = Class.forName("android.app.ActivityThreadInternal");
+                Constructor<?> cc = controller.getDeclaredConstructor(internal);
+                cc.setAccessible(true);
+                Field field = at.getDeclaredField("mConfigurationController");
+                field.setAccessible(true);
+                field.set(thread, cc.newInstance(thread));
+            } catch (ReflectiveOperationException ignored) {
+                // Older or stock releases without the class do not need it.
+            }
             Context base = (Context) at.getDeclaredMethod("getSystemContext").invoke(thread);
             return new ContextWrapper(base) {
                 @Override public String getPackageName() { return "com.android.shell"; }
