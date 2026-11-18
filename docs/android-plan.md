@@ -6,10 +6,18 @@ or tested; it is a plan, written 2026-11-15.
 ## Summary
 
 glovebox reaches Android parity as a second backend behind the existing
-[backend protocol](backend-protocol.md): the kernel, diffs, sessions, MCP and
-CLI stay as they are, and a new on-device server replaces Glovebox
-Helper.app. Nothing in this plan has been run on a device, so the first phase
-is a throwaway spike, and every later phase depends on it.
+[backend protocol](backend-protocol.md), with a new on-device server in place
+of Glovebox Helper.app. The diffs, the MCP server and the CLI keep their
+shape, but the kernel, the App layer and the protocol need the changes listed
+in [Kernel and protocol changes](#kernel-and-protocol-changes): today they
+assume one macOS backend per kernel. Nothing in this plan has been run on a
+device, so the first phase is a throwaway spike, and every later phase
+depends on it.
+
+**Who it is for.** Coding agents testing Android apps that the user builds,
+on an emulator or a dedicated test phone. Driving a personal phone comes
+later and carries the limits in [Security model](#security-model); it is not
+the v1 target.
 
 **Target architecture.** The host (Mac or Linux) runs the kernel and daemon
 as today. Over ADB it starts a server on the phone with shell privileges
@@ -42,13 +50,13 @@ architecture, both answers leave the rest of the plan intact.
 
 ## Parity map
 
-Of 33 macOS features, 12 port directly, 15 need a redesign, 4 are better on
+Of 33 macOS features, 11 port directly, 16 need a redesign, 4 are better on
 Android, and 2 have no equivalent (the menu bar and code signing). Rows follow
 the order of `api.md`, then `design.md` and `SECURITY.md`.
 
 | macOS feature | Android approach | Parity |
 | --- | --- | --- |
-| Persistent JS session, `js` / `js_reset`, CLI daemon | Unchanged; the kernel never sees the OS | Port |
+| Persistent JS session, `js` / `js_reset`, CLI daemon | Same tools and daemon, but the kernel holds one backend per device instead of one per process, and scripts see the target's platform, not only the host's `process.platform` (see Kernel and protocol changes) | Redesign |
 | `gb.getApp(query)` launches without focus | Resolve label or package name; `am start --display <session display>` | Port |
 | `gb.listApps({installed})` | PackageManager plus running tasks per display | Port |
 | `gb.permissions()` | Reports ADB link, server alive, accessibility connection, virtual display allowed, competing automation | Redesign |
@@ -82,6 +90,27 @@ the order of `api.md`, then `design.md` and `SECURITY.md`.
 | Semantic shortcuts | New: intents and deep links by allowlist, later AppFunctions | Better on Android |
 | Pixel fallback for one-node trees | Screenshots and taps; OCR on the host | Port |
 
+## Kernel and protocol changes
+
+The host side assumes one macOS backend today. These are the places that
+change, read from the source on 2026-11-18. Phase 1 makes them before any
+Android method works end to end, and edits
+[backend-protocol.md](backend-protocol.md) in the same change rather than
+keeping a second contract here.
+
+| Where | Today | Change |
+| --- | --- | --- |
+| [`src/backends/index.mjs`](../src/backends/index.mjs) | `createBackend` switches on `process.platform` and returns the macOS backend or an "unsupported" stub | A registry: the macOS backend for the host, plus one Android backend per ADB serial, created on first use |
+| [`src/kernel.mjs`](../src/kernel.mjs) | Builds a single `backend` when the module loads and hands it to every script and session; the Escape listener hangs off it | Keeps the registry instead; `gb.device(serial)` returns an object with the same `getApp` / `listApps` surface bound to that device's backend; stop events come from every backend |
+| `src/kernel.mjs`, script sandbox | Scripts see `process.platform` of the host | Unchanged for the host; device objects report their own platform, so recipes branch on the target, not the host |
+| [`src/api.mjs`](../src/api.mjs), App objects | Every request sends `{pid}`; the session's app map is keyed by `pid` | Keyed by device plus handle, so a Mac pid and a phone pid cannot collide; the handle the backend returns stays opaque to the App layer |
+| `src/api.mjs`, activate fallback | Runs `open -b <bundleId>` when activation fails, guarded by `process.platform === "darwin"` | Moves behind the backend (`activate` reports its own failure), so the App layer has no OS-specific commands |
+| [`src/smoke.mjs`](../src/smoke.mjs) | Proves input stayed in the background by asking `osascript` for the frontmost app | A per-backend check: on Android, the focused display and top task from `dumpsys` |
+| [`backend-protocol.md`](backend-protocol.md) | Coordinates are "global screen points"; `pid` is a number; roles are macOS AX names | The contract becomes per backend. macOS keeps global screen points and numeric pids, unchanged. An Android backend's coordinates are relative to its target display, and its app handle is an opaque string (package, task and display packed in). The App layer treats the handle as opaque either way. The role mapping rule stays, with Android's map documented next to it |
+
+The diff engine, MCP server, CLI daemon and config format do not change
+shape. Config gains an Android blocked-app list and per-device settings.
+
 ## Phases
 
 Eight phases, 0 to 7: a no-code spike, then an emulator MVP on the default
@@ -107,16 +136,30 @@ flowchart TD
   P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7
 ```
 
-Phases 0 to 4 run on emulators in CI; only Phase 5 needs physical phones, and
-Gate A decides whether Phase 3 makes virtual displays the default or an
-option.
+Phases 1 to 4 run on emulators in CI. The Phase 0 spike also uses one
+physical phone, because the two riskiest questions (focus and the shell
+accessibility connection) may get a vendor-specific answer. Phase 5 is where
+phones become a supported target. Gate A decides whether Phase 3 makes
+virtual displays the default or an option.
 
 ### Phase 0: spike with stock tools, no code
 
-Run on emulators for Android 14 through 17 (API 34–37), using only
-`scrcpy --new-display`, `am start --display`, `input -d`, `uiautomator dump`
-and `dumpsys`. `uiautomator dump` already builds an accessibility connection
-from shell, so it tests the riskiest assumption for free.
+Run on emulators for Android 14 through 17 (API 34–37) and on one physical
+phone, a Samsung Galaxy S24 Ultra. Read on 2026-11-18 with `adb shell
+getprop`: model SM-S928U1, Android 17, API 37
+(`ro.build.version.sdk`), One UI 9 (`ro.build.version.oneui` 90000), build
+S928U1UEU6EZIF. Re-read these before each spike run, since an OTA changes
+them. Use only `scrcpy --new-display`, `am start --display`,
+`input -d`, `uiautomator dump` and `dumpsys`. `uiautomator dump` already
+builds an accessibility connection from shell, so it tests the riskiest
+assumption for free.
+
+The S24 is a personal phone, so the spike drives only stock apps that hold no
+accounts or codes (Clock, Calculator, Calendar with no account, a browser on
+a blank profile), never Messages, Settings or anything on the blocked list in
+Security model. Before the first run, check whether Samsung Auto Blocker
+(Settings, Security and privacy) blocks `adb` input; that it does is still
+unconfirmed.
 
 Questions it must answer:
 
@@ -132,22 +175,26 @@ Questions it must answer:
 7. Does any of this survive the screen being locked or off?
 
 **Gate A (route).** The virtual display becomes the default route only if
-questions 1 and 2 pass on every API level and at least 80% of the app list
-passes question 3. Otherwise the default display is the default route and
-virtual displays are opt-in.
+questions 1 and 2 pass on every emulator API level and at least 80% of the
+app list passes question 3. Otherwise the default display is the default
+route and virtual displays are opt-in. The S24 does not count toward the
+threshold, since one vendor build is not a sample, but a failure there that
+the emulators do not show is recorded as a vendor risk for Phase 5.
 
 **Gate B (privilege).** If an accessibility connection cannot be built from
-shell on two or more API levels, the accessibility half moves into a small
-instrumentation APK (see Alternatives). Input, capture and displays stay in
-the shell server either way.
+shell on two or more emulator API levels, or on the S24, the accessibility
+half moves into a small instrumentation APK (see Alternatives). The S24 counts
+here because a shell route that fails on the most common vendor build is not
+a route. Input, capture and displays stay in the shell server either way.
 
 ### Phase 1: read-only backend on the emulator
 
 - On-device server, pushed and started by the host, speaking the existing
   JSON-lines protocol over an ADB-forwarded socket. It answers `hello`,
   `ping`, `listApps`, `resolveApp`, `windows`, `axTree` and `screenshot`.
-- `src/backends/android.mjs`, chosen per device rather than by
-  `process.platform`, because the host is still a Mac.
+- The host changes in [Kernel and protocol changes](#kernel-and-protocol-changes),
+  then `src/backends/android.mjs`, chosen per device through `gb.device()`
+  rather than by `process.platform`, because the host is still a Mac.
 - Role map (Views, Compose, Flutter, WebView) onto the AX role names.
 - Element index table with a generation counter.
 - Window model: the display or task is the glovebox window, with its windows
@@ -311,9 +358,18 @@ terminal cannot do that. These go into an Android section of
 
 ## Test and benchmark strategy
 
-Phases 0 to 4 run entirely on emulators, so CI can carry them; only Phase 5
-needs physical phones.
+Phases 1 to 4 run entirely on emulators, so CI can carry them. The Phase 0
+spike adds one physical phone (the S24 Ultra), and Phase 5 adds the full
+device matrix.
 
+- **Local setup.** Android Studio provides the SDK, the emulator and the
+  system images. On Apple Silicon Macs the emulator needs arm64-v8a images;
+  the x86_64 images below are for Linux CI only. Use one `adb`: either the
+  SDK's `platform-tools` or Homebrew's `android-platform-tools`, not both on
+  `PATH`, because two client versions keep restarting each other's server.
+  A phone with both USB and wireless debugging on shows up twice in
+  `adb devices` (its serial and an `adb-<serial>-..._adb-tls-connect._tcp`
+  entry), so every command passes `-s`.
 - **Fixture APK glovebox owns.** Screens for Views, Compose, WebView, a long
   list, a split one-time-code field, a secure window, a view flagged
   sensitive, and a canvas that logs every touch (position, display id, event
@@ -344,14 +400,17 @@ needs physical phones.
 
 ## Open decisions
 
-Five choices are needed before Phase 1; the recommended answer is listed
-first.
+One choice is made; four are needed before Phase 1, with the recommended
+answer listed first.
 
-1. **How a script names a device.** `gb.device("emulator-5554").getApp(...)`,
-   which keeps the App API identical (recommended); or a prefix in the query
-   (`"android:com.example"`); or one device per session.
-2. **First target.** Emulator only for v1 (recommended), or a Pixel alongside
-   it.
+1. **How a script names a device (decided).**
+   `gb.device("emulator-5554").getApp(...)`, which keeps the App API
+   identical. Rejected: a prefix in the query (`"android:com.example"`), which
+   overloads one string with two meanings, and one device per session, which
+   rules out a script that checks the Mac and the phone together. The kernel
+   changes above follow from this choice.
+2. **First target.** Emulator only for v1 (recommended), or the S24 Ultra
+   alongside it. Either way the S24 is in the Phase 0 spike.
 3. **Where the ADB key lives.** On a separate machine, reached over MCP
    (recommended), or on the Mac.
 4. **Server language.** Java, matching scrcpy's wrapper classes (recommended),
