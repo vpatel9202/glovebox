@@ -68,6 +68,7 @@ function hashImage(data) {
 
 export class App {
   #ctx;
+  #backend;
   #view = null;
   #explicitWindow = false;
   #lastTrees = new Map(); // window id -> {lines, base, frames}: what the model last saw
@@ -76,8 +77,12 @@ export class App {
   #waitBase = null;
   #activatedCell = -1;
 
-  constructor(ctx, info) {
+  // `backend` is the host's (ctx.backend) or a device's; `pid` is whatever
+  // handle that backend gave the app (a number on macOS, a package on Android).
+  constructor(ctx, info, backend = ctx.backend) {
     this.#ctx = ctx;
+    this.#backend = backend;
+    this.platform = backend.platform ?? null;
     this.name = info.name;
     this.bundleId = info.bundleId;
     this.pid = info.pid;
@@ -101,7 +106,7 @@ export class App {
 
   async #call(method, params = {}) {
     this.#ctx.checkAbort();
-    return this.#ctx.backend.request(method, { pid: this.pid, ...params });
+    return this.#backend.request(method, { pid: this.pid, ...params });
   }
 
   async #act(action, detail, fn) {
@@ -123,7 +128,7 @@ export class App {
     const windows = await this.#call("windows");
     if (windows.length === 0) {
       // Without Accessibility every app looks windowless; say which it is.
-      const { accessibility } = await this.#ctx.backend.request("permissions", {});
+      const { accessibility } = await this.#backend.request("permissions", {});
       if (!accessibility) throw new Error("Accessibility permission is missing for the glovebox helper. Run: glovebox doctor");
       throw new Error(`${this.name} has no open windows`);
     }
@@ -310,7 +315,7 @@ export class App {
       await this.#call("activate");
       return;
     } catch (error) {
-      if (error.code !== "activate_failed" || !this.bundleId || process.platform !== "darwin") throw error;
+      if (error.code !== "activate_failed" || !this.bundleId || this.platform !== "macos" || process.platform !== "darwin") throw error;
     }
     await execFileAsync("open", ["-b", this.bundleId]);
     for (let i = 0; i < 40; i++) {
@@ -425,7 +430,7 @@ export class App {
   async #pointCursor([x, y]) {
     if (this.#ctx.config.cursor === false) return;
     try {
-      await this.#ctx.backend.request("cursor", { x, y, windowId: this.#view?.windowId });
+      await this.#backend.request("cursor", { x, y, windowId: this.#view?.windowId });
     } catch {
       // The cursor is decoration; never fail an action over it.
     }
@@ -496,13 +501,15 @@ export class App {
   }
 }
 
-export function createApi(ctx) {
-  const apps = new Map();
-
-  const gb = {
+// listApps / getApp / permissions bound to one backend: the host's for `gb`,
+// a device's for gb.device(). Handles are cached per backend, so a Mac pid and
+// a phone's package can never collide.
+function appSurface(ctx, backend) {
+  const apps = (backend.apps ??= new Map());
+  return {
     async listApps(options = {}) {
       ctx.checkAbort();
-      const all = await ctx.backend.request("listApps");
+      const all = await backend.request("listApps");
       const running = all.filter((a) => a.running);
       const list = options.installed ? all : running;
       if (options.emit !== false) {
@@ -515,10 +522,10 @@ export function createApi(ctx) {
     // Launches the app if needed and returns a handle. Does not take focus.
     async getApp(query, options = {}) {
       ctx.checkAbort();
-      let info = await ctx.backend.request("resolveApp", { query: String(query) });
+      let info = await backend.request("resolveApp", { query: String(query) });
       if (!info.running) {
         ctx.log({ app: info.bundleId, action: "launch" });
-        info = await ctx.backend.request("launch", {
+        info = await backend.request("launch", {
           bundleId: info.bundleId,
           path: info.path,
           name: info.name,
@@ -527,19 +534,39 @@ export function createApi(ctx) {
       }
       const existing = apps.get(info.pid);
       if (existing) return existing;
-      const app = new App(ctx, info);
+      const app = new App(ctx, info, backend);
       apps.set(info.pid, app);
       if (options.foreground) app.foreground = true;
       if (options.activate) await app.activate();
       return app;
     },
 
-    sleep(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
+    async permissions() {
+      return backend.request("permissions", {});
+    },
+  };
+}
+
+export function createApi(ctx) {
+  const gb = {
+    ...appSurface(ctx, ctx.backend),
+
+    // An Android device by ADB serial (USB or wireless; either names the same
+    // phone), or the only connected one. Same listApps/getApp/permissions.
+    device(serial) {
+      if (!ctx.device) throw new Error("This glovebox session has no device support");
+      const backend = ctx.device(serial == null ? null : String(serial));
+      const surface = appSurface(ctx, backend);
+      return Object.assign(surface, {
+        platform: backend.platform,
+        serial: serial ?? null,
+        toString: () => `Device(${backend.label})`,
+        [Symbol.for("nodejs.util.inspect.custom")]: () => `Device(${backend.label})`,
+      });
     },
 
-    async permissions() {
-      return ctx.backend.request("permissions", {});
+    sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
     },
 
     help(topic) {

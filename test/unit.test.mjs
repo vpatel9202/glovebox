@@ -149,3 +149,37 @@ test("image space round-trips to screen points", () => {
   const [sx, sy] = toScreen(big, [big.width / 2, big.height / 2]);
   assert.ok(Math.abs(sx - 1280) < 1 && Math.abs(sy - (25 + 1415 / 2)) < 1);
 });
+
+test("gb.device binds getApp to that device and keeps handles apart", async () => {
+  const { createApi } = await import("../src/api.mjs");
+  const calls = [];
+  const fake = (platform, pid) => ({
+    platform,
+    label: platform,
+    async request(method, params) {
+      calls.push([platform, method, params]);
+      if (method === "resolveApp") return { name: "Clock", bundleId: "com.clock", pid, running: true };
+      throw new Error(`unexpected ${method}`);
+    },
+  });
+  const host = fake("macos", 42);
+  const devices = new Map();
+  const ctx = {
+    backend: host,
+    device: (serial) => devices.get(serial) ?? devices.set(serial, fake("android", "com.clock")).get(serial),
+    checkAbort() {},
+    log() {},
+    out: { text() {} },
+  };
+  const gb = createApi(ctx);
+  const mac = await gb.getApp("Clock");
+  const phone = gb.device("emulator-5554");
+  const droid = await phone.getApp("Clock");
+  assert.equal(mac.platform, "macos");
+  assert.equal(droid.platform, "android");
+  assert.equal(droid.pid, "com.clock");
+  assert.notEqual(mac, droid);
+  // The same device hands back the same handle.
+  assert.equal(await gb.device("emulator-5554").getApp("Clock"), droid);
+  assert.deepEqual(calls.map(([p, m]) => `${p}:${m}`), ["macos:resolveApp", "android:resolveApp", "android:resolveApp"]);
+});

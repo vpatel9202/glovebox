@@ -23,6 +23,10 @@ await calc.getAXState();
 - `gb.listApps({installed, emit})` lists running apps (or installed ones too)
   and returns `[{name, bundleId, pid, running, active}]`. It prints the list
   unless `emit: false`.
+- `gb.device(serial)` returns an Android device with the same `listApps`,
+  `getApp` and `permissions`. `serial` is the ADB serial (`adb devices`);
+  either the USB or the wireless serial names the same phone, and it may be
+  left out when one device is connected. See [Android](#android).
 - `gb.sleep(ms)` waits. Also available as `sleep(ms)`.
 - `gb.permissions()` reports Accessibility and Screen Recording status.
 - `help(topic)` prints this document, or the sections mentioning `topic`.
@@ -127,6 +131,33 @@ Monitoring. Do not continue GUI work until the user asks.
 On the foreground route a script brings an app forward at most once per call.
 Every action is appended to `~/.glovebox/actions.log` (typed text is logged
 as a length only).
+
+## Android
+
+Early support (read-only): reads, screenshots and bringing an app forward
+work; clicks, keys and typing do not yet.
+
+```js
+const phone = gb.device();               // or gb.device("emulator-5554")
+const clock = await phone.getApp("Clock");
+await clock.activate();                  // brings it to the phone's screen
+await clock.getAXState();
+```
+
+- The phone's whole screen is the app's one window (`window 0`). A read shows
+  the app and anything on top of it: dialogs, sheets, the keyboard, system
+  prompts. The status and navigation bars are left out.
+- An app can only be read while it is on the screen. `getApp` never launches
+  or brings an app forward; a read of an app that is not showing fails with
+  `not_visible`. Call `app.activate()` first, which takes over the phone's
+  screen.
+- `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
+- Coordinates are image pixels as on macOS; the image is the screen scaled so
+  its long side is at most 1568.
+- Needs `adb` and a built server: `npm run build:android` (Android SDK and a
+  JDK). The server runs over ADB with shell privileges and stops with the
+  session. Only one automation tool can read the screen at a time; stop
+  uiautomator, Appium or Maestro first.
 
 ## Known limits
 

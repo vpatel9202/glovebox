@@ -11,3 +11,4 @@ bench/.env
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+native/android/build/

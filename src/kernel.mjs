@@ -9,7 +9,7 @@ import util from "node:util";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 import { createApi } from "./api.mjs";
-import { createBackend } from "./backends/index.mjs";
+import { createBackend, createDeviceBackend } from "./backends/index.mjs";
 import { loadConfig, paths } from "./config.mjs";
 import { transformCell } from "./transform.mjs";
 
@@ -107,8 +107,36 @@ backend.on("escape", () => {
   if (running) abortReason = "Stopped: the user pressed Escape. Do not continue GUI actions until the user asks.";
 });
 
+// One backend per attached device, created on first use and kept for the
+// session, keyed by the serial the script named ("" for the only device).
+const devices = new Map();
+
+function deviceBackend(serial) {
+  const key = serial ?? "";
+  let device = devices.get(key);
+  if (!device) {
+    device = createDeviceBackend({ serial: serial ?? null, client });
+    device.on("escape", () => {
+      if (running) abortReason = "Stopped: the user asked to stop on the device. Do not continue GUI actions until the user asks.";
+    });
+    device.on("exit", ({ reason }) => {
+      if (running) abortReason = `Stopped: the glovebox server on ${device.label} stopped (${reason}). Do not continue GUI actions on it until the user asks.`;
+    });
+    devices.set(key, device);
+  }
+  return device;
+}
+
+// js_reset sends SIGTERM; run the exit hook so device servers stop too. (On
+// SIGKILL the adb pipes close and the servers exit on end of input.)
+process.on("exit", () => {
+  for (const device of devices.values()) device.close();
+});
+process.on("SIGTERM", () => process.exit(0));
+
 const ctx = {
   backend,
+  device: deviceBackend,
   get config() {
     return config;
   },
