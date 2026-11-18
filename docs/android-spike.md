@@ -21,6 +21,26 @@ The S24 is a personal phone, so it drove only Clock and Calculator, with
 clipboard sync off. Q5, Q7 and the `--no-vd-destroy-content` variant of Q6
 were not run there, nor was the probe.
 
+## Follow-up in Phase 1: reading a display that does not have focus
+
+Q2 left one question open: can glovebox read the virtual display while
+display 0 keeps focus? The Phase 1 server answers it, using test-only
+methods. The server creates a display with flags `0x1fdcb` and starts Clock
+on it, then reads that display through `UiAutomation.getWindowsOnAllDisplays`.
+
+| Device | Flags | Top focused display after start | Clock's tree read from the virtual display |
+| --- | --- | --- | --- |
+| Emulator API 34 | `0x1fdcb` | 0 | yes, 18 nodes |
+| Emulator API 35 | `0x1fdcb` | 0 | yes, 18 nodes |
+| Emulator API 36 | `0x1fdcb` | 0 | yes, 18 nodes |
+| Emulator API 37 | `0x1fdcb` | 0 | yes, 19 nodes |
+| Each emulator | `0xfdcb` (no steal flag) | the virtual display | yes |
+| Galaxy S24 Ultra | | not run yet | |
+
+So on emulators the hidden screen works end to end: the user's screen keeps
+focus, and glovebox can still read the agent's app. The first read after
+creating the display took 0.25 to 1.6 s; later reads are fast.
+
 ## By device
 
 Pass means the answer is what glovebox needs. Q7 "bypass" is a finding
