@@ -175,6 +175,14 @@ first input. scrcpy is 5.0.1. `avdmanager` must be the SDK's own
 (`cmdline-tools;latest`); the Homebrew `android-commandlinetools` copy looks
 for images under its own SDK root and rejects these paths.
 
+**Results (2026-11-18): [android-spike.md](android-spike.md).** In short:
+- Stock scrcpy loses Q1. A probe display with the hidden
+  `STEAL_TOP_FOCUS_DISABLED` flag passes it on emulators.
+- Q2 works only while the virtual display has focus.
+- Q3 passes 56–83% of apps.
+- Gate B is met. Gate A is not met as written; the decision is bead
+  `gb-7my.3`.
+
 Questions it must answer:
 
 1. Does the default display keep focus while the agent taps on a virtual
