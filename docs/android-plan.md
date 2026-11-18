@@ -157,9 +157,23 @@ assumption for free.
 The S24 is a personal phone, so the spike drives only stock apps that hold no
 accounts or codes (Clock, Calculator, Calendar with no account, a browser on
 a blank profile), never Messages, Settings or anything on the blocked list in
-Security model. Before the first run, check whether Samsung Auto Blocker
-(Settings, Security and privacy) blocks `adb` input; that it does is still
-unconfirmed.
+Security model.
+
+**Setup, done 2026-11-18.** On this Mac (Apple Silicon, 16 GB RAM):
+
+| Device | Image | Serial | Result |
+| --- | --- | --- | --- |
+| `gb_api34` (Pixel 8 profile) | API 34 `google_apis` arm64-v8a | `emulator-5554` | Boots in about 45 s; injected swipe changes the screen; scrcpy sees display 0 |
+| `gb_api35` (Pixel 8 profile) | API 35 `google_apis` arm64-v8a | `emulator-5556` | Boots in about 30 s; the first swipe after boot was ignored, and the same swipe 15 s later worked (launcher still starting) |
+| `gb_api36` (Pixel 8 profile) | API 36 `google_apis` arm64-v8a | `emulator-5558` | Boots in about 50 s; swipe works; scrcpy sees display 0 |
+| `Medium_Phone_API_37.0` (made by Android Studio) | API 37.0 `google_apis_playstore` arm64-v8a | `emulator-5560` | Boots in about 70 s; swipe works; scrcpy sees display 0. Play Store images cannot `adb root` |
+| Galaxy S24 Ultra | Android 17, API 37 | USB serial | An injected wake key moved it from Dozing to Awake, so Samsung Auto Blocker does not block `adb` input in its current setting |
+
+The emulators run one at a time: four at 2 GB of guest RAM each is too much
+for 16 GB. The spike waits about 15 s after `sys.boot_completed` before the
+first input. scrcpy is 5.0.1. `avdmanager` must be the SDK's own
+(`cmdline-tools;latest`); the Homebrew `android-commandlinetools` copy looks
+for images under its own SDK root and rejects these paths.
 
 Questions it must answer:
 
