@@ -280,3 +280,26 @@ test("app.find, app.nodes and app.text return data and print nothing", async () 
   assert.equal((await app.text(3)).length, 300);
   assert.deepEqual(printed, []);
 });
+
+test("large trees read as an outline; find still sees every element", async () => {
+  const { outlineTree } = await import("../src/axformat.mjs");
+  // A window, 30 sections, each with 20 rows; half the sections are below the window.
+  const nodes = [{ i: 1, d: 0, role: "AXWindow", frame: [0, 0, 100, 100] }];
+  let i = 2;
+  for (let s = 0; s < 30; s++) {
+    const y = s < 15 ? s * 6 : 200 + s;
+    nodes.push({ i: i++, d: 1, role: "AXGroup", title: `Section ${s}`, frame: [0, y, 100, 5] });
+    for (let r = 0; r < 20; r++) nodes.push({ i: i++, d: 2, role: "AXStaticText", title: `row ${r}`, frame: [0, y, 100, 5] });
+  }
+  const small = outlineTree(nodes.slice(0, 100), { limit: 250 });
+  assert.equal(small.nodes.length, 100); // under the limit: unchanged
+  const big = outlineTree(nodes, { limit: 250, bounds: [0, 0, 100, 100] });
+  assert.equal(big.offscreen, 15 * 21);
+  // Level by level: the window, the 15 on-screen sections, then rows in
+  // order until 250; the rest count on their section.
+  assert.equal(big.nodes.length, 250);
+  assert.equal(big.deeper, 1 + 15 * 21 - 250);
+  assert.equal(big.folded.get(2), undefined); // section 0 shows all its rows
+  assert.equal(big.folded.get(2 + 11 * 21), 6); // section 11 shows 14 of 20
+  assert.equal(big.folded.get(2 + 14 * 21), 20);
+});

@@ -173,3 +173,49 @@ function ranges(numbers) {
   }
   return parts.join(", ");
 }
+
+// A large tree as an outline, so a read stays a few thousand tokens: first
+// elements outside the window go (bounds [x, y, w, h] in the same space as
+// the frames), then, while it is still over `limit`, the tree is shown level
+// by level: whole levels while they fit, then the first elements of the next
+// level that still fit. Everything left out counts on its nearest shown
+// ancestor's line as "(+N inside)". Lines keep their indices, so diffs
+// between two outlines still work.
+export function outlineTree(nodes, { limit = 250, bounds } = {}) {
+  if (nodes.length <= limit) return { nodes, folded: new Map(), offscreen: 0, deeper: 0 };
+  let kept = nodes;
+  let offscreen = 0;
+  if (bounds) {
+    const [bx, by, bw, bh] = bounds;
+    const inside = (f) => !f || (f[0] < bx + bw && f[0] + f[2] > bx && f[1] < by + bh && f[1] + f[3] > by && f[2] > 0 && f[3] > 0);
+    kept = nodes.filter((n) => inside(n.frame));
+    offscreen = nodes.length - kept.length;
+  }
+  const folded = new Map();
+  if (kept.length <= limit) return { nodes: kept, folded, offscreen, deeper: 0 };
+  // Parent of each node, from depth and document order.
+  const parent = new Map();
+  const stack = [];
+  for (const n of kept) {
+    while (stack.length && stack.at(-1).d >= n.d) stack.pop();
+    parent.set(n, stack.at(-1) ?? null);
+    stack.push(n);
+  }
+  const shown = new Set();
+  let budget = limit;
+  const maxDepth = Math.max(...kept.map((n) => n.d));
+  for (let level = Math.min(...kept.map((n) => n.d)); level <= maxDepth && budget > 0; level++) {
+    const candidates = kept.filter((n) => n.d === level && (parent.get(n) === null || shown.has(parent.get(n))));
+    for (const n of candidates.slice(0, budget)) shown.add(n);
+    budget -= Math.min(budget, candidates.length);
+  }
+  let deeper = 0;
+  for (const n of kept) {
+    if (shown.has(n)) continue;
+    deeper++;
+    let up = parent.get(n);
+    while (up && !shown.has(up)) up = parent.get(up);
+    if (up) folded.set(up.i, (folded.get(up.i) ?? 0) + 1);
+  }
+  return { nodes: kept.filter((n) => shown.has(n)), folded, offscreen, deeper };
+}

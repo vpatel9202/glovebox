@@ -3,7 +3,7 @@
 // Every action goes through ctx, which owns output, the abort flag, and the
 // audit log. Reads (getAXState, getScreenshot) emit into the result by
 // default; pass {emit: false} to only get the return value.
-import { diffTrees, formatTree, nodeRecord } from "./axformat.mjs";
+import { diffTrees, formatTree, nodeRecord, outlineTree } from "./axformat.mjs";
 import { center, toImage, toScreen, viewFor } from "./geometry.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -183,8 +183,12 @@ export class App {
     // `base` has no frames, so a plain read after a {frames: true} read still
     // diffs. Element indices are stable ids, so the baseline is kept per window
     // (not per list position or title) and diffs across title changes.
-    const base = formatTree(tree.nodes);
-    const lines = frames ? formatTree(tree.nodes, { toImage: (f) => toImage(view, f) }) : base;
+    // Large trees print as an outline (offscreen elements dropped, deep
+    // levels folded); find() and nodes() still see everything.
+    const outline = options.full ? { nodes: tree.nodes, folded: new Map(), offscreen: 0, deeper: 0 } : outlineTree(tree.nodes, { limit: ax.outlineAbove ?? 250, bounds: [...view.origin, ...view.size] });
+    const fold = (list) => list.map((line, k) => (outline.folded.has(outline.nodes[k].i) ? `${line} (+${outline.folded.get(outline.nodes[k].i)} inside)` : line));
+    const base = fold(formatTree(outline.nodes));
+    const lines = frames ? fold(formatTree(outline.nodes, { toImage: (f) => toImage(view, f) })) : base;
     const key = tree.window.windowId ?? view.windowId ?? `#${view.window}`;
     const header = `${this.name} — window ${view.window} "${tree.window.title}" — image ${view.width}x${view.height}${view.note ?? ""}`;
     const last = disableDiffing ? undefined : this.#lastTrees.get(key);
@@ -196,7 +200,11 @@ export class App {
     } else {
       text = `${header}\n${lines.join("\n")}`;
     }
-    if (tree.truncated) text += `\n(truncated at ${lines.length} elements; pass {maxNodes} to see more)`;
+    if (tree.truncated) text += `\n(truncated at ${tree.nodes.length} elements; pass {maxNodes} to see more)`;
+    if (outline.offscreen || outline.deeper) {
+      const left = [outline.offscreen && `${outline.offscreen} outside the window`, outline.deeper && `${outline.deeper} in folded levels`].filter(Boolean).join(", ");
+      text += `\n(outline: ${outline.nodes.length} of ${tree.nodes.length} elements; not shown: ${left}. find() and nodes() reach all of them; {full: true} prints everything)`;
+    }
     // The baseline is what the model last saw, so silent reads leave it alone.
     if (emit) {
       this.#lastTrees.set(key, { lines, base, frames });

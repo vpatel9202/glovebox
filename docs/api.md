@@ -49,7 +49,12 @@ await calc.getAXState();
   and rename fields never take over. Diffs compare against the last printed
   read of the same window; `{emit: false}` reads don't change that.
   `maxNodes` (default 800) and `maxDepth` (default 40) bound the tree; a
-  truncated tree says so.
+  truncated tree says so. A tree over 250 elements (`ax.outlineAbove` in the
+  config) prints as an outline: elements outside the window are left out,
+  then the tree is shown level by level up to 250 lines, and each shown
+  line that hides more ends in `(+N inside)`. A note under the read says
+  what was left out. `find()` and `nodes()` still see every element;
+  `getAXState({full: true})` prints all of them.
 - Line format: `<index> <role> "<label>" value="..." id=... help="..."
   (focused, selected, disabled, settable) actions: ...`. Indentation is depth.
   Indices are stable for the life of the session, so a diff means what it says.
