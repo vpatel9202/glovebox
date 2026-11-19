@@ -1,6 +1,6 @@
 {
   "name": "nostrings",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "mcpName": "io.github.vpatel9202/nostrings",
   "description": "Computer use for coding agents on your Mac and Android phone: one JavaScript call per step, accessibility diffs instead of screenshots, input in the background. MCP and CLI.",
   "type": "module",

@@ -69,6 +69,21 @@ and the result says the bindings were lost. MCP sessions live as long as the
 connection. CLI sessions live until `nostrings reset`, `nostrings stop`, or an
 idle limit (an hour by default).
 
+### Saved scripts
+
+A routine that worked is the most valuable thing a session produces, and
+models redo it from scratch each time unless it is kept. `ui.scripts.save`
+keeps it as a plain `.js` file in `~/.nostrings/scripts/`, and
+`ui.scripts.run` or `nostrings script <name>` runs it again with no model in
+the loop. The first plan loaded every saved file into each new session, which
+is shorter to call but means a script saved by a steered agent runs in every
+later session without anyone asking. So scripts never load by themselves:
+something has to call one by name, saves and runs are logged, and the user can
+read the file first. A script runs as an async function of `args`, so its
+variables stay inside it and it can `return` a value, unlike a cell, whose
+bindings persist on purpose. Plain files rather than a database, so users can
+read, edit, diff and share them.
+
 ## Reads and output
 
 `getAXState` prints one line per element: index, role, label, value, id,

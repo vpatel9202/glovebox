@@ -7,12 +7,12 @@
     "url": "https://github.com/vpatel9202/nostrings",
     "source": "github"
   },
-  "version": "0.5.1",
+  "version": "0.6.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "nostrings",
-      "version": "0.5.1",
+      "version": "0.6.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

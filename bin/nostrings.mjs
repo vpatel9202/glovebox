@@ -232,7 +232,11 @@ async function init(flags) {
     if (!(await helper.signingIdentity())) {
       say("A local signing certificate keeps macOS permissions across nostrings upgrades.");
       say(`It is self-signed, lives in your login keychain, and signs only the helper.`);
-      if (await ask("Create it?")) await helper.createSigningIdentity({ log: say });
+      if (await ask("Create it?")) {
+        await helper.createSigningIdentity({ log: say });
+        // A helper built before the certificate is signed ad hoc; re-sign it now.
+        if (helper.isBuilt()) flags = { ...flags, rebuild: true };
+      }
     }
     if (flags.yes || rl) {
       await setup(flags);

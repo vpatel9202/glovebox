@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.6.0 (2026-11-19)
+
+- `nostrings init`: one command from install to a working agent. On a Mac it
+  offers the signing certificate, builds the helper and asks for each
+  permission; it lists Android devices; it finds Claude Code, Codex CLI,
+  Grok CLI, Cursor, Gemini CLI and OpenCode, shows the change for each and
+  makes it when you say yes (idempotent, with a backup); then it offers a
+  short real test. `--yes` accepts everything, `--android-only` skips the Mac.
+- Saved scripts: `ui.scripts.save(name, code, description)`,
+  `ui.scripts.list()`, `ui.scripts.run(name, args)` and `ui.scripts.source`.
+  From a shell, `nostrings scripts` lists them and `nostrings script <name>
+  key=value` reruns one with no model. Scripts live in `~/.nostrings/scripts`
+  and never run unless called. `examples/` ships five, two of them using the
+  Mac and the phone in one script (`nostrings scripts --examples`).
+- `nostrings conformance` checks a backend against the protocol: a new port
+  run as a command, the Android server, or the macOS helper.
+  `test/fake-backend.mjs` is the smallest backend that passes.
+- macOS: setup asks for one permission at a time. It used to fire the
+  Accessibility and Screen Recording prompts together, and macOS dropped one.
+  Input Monitoring is asked only with `setup --input-monitoring`, so no
+  unanswered prompt sits in front of the first test. The helper's
+  `permissions` request takes `ask` (one permission) in place of `prompt`.
+- Docs: a new README, a porting guide in CONTRIBUTING, the axTree node
+  fields in the protocol doc. Internal plans moved to `docs/internal` and
+  out of the npm package.
+
 ## 0.5.1 (2026-11-19)
 
 - Docs: the README, package description, MCP Registry entry, skill and MCP

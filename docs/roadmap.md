@@ -6,30 +6,20 @@ here has been tested unless it says so.
 
 ## Next
 
-Ordered by expected impact.
+Ordered by expected impact. Shipped in 0.6.0 and no longer listed: `nostrings
+init`, saved scripts, and the backend conformance check.
 
-1. **`nostrings init`.** One command that builds the helper, asks for each
-   permission one at a time, runs `doctor` and `smoke`, and registers the MCP
-   server and skill with each agent it finds (Claude Code, Codex, Cursor,
-   Gemini CLI), showing each change before it writes it.
-2. **Saved scripts and replay.** Functions saved to `~/.nostrings/lib/*.mjs`
-   load into every session, and `nostrings run task.mjs` replays a workflow
-   with no model calls. Peekaboo and open-computer-use replay JSON step lists
-   with no branching; this is a script.
-3. **Exercise every documented client.** Run the Codex, Grok CLI, OpenCode,
+1. **Exercise every documented client.** Run the Codex, Grok CLI, OpenCode,
    Gemini CLI, and Cursor configs end to end. Done when `docs/agents.md` marks
    each one verified or says what failed.
-4. **A backend conformance check.** A test any new backend (Windows, Linux,
-   iOS) runs against the [backend protocol](backend-protocol.md), so a port
-   can be checked without a Mac.
-5. **A prebuilt helper.** A Developer ID signed, notarized helper in each
+2. **A prebuilt helper.** A Developer ID signed, notarized helper in each
    release, so the Mac side needs no Xcode tools and grants survive upgrades.
    Waiting on a Developer ID.
-6. **Listings.** The Claude Code plugin marketplace and skills.sh. (The
+3. **Listings.** The Claude Code plugin marketplace and skills.sh. (The
    official MCP Registry listing is live.)
-7. **CI on real GUI runs.** Unit tests run on every push and PR. Smoke tests
+4. **CI on real GUI runs.** Unit tests run on every push and PR. Smoke tests
    still need a Mac with permissions granted, so they run by hand.
-8. **Benchmark again** once Windows and Linux exist: the published numbers
+5. **Benchmark again** once Windows and Linux exist: the published numbers
    are from 0.3.0 (then called glovebox) and cover macOS only.
 
 Open bug found by the 2026-10-29 Citrix field run: horizontal background

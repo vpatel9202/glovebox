@@ -4,10 +4,20 @@ nostrings speaks MCP over stdio (`nostrings mcp`) and also has a CLI
 (`nostrings run`) for agents that can only run shell commands. Both expose the
 same persistent JavaScript session.
 
-Install once, then attach to as many agents as you like:
+The quick way: `nostrings init` finds the agents below that are installed,
+shows the exact change for each, and makes it when you say yes. Running it
+again skips agents that are already connected, and each file it edits gets a
+`.before-nostrings` backup the first time. The sections below are the same
+changes by hand.
 
 ```bash
 npm install -g nostrings
+nostrings init      # helper and permissions (Mac), agents, a short test
+```
+
+Or step by step:
+
+```bash
 nostrings setup     # macOS: builds Nostrings Helper.app and walks through permissions
 nostrings doctor    # everything should say ok
 nostrings smoke     # optional: a real end-to-end check on Calculator
@@ -119,6 +129,6 @@ nostrings approval allowlist   # never prompt; only allowlisted apps work
 ```
 
 `nostrings approval allow-all` turns prompts off for every app except the
-blocked ones (terminals, password managers, and a few others). Those need an
-explicit `nostrings allow`. The full list is in
-[SECURITY.md](../SECURITY.md#blocked-apps).
+ask-first ones (terminals, password managers, System Settings, messaging
+apps, and a few others), which still ask unless you `nostrings allow` them.
+The full list is in [SECURITY.md](../SECURITY.md#ask-first-apps).

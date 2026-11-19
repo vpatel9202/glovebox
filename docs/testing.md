@@ -48,6 +48,22 @@ npm test    # node --test test/ (Node 22+: node --test test/unit.test.mjs)
   removed).
 - image space: window pixels round-trip to screen points, and large windows
   are scaled to the pixel budget.
+- `init`'s agent configs: each JSON or TOML config gets the server once, a
+  second run changes nothing, other settings and a backup survive, and a
+  config with comments is left alone.
+- saved scripts: names are checked, the description line is kept, `args`
+  parse, a script returns a value.
+- the backend contract: `nostrings conformance` passes all 14 checks against
+  `test/fake-backend.mjs`.
+
+## Conformance check
+
+`nostrings conformance` checks a backend against
+[backend-protocol.md](backend-protocol.md). Run so far (2026-11-19):
+
+- `test/fake-backend.mjs`: 14 of 14 with `--input`, also in the unit tests.
+- The Android server on the API 36 emulator (`--android --serial
+  emulator-5554`, target Clock): 12 of 12.
 
 ## Smoke test
 
