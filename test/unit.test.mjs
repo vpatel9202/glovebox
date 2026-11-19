@@ -279,6 +279,11 @@ test("app.find, app.nodes and app.text return data and print nothing", async () 
   assert.equal(save.frame.length, 4);
   assert.equal((await app.text(3)).length, 300);
   assert.deepEqual(printed, []);
+  // expect: returns the match, or prints the window and throws.
+  assert.equal((await app.expect({ label: "Save" }, { timeout: 0 })).index, 2);
+  assert.equal(await app.expect({ label: "Nope" }, { gone: true, timeout: 0 }), true);
+  await assert.rejects(app.expect({ role: "button", label: "Delete" }, { timeout: 0 }), /expect failed in Form: an element matching \{role: "button", label: "Delete"\} not found/);
+  assert.equal(printed.length, 1); // the read printed on failure
 });
 
 test("large trees read as an outline; find still sees every element", async () => {

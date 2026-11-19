@@ -354,6 +354,28 @@ export class App {
     return options.all ? all : (all[0] ?? null);
   }
 
+  // A check inside a script: waits up to `timeout` ms (default 3000) for an
+  // element matching `query` (as find), or with {gone: true} for none to
+  // match, and returns it (true for gone). If the check fails it prints a
+  // read of the window and throws, so the call stops at the first failed
+  // step with the state in front of the agent.
+  async expect(query, options = {}) {
+    const { timeout = 3000, gone = false, message, window } = options;
+    const match = matcher(query);
+    const started = Date.now();
+    while (true) {
+      const hit = (await this.nodes({ window })).find(match);
+      if (gone ? !hit : hit) return gone ? true : hit;
+      const left = timeout - (Date.now() - started);
+      if (left <= 0) break;
+      if (this.platform === "android") await this.#call("waitEvent", { timeout: Math.min(left, 1000) });
+      else await new Promise((r) => setTimeout(r, Math.min(left, 250)));
+    }
+    const what = message ?? `${gone ? "no element" : "an element"} matching ${describeQuery(query)}`;
+    await this.getAXState({ window });
+    throw new Error(`expect failed in ${this.name}: ${what} ${gone ? "still there" : "not found"} after ${timeout} ms (the read above is the window now)`);
+  }
+
   // Scrolls until an element matching `query` (as find) is fully in view and
   // returns it, or null at the end of the content. Scrolls the largest list
   // or scroll area unless `container` (an index) names one. Each step moves
@@ -726,6 +748,12 @@ function appSurface(ctx, backend) {
       return backend.request("permissions", {});
     },
   };
+}
+
+function describeQuery(query) {
+  const show = (v) => (Object.prototype.toString.call(v) === "[object RegExp]" ? String(v) : JSON.stringify(v));
+  if (typeof query !== "object" || query === null || Object.prototype.toString.call(query) === "[object RegExp]") return show(query);
+  return `{${Object.entries(query).map(([k, v]) => `${k}: ${show(v)}`).join(", ")}}`;
 }
 
 // A find() query as a predicate over nodes() records. Scripts run in their

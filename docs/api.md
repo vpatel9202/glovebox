@@ -72,6 +72,12 @@ await calc.getAXState();
   frame}`, with `frame` as `[x, y, w, h]` in image pixels. Use it to act in
   the same call: `await app.click((await app.find({role: "button", label:
   "Save"})).index)`.
+- `app.expect(query, {timeout, gone, message})` checks a step inside a
+  script: it waits up to `timeout` ms (default 3000) for an element matching
+  `query` (or, with `{gone: true}`, for none) and returns it. If the check
+  fails it prints a read of the window and throws, so one call can chain
+  several steps and stop at the first that did not work:
+  `await app.click(save.index); await app.expect({label: "Saved"});`.
 - `app.scrollTo(query, {container, dy, max})` scrolls until an element
   matching `query` is fully in view and returns it, or `null` at the end of
   the content: one call instead of a read-scroll-read loop. It scrolls the
