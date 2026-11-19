@@ -24,7 +24,9 @@
     "test": "node --test test/unit.test.mjs",
     "build:helper": "node bin/glovebox.mjs setup --rebuild",
     "build:android": "sh native/android/build.sh",
-    "smoke": "node bin/glovebox.mjs smoke"
+    "smoke": "node bin/glovebox.mjs smoke",
+    "version:bump": "node scripts/release-version.mjs bump",
+    "version:check": "node scripts/release-version.mjs check"
   },
   "dependencies": {
     "acorn": "^8.15.0"

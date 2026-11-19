@@ -1,0 +1,143 @@
+name: release
+
+# Push a tag vX.Y.Z (after `npm run version:bump X.Y.Z` and a commit) and this
+# publishes that version everywhere it is listed:
+#   1. npm: @vashp2029/glovebox, through npm trusted publishing (OIDC, with
+#      provenance), or the NPM_TOKEN secret if trusted publishing is not set up
+#   2. the official MCP Registry: io.github.vpatel9202/glovebox from server.json,
+#      signed in with this workflow's GitHub OIDC token (no secret needed)
+#   3. a GitHub Release with that version's CHANGELOG section
+# Each step skips work that is already done, so a failed run can be re-run.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)publish, such as v0.4.0"
+        required: true
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  MCP_PUBLISHER_VERSION: v1.8.9
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0 # full history, to check the tag is on main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - name: Every version matches the tag
+        run: node scripts/release-version.mjs check "$TAG"
+      - name: The tag is on main
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main || { echo "$TAG is not on main"; exit 1; }
+
+  npm:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing and provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later.
+      - run: npm install -g npm@11
+      - run: npm ci
+      - name: Publish to npm (skipped if this version is already there)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version is already on npm"
+          else
+            npm publish --access public --provenance
+          fi
+
+  mcp-registry:
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # signs in to the MCP Registry as this GitHub repo
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Download and verify mcp-publisher
+        run: |
+          set -euo pipefail
+          archive="mcp-publisher_linux_amd64.tar.gz"
+          base_url="https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}"
+          curl --fail --location --silent --show-error --output "$archive" "$base_url/$archive"
+          curl --fail --location --silent --show-error --output "$archive.sigstore.json" "$base_url/$archive.sigstore.json"
+          cosign verify-blob \
+            --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/${MCP_PUBLISHER_VERSION}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$archive"
+          tar xzf "$archive" mcp-publisher
+      - name: Wait for npm to serve the new version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          for i in $(seq 1 30); do
+            npm view "@vashp2029/glovebox@$version" version >/dev/null 2>&1 && exit 0
+            sleep 10
+          done
+          echo "npm never served $version"; exit 1
+      - run: ./mcp-publisher login github-oidc
+      - name: Publish to the MCP Registry (a version already there counts as done)
+        run: |
+          set -o pipefail
+          if ./mcp-publisher publish 2>&1 | tee publish.log; then exit 0; fi
+          grep -qiE "already (exists|published)|duplicate" publish.log && { echo "This version is already in the MCP Registry"; exit 0; }
+          exit 1
+
+  github-release:
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Create the GitHub Release (skipped if it exists)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists"; exit 0
+          fi
+          version="${TAG#v}"
+          { node scripts/release-version.mjs notes "$version"; echo; echo; echo 'Install: `npm install -g @vashp2029/glovebox`, then `glovebox setup`.'; } > notes.md
+          gh release create "$TAG" --title "glovebox $version" --notes-file notes.md --verify-tag

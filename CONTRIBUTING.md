@@ -65,3 +65,37 @@ Report security issues through [SECURITY.md](SECURITY.md), not public issues.
 - In the description, list what you ran (`npm test`, `glovebox smoke`,
   `glovebox smoke --full`) and the macOS version. Say which checks you did not run.
 - Update the docs above when behavior changes.
+
+## Releasing
+
+The version lives in five places (`package.json`, `package-lock.json`,
+`server.json`, `src/config.mjs`, and `helperVersion` in
+`native/macos/GloveboxHelper.swift`). One command sets them all and dates the
+`## Unreleased` section of the changelog:
+
+```bash
+npm run version:bump 0.4.0
+git commit -am "Release 0.4.0: <one line>"
+git tag v0.4.0
+git push origin main v0.4.0
+```
+
+Pushing the tag runs `.github/workflows/release.yml`. It checks that the tag
+is on `main`, that every version matches it, and that the tests pass. Then it
+publishes to npm (with provenance), then to the official MCP Registry
+(`io.github.vpatel9202/glovebox` from `server.json`), and creates a GitHub
+Release from that version's changelog section. Each step skips what is
+already done, so a failed run can be re-run from the Actions tab, or started
+by hand for an existing tag (`workflow_dispatch`).
+
+One-time setup for npm, either of:
+
+- **Trusted publishing (no secret).** On npmjs.com, open
+  `@vashp2029/glovebox` > Settings > Trusted Publisher, choose GitHub
+  Actions, and enter owner `vpatel9202`, repository `glovebox`, workflow
+  `release.yml` (no environment).
+- **A token.** Create a granular access token on npmjs.com that can publish
+  this package, and save it as the repository secret `NPM_TOKEN`.
+
+The MCP Registry needs no setup: the workflow signs in with its GitHub OIDC
+token, which owns the `io.github.vpatel9202/` namespace.
