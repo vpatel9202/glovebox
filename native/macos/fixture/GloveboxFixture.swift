@@ -5,6 +5,7 @@
 // (src/macos-fixture.mjs); not shipped to users.
 
 import AppKit
+import SwiftUI
 import WebKit
 
 let home = ProcessInfo.processInfo.environment["GLOVEBOX_HOME"] ?? (NSHomeDirectory() + "/.glovebox")
@@ -143,6 +144,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
         try? FileManager.default.createDirectory(atPath: home, withIntermediateDirectories: true)
         buildMenus()
         buildWindow()
+        if ProcessInfo.processInfo.arguments.contains("--swiftui") || ProcessInfo.processInfo.environment["GLOVEBOX_FIXTURE_SWIFTUI"] != nil { openSwiftUIWindow() }
         report("launched", ["pid": Int(getpid())])
     }
 
@@ -175,6 +177,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
         let fileItem = NSMenuItem()
         let file = NSMenu(title: "File")
         file.addItem(item("New Window", #selector(newWindow), "n"))
+        file.addItem(item("SwiftUI Window", #selector(showSwiftUI)))
         file.addItem(item("Open…", #selector(openPanel), "o"))
         file.addItem(item("Save…", #selector(savePanel), "s"))
         file.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
@@ -218,6 +221,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
         NSApp.windowsMenu = windowMenu
         NSApp.mainMenu = main
     }
+
+    @objc func showSwiftUI() { openSwiftUIWindow(); report("window.new", ["title": "SwiftUI Fixture"]) }
 
     @objc func menuPicked(_ sender: NSMenuItem) { report("menu", ["item": sender.title]) }
     @objc func toggleCheck() {
@@ -454,6 +459,59 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
     func windowWillClose(_ notification: Notification) { report("window.closed", ["title": (notification.object as? NSWindow)?.title ?? ""]) }
     func windowDidBecomeKey(_ notification: Notification) { report("window.key", ["title": (notification.object as? NSWindow)?.title ?? ""]) }
 }
+
+// MARK: - SwiftUI window
+//
+// SwiftUI controls expose accessibility differently from AppKit ones, so the
+// same kinds of control are here again, built in SwiftUI.
+
+// No @State: the command line tools ship without SwiftUI's macro plugin.
+final class PanelModel: ObservableObject {
+    @Published var on = false { didSet { report("swiftui.toggle", ["on": on]) } }
+    @Published var flavor = "Vanilla" { didSet { report("swiftui.picker", ["item": flavor]) } }
+    @Published var name = "" { didSet { report("swiftui.text", ["value": name]) } }
+    @Published var level = 3.0 { didSet { report("swiftui.slider", ["value": Int(level)]) } }
+    @Published var count = 1 { didSet { report("swiftui.stepper", ["value": count]) } }
+    @Published var picked: String? = nil { didSet { report("swiftui.list", ["item": picked ?? ""]) } }
+}
+
+struct SwiftUIPanel: View {
+    @ObservedObject var model: PanelModel
+    let rows = ["Apple", "Banana", "Cherry"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("SwiftUI Fixture").font(.headline)
+            Toggle("Dark Roast", isOn: $model.on)
+            Picker("Flavor", selection: $model.flavor) {
+                ForEach(["Vanilla", "Mocha", "Caramel"], id: \.self) { Text($0) }
+            }
+            TextField("Order name", text: $model.name)
+            Slider(value: $model.level, in: 0...10)
+            Stepper("Shots: \(model.count)", value: $model.count, in: 0...5)
+            Button("Place Order") { report("swiftui.button", ["name": model.name, "flavor": model.flavor]) }
+            Menu("More Actions") {
+                Button("Duplicate") { report("swiftui.menu", ["item": "Duplicate"]) }
+                Button("Archive") { report("swiftui.menu", ["item": "Archive"]) }
+            }
+            List(rows, id: \.self, selection: $model.picked) { Text($0) }
+                .frame(height: 90)
+        }
+        .padding(16)
+        .frame(width: 320)
+    }
+}
+
+func openSwiftUIWindow() {
+    let w = NSWindow(contentRect: NSRect(x: 920, y: 200, width: 340, height: 420), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+    w.title = "SwiftUI Fixture"
+    w.isReleasedWhenClosed = false
+    w.contentView = NSHostingView(rootView: SwiftUIPanel(model: panelModel))
+    w.orderFront(nil)
+    swiftUIWindow = w
+}
+var swiftUIWindow: NSWindow?
+let panelModel = PanelModel()
 
 let app = NSApplication.shared
 let controller = Controller()
