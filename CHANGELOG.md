@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 (2026-11-19)
 
 - macOS: nothing is blocked any more. Terminals, System Settings, password
   managers, messaging and scripting apps are ask first: they always show the

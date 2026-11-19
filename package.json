@@ -1,6 +1,6 @@
 {
   "name": "@vashp2029/glovebox",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "mcpName": "io.github.vpatel9202/glovebox",
   "description": "Computer use for coding agents on macOS: one JavaScript call per step, accessibility diffs instead of screenshots, input in the background. MCP and CLI.",
   "type": "module",
