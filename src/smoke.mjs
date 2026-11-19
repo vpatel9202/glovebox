@@ -474,6 +474,17 @@ export async function runMacSmoke({ keep = false, foreground = true } = {}) {
     await check("sheet: open, type, OK", `await fx.click((await fx.find({label: "Show Sheet"})).index); await fx.expect({id: "sheetField"}); await fx.click((await fx.find({id: "sheetField"})).index); await fx.typeText("in sheet"); await fx.click((await fx.find({role: "button", label: "OK"})).index)`, "sheet", (e) => e.result === "OK" && e.text === "in sheet");
     await check("alert: pick a button", `await fx.click((await fx.find({label: "Show Alert"})).index); await fx.click((await fx.expect({role: "button", label: "Discard"})).index)`, "alert", (e) => e.result === "Discard");
     await check("hide and unhide the app", `await fx.hide(); await sleep(300); await fx.unhide()`, "app.unhidden");
+    // SwiftUI exposes the same controls differently; drive each one.
+    await check("SwiftUI window opens", `await fx.menu("File > SwiftUI Window"); await sleep(600); const SW = {window: (await fx.windows()).find((w) => w.title === "SwiftUI Fixture").index}; const sf = (q) => fx.find(q, SW);`, "window.new", (e) => e.title === "SwiftUI Fixture");
+    await check("SwiftUI toggle", `await fx.click((await sf({role: "checkbox", label: "Dark Roast"})).index)`, "swiftui.toggle", (e) => e.on === true);
+    await check("SwiftUI picker", `await fx.select((await sf({role: "pop up button", label: "Flavor"})).index, "Caramel")`, "swiftui.picker", (e) => e.item === "Caramel");
+    await check("SwiftUI text field", `await fx.click((await sf({role: "text field"})).index); await fx.typeText("Zoë")`, "swiftui.text", (e) => e.value === "Zoë");
+    await check("SwiftUI slider", `await fx.performSecondaryAction((await sf({role: "slider"})).index, "Increment")`, "swiftui.slider", (e) => e.value === 4);
+    await check("SwiftUI stepper", `await fx.performSecondaryAction((await sf({role: "stepper"})).index, "Increment")`, "swiftui.stepper", (e) => e.value === 2);
+    await check("SwiftUI menu", `await fx.select((await sf({role: "menu button", label: "More Actions"})).index, "Archive")`, "swiftui.menu", (e) => e.item === "Archive");
+    await check("SwiftUI list row", `await fx.click((await sf({role: "text", value: "Banana"})).index)`, "swiftui.list", (e) => e.item === "Banana");
+    await check("SwiftUI button", `await fx.click((await sf({role: "button", label: "Place Order"})).index)`, "swiftui.button", (e) => e.flavor === "Caramel" && e.name === "Zoë");
+    await run(`await fx.window(SW.window).close()`);
     const frontAfter = frontmostApp();
     if (frontBefore) step("everything above stayed in the background", frontBefore === frontAfter, `${frontBefore} -> ${frontAfter}`);
 
