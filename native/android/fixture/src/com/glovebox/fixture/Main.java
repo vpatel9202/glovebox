@@ -64,6 +64,12 @@ public class Main extends Activity {
             return true;
         });
 
+        Button codeScreen = new Button(this);
+        codeScreen.setText("Code screen");
+        codeScreen.setAllCaps(false);
+        codeScreen.setOnClickListener(v -> startActivity(new android.content.Intent(this, Code.class)));
+        root.addView(codeScreen);
+
         SeekBar slider = new SeekBar(this);
         slider.setMax(100);
         slider.setContentDescription("Slider");

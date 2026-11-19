@@ -819,6 +819,12 @@ final class Device {
             if (start < 0 || start > before.length()) start = end = before.length();
             if (end < start || end > before.length()) end = start;
             String expected = before.substring(0, start) + text + before.substring(end);
+            // More text than the field holds (a one-digit box of a code, a
+            // capped field): set-text would keep only the first part. Key
+            // events let the app move focus from box to box, as it does for a
+            // person typing.
+            int max = field.getMaxTextLength();
+            if (max > 0 && expected.length() > max && input.typeKeys(text)) return Input.ok("keys");
             Bundle args = new Bundle();
             args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, expected);
             if (field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) {

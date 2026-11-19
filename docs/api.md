@@ -217,7 +217,11 @@ await clock.getAXState();
   `scroll(target, dy)` swipes about 48 dp per line.
 - `typeText` puts text straight into the focused field (no keyboard, any
   characters), then falls back to key events for fields that refuse it.
-  `lastRoute` says which: `foreground (set-text)` or `foreground (keys)`.
+  `lastRoute` says which: `set-text` or `keys`, after the screen
+  (`hidden screen (set-text)`, `foreground (keys)`). Text longer than the
+  field holds goes as keys, so a one-time-code row of one-digit boxes that
+  moves focus on its own fills box by box: click the first box, then
+  `typeText("123456")`.
 - System keys for `pressKey`: `Back`, `HomeScreen`, `Recents`,
   `Notifications`, `QuickSettings`, `VolumeUp`, `VolumeDown`, `Menu`. `Home`
   and `End` move the text cursor.
