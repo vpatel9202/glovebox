@@ -174,7 +174,8 @@ Everything here works on the background route unless it says foreground.
 - `app.pressKey("super+s")` in the background first looks for the menu item
   with that shortcut and presses it (`lastRoute` says `menu "Save…"`): shortcut
   keys sent to a background app never reach its menus. Keys with no menu item
-  go as keys.
+  go as keys. Electron apps fill in their menu shortcuts a few seconds after
+  they launch; until then their shortcuts go as keys.
 - `app.select(target, item)` opens a pop-up button or menu button and picks
   `item` (a title, or a path into a submenu) in one step, so the menu is open
   only for a moment and the user's typing never lands in it. `target` is an
@@ -258,7 +259,9 @@ These are not one app, so each asks first under its own key.
 - `gb.pressKey(keys)` and `gb.typeText(text)` go system-wide to whatever is
   in front: `super+space` (Spotlight), `ctrl+Up` (Mission Control),
   `super+shift+4`. `gb.spotlight(query, {open})` opens an app or file through
-  Spotlight. (`macos:system`)
+  Spotlight. (`macos:system`) Keys land in the app in front, so that app must
+  be approved too, except for system hotkeys (Spotlight, Mission Control,
+  screenshots, the app switcher) and while Spotlight's panel is open.
 - The Dock is an app: `gb.getApp("Dock")`.
 
 ## Approval and stopping
