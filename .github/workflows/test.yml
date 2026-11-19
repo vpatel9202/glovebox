@@ -45,7 +45,7 @@ jobs:
           npm pack --dry-run --json > pack.json
           node -e '
             const files = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0].files.map((f) => f.path);
-            const want = ["glovebox-server.dex", "glovebox-fixture.apk", "glovebox-fixture2.apk"].map((f) => "native/android/build/" + f);
+            const want = ["nostrings-server.dex", "nostrings-fixture.apk", "nostrings-fixture2.apk"].map((f) => "native/android/build/" + f);
             const missing = want.filter((f) => !files.includes(f));
             const keys = files.filter((f) => /keystore/.test(f));
             if (missing.length || keys.length) { console.error("missing:", missing, "keys:", keys); process.exit(1); }

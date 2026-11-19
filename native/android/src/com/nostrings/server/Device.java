@@ -3,7 +3,7 @@
 //
 // The system-context setup in systemContext() follows scrcpy's Workarounds
 // (Copyright (C) 2018 Genymobile, Apache License 2.0; see NOTICE).
-package com.glovebox.server;
+package com.nostrings.server;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.app.UiAutomation;
@@ -48,7 +48,7 @@ final class Device {
     private final HandlerThread thread;
     private UiAutomation automation;
     private String connectError;
-    // Several glovebox sessions can share this server (the host's device
+    // Several nostrings sessions can share this server (the host's device
     // broker tags each request with its session). Each session has its own
     // element indices and its own hidden screens; requests of one session run
     // in order on that session's thread (Server), so the current session's
@@ -91,7 +91,7 @@ final class Device {
 
     Device() {
         context = systemContext();
-        thread = new HandlerThread("glovebox-uiautomation");
+        thread = new HandlerThread("nostrings-uiautomation");
         thread.start();
         try {
             automation = connect(thread.getLooper());
@@ -414,7 +414,7 @@ final class Device {
             // Checked before a display exists, so a refusal leaves nothing behind.
             refuseSecondCopy(pkg);
             if (frames == null) {
-                frames = new HandlerThread("glovebox-frames");
+                frames = new HandlerThread("nostrings-frames");
                 frames.start();
             }
             Point size = displaySize(DEFAULT_DISPLAY);
@@ -443,7 +443,7 @@ final class Device {
         try {
             android.os.PowerManager pm = (android.os.PowerManager) context.getSystemService(Context.POWER_SERVICE);
             if (awake == null) {
-                awake = pm.newWakeLock(android.os.PowerManager.SCREEN_DIM_WAKE_LOCK | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "glovebox:hidden-screen");
+                awake = pm.newWakeLock(android.os.PowerManager.SCREEN_DIM_WAKE_LOCK | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "nostrings:hidden-screen");
                 awake.setReferenceCounted(false);
             }
             boolean wasAsleep = !pm.isInteractive();
@@ -572,7 +572,7 @@ final class Device {
             synchronized (hidden) {
                 for (Map.Entry<String, Hidden> e : hidden.entrySet()) {
                     if (!e.getKey().equals(mineKey) && e.getValue().owner.equals(pkg) && onHidden(pkg, e.getValue().id)) {
-                        throw new Server.Coded("open_in_other_session", pkg + " is open in another glovebox session on this phone. Finish there first.");
+                        throw new Server.Coded("open_in_other_session", pkg + " is open in another nostrings session on this phone. Finish there first.");
                     }
                 }
             }
@@ -643,7 +643,7 @@ final class Device {
     private void refuseSecondCopy(String pkg) {
         Map<Integer, Integer> mine = userTasks(pkg);
         if (mine == null || !mine.isEmpty()) {
-            throw new Server.Coded("open_on_phone", pkg + " is running on the phone, and opening a second copy on glovebox's hidden screen"
+            throw new Server.Coded("open_on_phone", pkg + " is running on the phone, and opening a second copy on nostrings's hidden screen"
                     + " could close or take over the user's. Ask the user to close it (swipe it away in recent apps), or use"
                     + " getApp(name, {foreground: true}) to work on the phone's screen.");
         }
@@ -651,7 +651,7 @@ final class Device {
         synchronized (hidden) {
             for (Map.Entry<String, Hidden> e : hidden.entrySet()) {
                 if (!e.getKey().equals(mineKey) && e.getValue().owner.equals(pkg) && onHidden(pkg, e.getValue().id)) {
-                    throw new Server.Coded("open_in_other_session", pkg + " is open in another glovebox session on this phone. Finish there first.");
+                    throw new Server.Coded("open_in_other_session", pkg + " is open in another nostrings session on this phone. Finish there first.");
                 }
             }
         }
@@ -696,7 +696,7 @@ final class Device {
         }
     }
 
-    // `pkg`'s running tasks outside glovebox's hidden screens, as task id to
+    // `pkg`'s running tasks outside nostrings's hidden screens, as task id to
     // display id: the user's copies.
     private Map<Integer, Integer> userTasks(String pkg) {
         java.util.Set<Integer> ours = new java.util.HashSet<>();
@@ -839,10 +839,10 @@ final class Device {
         if (appIndex < 0 && d != DEFAULT_DISPLAY) {
             Hidden h = hiddenById(d);
             // Moved: on the phone's screen now, and not already there when
-            // glovebox opened it (the user's own copy does not count).
+            // nostrings opened it (the user's own copy does not count).
             if (h != null && !h.onPhoneAtStart && onPhone(pkg)) {
-                throw new Server.Coded("moved_to_phone_screen", pkg + " is showing on the phone's own screen, not on glovebox's hidden screen"
-                        + " (it may have opened a sign-in or system screen there). glovebox stopped rather than follow it; check the phone,"
+                throw new Server.Coded("moved_to_phone_screen", pkg + " is showing on the phone's own screen, not on nostrings's hidden screen"
+                        + " (it may have opened a sign-in or system screen there). nostrings stopped rather than follow it; check the phone,"
                         + " then call app.activate() to start again on the hidden screen.");
             }
             throw new Server.Coded("not_visible", pkg + " has closed on its hidden screen. Call app.activate() to open it again.");
@@ -1216,7 +1216,7 @@ final class Device {
         dmc.setAccessible(true);
         DisplayManager dm = dmc.newInstance(context);
         android.media.ImageReader reader = android.media.ImageReader.newInstance(width, height, android.graphics.PixelFormat.RGBA_8888, 2);
-        android.hardware.display.VirtualDisplay vd = dm.createVirtualDisplay("glovebox-test", width, height, dpi, reader.getSurface(), flags);
+        android.hardware.display.VirtualDisplay vd = dm.createVirtualDisplay("nostrings-test", width, height, dpi, reader.getSurface(), flags);
         keepAlive.add(reader);
         keepAlive.add(vd);
         return new JSONObject().put("displayId", vd.getDisplay().getDisplayId());

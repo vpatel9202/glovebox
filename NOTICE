@@ -1,4 +1,4 @@
-glovebox
+nostrings
 Copyright (c) Vash Patel. Licensed under the MIT License (see LICENSE).
 
 This product includes code derived from scrcpy
@@ -16,5 +16,5 @@ This product includes code derived from scrcpy
   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 
 Derived parts: the system-context setup in
-native/android/src/com/glovebox/server/Device.java (from scrcpy's
+native/android/src/com/nostrings/server/Device.java (from scrcpy's
 Workarounds and FakeContext).

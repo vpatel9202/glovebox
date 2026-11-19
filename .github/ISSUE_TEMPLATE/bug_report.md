@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Something glovebox did wrong or failed to do
+about: Something nostrings did wrong or failed to do
 labels: bug
 ---
 
@@ -10,9 +10,9 @@ labels: bug
 
 ## Agent script or steps
 
-The `js` code or `glovebox run` command that failed, and the relevant output.
+The `js` code or `nostrings run` command that failed, and the relevant output.
 
-## `glovebox doctor` output
+## `nostrings doctor` output
 
 ```text
 
@@ -22,10 +22,10 @@ The `js` code or `glovebox run` command that failed, and the relevant output.
 
 - macOS version and chip:
 - Node version (`node --version`):
-- glovebox version (`glovebox --version`):
+- nostrings version (`nostrings --version`):
 - Agent client (Claude Code, Codex, Grok CLI, OpenCode, Gemini CLI, Cursor, shell only, other):
 
-## Relevant lines from `~/.glovebox/actions.log`
+## Relevant lines from `~/.nostrings/actions.log`
 
 Paste only the lines that matter. Redact anything sensitive before posting,
 such as passwords, tokens, personal data, or message contents.

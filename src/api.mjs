@@ -1,4 +1,4 @@
-// The scripting surface: `gb` (alias `cua`) and the App handles it returns.
+// The scripting surface: `ui` (alias `cua`) and the App handles it returns.
 //
 // Every action goes through ctx, which owns output, the abort flag, and the
 // audit log. Reads (getAXState, getScreenshot) emit into the result by
@@ -108,7 +108,7 @@ export class App {
   }
 
   // Android: which screen this handle works on. "hidden" is a private
-  // display only glovebox sees (Android 14+); "phone" is the phone's own
+  // display only nostrings sees (Android 14+); "phone" is the phone's own
   // screen, chosen with getApp(name, {foreground: true}) or the
   // `androidScreen: "phone"` setting.
   get screen() {
@@ -165,7 +165,7 @@ export class App {
     if (windows.length === 0) {
       // Without Accessibility every app looks windowless; say which it is.
       const { accessibility } = await this.#backend.request("permissions", {});
-      if (!accessibility) throw new Error("Accessibility permission is missing for the glovebox helper. Run: glovebox doctor");
+      if (!accessibility) throw new Error("Accessibility permission is missing for the nostrings helper. Run: nostrings doctor");
       if (this.platform !== "macos") throw new Error(`${this.name} has no open windows`);
       // A full-screen window whose Space is not showing is invisible to
       // Accessibility; a person would switch to it.
@@ -283,7 +283,7 @@ export class App {
     const { window, emit = true } = options;
     const shot = this.#ctx.config.screenshot;
     const view = await this.#refreshView(window);
-    if (view.windowless) throw new Error(`${this.name} has no window to capture; gb.screenshot() captures the whole screen`);
+    if (view.windowless) throw new Error(`${this.name} has no window to capture; ui.screenshot() captures the whole screen`);
     if (view.windowId == null) throw new Error(`Cannot find a capturable window id for ${this.name}`);
     const image = await this.#call("screenshot", {
       windowId: view.windowId,
@@ -1041,8 +1041,8 @@ export class App {
   }
 }
 
-// listApps / getApp / permissions bound to one backend: the host's for `gb`,
-// a device's for gb.device(). Handles are cached per backend, so a Mac pid and
+// listApps / getApp / permissions bound to one backend: the host's for `ui`,
+// a device's for ui.device(). Handles are cached per backend, so a Mac pid and
 // a phone's package can never collide.
 function appSurface(ctx, backend) {
   const apps = (backend.apps ??= new Map());
@@ -1118,7 +1118,7 @@ function appSurface(ctx, backend) {
 function macSystem(ctx, gbRef) {
   const backend = ctx.backend;
   const mac = () => {
-    if (backend.platform !== "macos") throw new Error("This is for the Mac; use gb.device() for a phone");
+    if (backend.platform !== "macos") throw new Error("This is for the Mac; use ui.device() for a phone");
   };
   const displayView = async (index = 0) => {
     const displays = await backend.request("displays");
@@ -1360,13 +1360,13 @@ function matcher(query) {
 }
 
 export function createApi(ctx) {
-  const gb = {
+  const ui = {
     ...appSurface(ctx, ctx.backend),
 
     // An Android device by ADB serial (USB or wireless; either names the same
     // phone), or the only connected one. Same listApps/getApp/permissions.
     device(serial) {
-      if (!ctx.device) throw new Error("This glovebox session has no device support");
+      if (!ctx.device) throw new Error("This nostrings session has no device support");
       const backend = ctx.device(serial == null ? null : String(serial));
       const surface = appSurface(ctx, backend);
       return Object.assign(surface, {
@@ -1417,7 +1417,7 @@ export function createApi(ctx) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     },
 
-    ...macSystem(ctx, () => gb),
+    ...macSystem(ctx, () => ui),
 
     help(topic) {
       const text = ctx.help(topic);
@@ -1425,5 +1425,5 @@ export function createApi(ctx) {
       return undefined;
     },
   };
-  return gb;
+  return ui;
 }

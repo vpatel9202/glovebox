@@ -12,9 +12,9 @@ const run = promisify(execFile);
 
 export const benchDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const repoDir = path.dirname(benchDir);
-export const workDir = path.join(os.homedir(), "glovebox-bench");
+export const workDir = path.join(os.homedir(), "nostrings-bench");
 export const fixtureApp = path.join(benchDir, ".build", "Bench Fixture.app");
-export const FIXTURE_BUNDLE_ID = "dev.glovebox.bench-fixture";
+export const FIXTURE_BUNDLE_ID = "dev.nostrings.bench-fixture";
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -104,13 +104,13 @@ export async function buildFixture() {
   await sh("codesign", ["--force", "--sign", "-", fixtureApp]);
 }
 
-// A glovebox session used only to read state for verification (Calculator's
+// A nostrings session used only to read state for verification (Calculator's
 // display has no scriptable value). Its reads are {emit: false}.
 let oracle = null;
 export async function oracleRead(appName) {
-  oracle ??= new Session({ client: "glovebox bench oracle" });
+  oracle ??= new Session({ client: "nostrings bench oracle" });
   const result = await oracle.run(
-    `const __app = await gb.getApp(${JSON.stringify(appName)}); await __app.getAXState({emit: false, disableDiffing: true});`,
+    `const __app = await ui.getApp(${JSON.stringify(appName)}); await __app.getAXState({emit: false, disableDiffing: true});`,
     { timeoutMs: 20_000 },
   );
   return result.content.map((c) => c.text ?? "").join("\n");
@@ -118,8 +118,8 @@ export async function oracleRead(appName) {
 
 // Sends keys through the oracle session, for resets the app can't script.
 export async function oracleKeys(appName, keys) {
-  oracle ??= new Session({ client: "glovebox bench oracle" });
-  const result = await oracle.run(`const __k = await gb.getApp(${JSON.stringify(appName)}); await __k.pressKey(${JSON.stringify(keys)}); undefined;`, {
+  oracle ??= new Session({ client: "nostrings bench oracle" });
+  const result = await oracle.run(`const __k = await ui.getApp(${JSON.stringify(appName)}); await __k.pressKey(${JSON.stringify(keys)}); undefined;`, {
     timeoutMs: 20_000,
   });
   if (!result.ok) throw new Error(result.content.map((c) => c.text ?? "").join("\n"));
@@ -128,7 +128,7 @@ export async function oracleKeys(appName, keys) {
 // Runs a script in the oracle session. Used by the dry run's scripted solves,
 // which prove each task can be done and that verify notices.
 export async function oracleRun(code, timeoutMs = 60_000) {
-  oracle ??= new Session({ client: "glovebox bench oracle" });
+  oracle ??= new Session({ client: "nostrings bench oracle" });
   const result = await oracle.run(code, { timeoutMs });
   const text = result.content.map((c) => c.text ?? "").join("\n");
   if (!result.ok) throw new Error(text);

@@ -1,6 +1,6 @@
 // Text from a screenshot, for screens whose accessibility tree says little
-// (canvases, games, remote desktops). macOS Vision through glovebox-ocr
-// (native/macos/ocr.swift), compiled on first use into ~/.glovebox/bin.
+// (canvases, games, remote desktops). macOS Vision through nostrings-ocr
+// (native/macos/ocr.swift), compiled on first use into ~/.nostrings/bin.
 import { execFile, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -10,7 +10,7 @@ import { paths } from "./config.mjs";
 
 const execFileAsync = promisify(execFile);
 const SOURCE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "native", "macos", "ocr.swift");
-const BINARY = path.join(paths.home, "bin", "glovebox-ocr");
+const BINARY = path.join(paths.home, "bin", "nostrings-ocr");
 
 async function binary() {
   if (process.platform !== "darwin") throw Object.assign(new Error("OCR needs a macOS host (Vision)"), { code: "unsupported" });
@@ -37,11 +37,11 @@ export async function recognizeText(imageBuffer, { languages = [] } = {}) {
     child.stderr.on("data", (c) => (err += c));
     child.on("error", reject);
     child.on("close", (code) => {
-      if (code !== 0) return reject(Object.assign(new Error(err.trim() || `glovebox-ocr exited ${code}`), { code: "failed" }));
+      if (code !== 0) return reject(Object.assign(new Error(err.trim() || `nostrings-ocr exited ${code}`), { code: "failed" }));
       try {
         resolve(JSON.parse(out));
       } catch {
-        reject(Object.assign(new Error("glovebox-ocr printed something unexpected"), { code: "failed" }));
+        reject(Object.assign(new Error("nostrings-ocr printed something unexpected"), { code: "failed" }));
       }
     });
     child.stdin.end(imageBuffer);

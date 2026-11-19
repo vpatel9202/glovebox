@@ -1,6 +1,6 @@
 # Contributing
 
-glovebox is small and macOS-only for now. Keep changes focused and say what
+nostrings is small and macOS-only for now. Keep changes focused and say what
 you ran.
 
 ## Requirements
@@ -12,24 +12,24 @@ you ran.
 ## Setup
 
 ```bash
-git clone https://github.com/vpatel9202/glovebox.git
-cd glovebox
+git clone https://github.com/vpatel9202/nostrings.git
+cd nostrings
 npm install
-node bin/glovebox.mjs setup
-node bin/glovebox.mjs doctor   # every line should say ok
+node bin/nostrings.mjs setup
+node bin/nostrings.mjs doctor   # every line should say ok
 ```
 
-In a clone, use `node bin/glovebox.mjs` in place of `glovebox`.
+In a clone, use `node bin/nostrings.mjs` in place of `nostrings`.
 
-`setup` builds Glovebox Helper.app into `~/.glovebox/` and walks you through
+`setup` builds Nostrings Helper.app into `~/.nostrings/` and walks you through
 the macOS permissions. See the README for the signing option.
 
 ## Tests
 
 ```bash
 npm test                # unit tests; run anywhere (Node 22+: node --test test/unit.test.mjs)
-glovebox smoke          # GUI test on Calculator (macOS only)
-glovebox smoke --full   # adds background click, drag, and scroll checks in TextEdit (macOS only)
+nostrings smoke          # GUI test on Calculator (macOS only)
+nostrings smoke --full   # adds background click, drag, and scroll checks in TextEdit (macOS only)
 ```
 
 Unit tests cover cell rewriting, key parsing, tree diffs, and coordinate
@@ -38,7 +38,7 @@ mapping. The smoke tests drive real apps and need the helper's permissions.
 For kernel logs on stderr:
 
 ```bash
-GLOVEBOX_DEBUG=1 glovebox mcp
+NOSTRINGS_DEBUG=1 nostrings mcp
 ```
 
 ## Docs
@@ -62,15 +62,15 @@ Report security issues through [SECURITY.md](SECURITY.md), not public issues.
 ## Pull requests
 
 - Keep PRs small: one change, one reason.
-- In the description, list what you ran (`npm test`, `glovebox smoke`,
-  `glovebox smoke --full`) and the macOS version. Say which checks you did not run.
+- In the description, list what you ran (`npm test`, `nostrings smoke`,
+  `nostrings smoke --full`) and the macOS version. Say which checks you did not run.
 - Update the docs above when behavior changes.
 
 ## Releasing
 
 The version lives in five places (`package.json`, `package-lock.json`,
 `server.json`, `src/config.mjs`, and `helperVersion` in
-`native/macos/GloveboxHelper.swift`). One command sets them all and dates the
+`native/macos/NostringsHelper.swift`). One command sets them all and dates the
 `## Unreleased` section of the changelog:
 
 ```bash
@@ -83,7 +83,7 @@ git push origin main v0.4.0
 Pushing the tag runs `.github/workflows/release.yml`. It checks that the tag
 is on `main`, that every version matches it, and that the tests pass. Then it
 publishes to npm (with provenance), then to the official MCP Registry
-(`io.github.vpatel9202/glovebox` from `server.json`), and creates a GitHub
+(`io.github.vpatel9202/nostrings` from `server.json`), and creates a GitHub
 Release from that version's changelog section. Each step skips what is
 already done, so a failed run can be re-run from the Actions tab, or started
 by hand for an existing tag (`workflow_dispatch`).
@@ -91,8 +91,8 @@ by hand for an existing tag (`workflow_dispatch`).
 One-time setup for npm, either of:
 
 - **Trusted publishing (no secret).** On npmjs.com, open
-  `@vashp2029/glovebox` > Settings > Trusted Publisher, choose GitHub
-  Actions, and enter owner `vpatel9202`, repository `glovebox`, workflow
+  `nostrings` > Settings > Trusted Publisher, choose GitHub
+  Actions, and enter owner `vpatel9202`, repository `nostrings`, workflow
   `release.yml` (no environment).
 - **A token.** Create a granular access token on npmjs.com that can publish
   this package, and save it as the repository secret `NPM_TOKEN`.

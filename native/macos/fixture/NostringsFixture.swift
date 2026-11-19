@@ -1,14 +1,14 @@
-// Glovebox Fixture: a test app for the macOS backend. Every control reports
+// Nostrings Fixture: a test app for the macOS backend. Every control reports
 // what reached it, in a label (id "lastEvent") the checks read through the
-// accessibility tree, and as JSON lines in $GLOVEBOX_HOME/fixture.log, so a
-// check needs no model and no screenshot. Built by `glovebox smoke --macos`
+// accessibility tree, and as JSON lines in $NOSTRINGS_HOME/fixture.log, so a
+// check needs no model and no screenshot. Built by `nostrings smoke --macos`
 // (src/macos-fixture.mjs); not shipped to users.
 
 import AppKit
 import SwiftUI
 import WebKit
 
-let home = ProcessInfo.processInfo.environment["GLOVEBOX_HOME"] ?? (NSHomeDirectory() + "/.glovebox")
+let home = ProcessInfo.processInfo.environment["NOSTRINGS_HOME"] ?? (NSHomeDirectory() + "/.nostrings")
 let logPath = home + "/fixture.log"
 var lastEventField: NSTextField!
 
@@ -144,7 +144,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
         try? FileManager.default.createDirectory(atPath: home, withIntermediateDirectories: true)
         buildMenus()
         buildWindow()
-        if ProcessInfo.processInfo.arguments.contains("--swiftui") || ProcessInfo.processInfo.environment["GLOVEBOX_FIXTURE_SWIFTUI"] != nil { openSwiftUIWindow() }
+        if ProcessInfo.processInfo.arguments.contains("--swiftui") || ProcessInfo.processInfo.environment["NOSTRINGS_FIXTURE_SWIFTUI"] != nil { openSwiftUIWindow() }
         report("launched", ["pid": Int(getpid())])
     }
 
@@ -169,8 +169,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
         let main = NSMenu()
         let appItem = NSMenuItem()
         let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "Hide Glovebox Fixture", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit Glovebox Fixture", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: "Hide Nostrings Fixture", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: "Quit Nostrings Fixture", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
         main.addItem(appItem)
 
@@ -265,7 +265,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSTextFieldDelegate, NS
 
     func buildWindow() {
         window = NSWindow(contentRect: NSRect(x: 120, y: 120, width: 760, height: 760), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "Glovebox Fixture"
+        window.title = "Nostrings Fixture"
         window.isReleasedWhenClosed = false
         window.delegate = self
         let content = NSView(frame: window.contentRect(forFrameRect: window.frame))

@@ -1,21 +1,21 @@
 ---
-name: glovebox
+name: nostrings
 description: >-
-  Control desktop apps (click, type, read the screen) through glovebox's
+  Control desktop apps (click, type, read the screen) through nostrings's
   persistent JavaScript session, exposed as the MCP tool `js` (often
-  `glovebox__js` or `mcp__glovebox__js`) or the `glovebox run` CLI. Use for GUI
+  `nostrings__js` or `mcp__nostrings__js`) or the `nostrings run` CLI. Use for GUI
   work that has no API, CLI, or file-based path. Prefer a programmatic path
   when one can finish the task.
 ---
 
-# glovebox
+# nostrings
 
 Drive the GUI through one persistent JavaScript session. Each `js` call should
 be a whole step: several actions, then one read. Bindings persist between
 calls until `js_reset`.
 
 ```js
-const calc = await gb.getApp("Calculator");
+const calc = await ui.getApp("Calculator");
 await calc.pressKey("Escape");
 await calc.typeText("12*3=");
 await calc.getAXState();
@@ -23,7 +23,7 @@ await calc.getAXState();
 
 The loop:
 
-1. Bind the app once: `const app = await gb.getApp("Name")`. Reuse `app` in
+1. Bind the app once: `const app = await ui.getApp("Name")`. Reuse `app` in
    later calls. Define helpers in the session when you repeat yourself.
 2. Read with `app.getAXState()`. The first read is the full tree; later reads
    show only changes. Lines look like `14 button "7" id=Seven`; the leading
@@ -45,9 +45,9 @@ On macOS a few calls save a lot of steps: `app.menu("File > Export…")` for
 menu items, `app.select(popup, "Blue")` and `app.contextMenu(el, "Rename")`
 to pick from menus, `app.window().resize(w, h)`, `app.choosePath(path)` in
 open and save panels, and `app.paste(text)` for long text. Beyond one app:
-`gb.windows()` finds an unexpected dialog's owner, `gb.menuExtra("Control
-Center")`, `gb.notifications()`, `gb.spotlight("Name")`. `help("macOS")`
-lists them. Call `gb.quitLaunched()` when done with apps you opened.
+`ui.windows()` finds an unexpected dialog's owner, `ui.menuExtra("Control
+Center")`, `ui.notifications()`, `ui.spotlight("Name")`. `help("macOS")`
+lists them. Call `ui.quitLaunched()` when done with apps you opened.
 
 Keys use xdotool syntax: `Return`, `Tab`, `Escape`, `ctrl+a`, `shift+Tab`,
 `super+c` (Cmd on macOS). `typeText` treats `\n` as Return. Input stays in

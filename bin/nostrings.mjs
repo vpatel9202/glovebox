@@ -1,34 +1,34 @@
 #!/usr/bin/env node
-// glovebox command line: MCP server, CLI sessions, setup, and approvals.
+// nostrings command line: MCP server, CLI sessions, setup, and approvals.
 import fs from "node:fs";
 import { parseArgs } from "node:util";
 import { loadConfig, paths, readUserConfig, VERSION, writeUserConfig } from "../src/config.mjs";
 
-const USAGE = `glovebox ${VERSION} — scriptable computer use for coding agents
+const USAGE = `nostrings ${VERSION} — scriptable computer use for coding agents
 
 Usage:
-  glovebox setup [--rebuild]        Build the helper and ask macOS for permissions
-  glovebox signing [--create] [--trust]  Make grants survive rebuilds; --trust stops keychain prompts
-  glovebox doctor                   Check that everything is ready
-  glovebox mcp                      Run the stdio MCP server (tools: js, js_reset)
-  glovebox run [code] [-f file]     Run a script in a persistent CLI session
+  nostrings setup [--rebuild]        Build the helper and ask macOS for permissions
+  nostrings signing [--create] [--trust]  Make grants survive rebuilds; --trust stops keychain prompts
+  nostrings doctor                   Check that everything is ready
+  nostrings mcp                      Run the stdio MCP server (tools: js, js_reset)
+  nostrings run [code] [-f file]     Run a script in a persistent CLI session
         [--session name] [--title t] [--timeout ms]
                                     Reads code from stdin when no code or file is given.
                                     Screenshots are saved to files and printed as paths.
-  glovebox reset [--session name]   Drop a CLI session's bindings
-  glovebox stop                     Stop the CLI daemon and its sessions
-  glovebox smoke [--full]           Batched, persistent smoke test on Calculator
-  glovebox smoke --macos [--keep] [--background-only]  Every macOS capability, on Glovebox Fixture
+  nostrings reset [--session name]   Drop a CLI session's bindings
+  nostrings stop                     Stop the CLI daemon and its sessions
+  nostrings smoke [--full]           Batched, persistent smoke test on Calculator
+  nostrings smoke --macos [--keep] [--background-only]  Every macOS capability, on Nostrings Fixture
                                     (--full adds background click/drag/scroll in TextEdit)
-  glovebox smoke --android [--serial s] [--keep]
+  nostrings smoke --android [--serial s] [--keep]
                                     The same on a phone or emulator, with a test app
                                     that is installed for the run (--keep leaves it)
-  glovebox allow <app>...           Always allow an app (name or bundle id)
-  glovebox deny <app>...            Never allow an app
-  glovebox revoke <app>...          Remove an app from both lists
-  glovebox approval <ask|allowlist|allow-all>
-  glovebox config                   Print the effective configuration
-  glovebox log [-n 20]              Show recent actions
+  nostrings allow <app>...           Always allow an app (name or bundle id)
+  nostrings deny <app>...            Never allow an app
+  nostrings revoke <app>...          Remove an app from both lists
+  nostrings approval <ask|allowlist|allow-all>
+  nostrings config                   Print the effective configuration
+  nostrings log [-n 20]              Show recent actions
 `;
 
 function die(message) {
@@ -81,10 +81,10 @@ async function doctor() {
   if (process.platform === "darwin") {
     const helper = await import("../src/macos-helper.mjs");
     const built = helper.isBuilt();
-    check(built, `Helper built at ${helper.appPath()}`, "Run: glovebox setup");
+    check(built, `Helper built at ${helper.appPath()}`, "Run: nostrings setup");
     if (built) {
       const { MacBackend } = await import("../src/backends/macos.mjs");
-      const backend = new MacBackend({ client: "glovebox doctor" });
+      const backend = new MacBackend({ client: "nostrings doctor" });
       try {
         const ping = await backend.request("ping");
         check(true, `Helper running (pid ${ping.pid}, v${ping.version})`);
@@ -96,8 +96,8 @@ async function doctor() {
             : `warn  Background input unavailable on this macOS; apps will be brought forward (${Object.entries(bg).filter(([, v]) => !v).map(([k]) => k).join(", ") || "old helper"})`,
         );
         const perms = await backend.request("permissions", { prompt: false });
-        check(perms.accessibility, "Accessibility granted to Glovebox Helper", "System Settings > Privacy & Security > Accessibility: enable Glovebox Helper");
-        check(perms.screenRecording, "Screen Recording granted to Glovebox Helper", "System Settings > Privacy & Security > Screen & System Audio Recording: enable Glovebox Helper, then run: glovebox setup --restart");
+        check(perms.accessibility, "Accessibility granted to Nostrings Helper", "System Settings > Privacy & Security > Accessibility: enable Nostrings Helper");
+        check(perms.screenRecording, "Screen Recording granted to Nostrings Helper", "System Settings > Privacy & Security > Screen & System Audio Recording: enable Nostrings Helper, then run: nostrings setup --restart");
         // In testing, Escape only reached the helper with Input Monitoring.
         lines.push(
           perms.inputMonitoring
@@ -150,44 +150,44 @@ async function setup(flags) {
     say(`  tccutil reset Accessibility ${helper.BUNDLE_ID}`);
     say(`  tccutil reset ScreenCapture ${helper.BUNDLE_ID}`);
     say(`  tccutil reset ListenEvent ${helper.BUNDLE_ID}`);
-    say("To stop this happening on every rebuild: glovebox signing --create");
+    say("To stop this happening on every rebuild: nostrings signing --create");
   }
 
-  let backend = new MacBackend({ client: "glovebox setup" });
+  let backend = new MacBackend({ client: "nostrings setup" });
   let perms = await backend.request("permissions", { prompt: false });
   if (!perms.accessibility) {
-    say('\n1/2 Accessibility: macOS is asking now. Turn on "Glovebox Helper" in');
+    say('\n1/2 Accessibility: macOS is asking now. Turn on "Nostrings Helper" in');
     say("    System Settings > Privacy & Security > Accessibility. Waiting...");
     await backend.request("permissions", { prompt: true });
-    if (!(await waitFor(backend, (p) => p.accessibility))) die("Timed out waiting for Accessibility. Run glovebox setup again.");
+    if (!(await waitFor(backend, (p) => p.accessibility))) die("Timed out waiting for Accessibility. Run nostrings setup again.");
     say("    Accessibility granted.");
   }
   perms = await backend.request("permissions", { prompt: false });
   if (!perms.screenRecording) {
-    say('\n2/2 Screen Recording: macOS is asking now. Turn on "Glovebox Helper" in');
+    say('\n2/2 Screen Recording: macOS is asking now. Turn on "Nostrings Helper" in');
     say("    System Settings > Privacy & Security > Screen & System Audio Recording.");
     say("    If macOS offers to quit and reopen it, accept. If no prompt appears, use + and add");
     say(`    ${helper.appPath()} (press Cmd+Shift+G in the file picker). Waiting...`);
     await backend.request("permissions", { prompt: true });
-    if (!(await waitFor(backend, (p) => p.screenRecording))) die("Timed out waiting for Screen Recording. Run glovebox setup again.");
+    if (!(await waitFor(backend, (p) => p.screenRecording))) die("Timed out waiting for Screen Recording. Run nostrings setup again.");
     say("    Screen Recording granted.");
     // Relaunch so the key monitor and capture start with the new grants.
     backend.close();
     await helper.quit();
-    backend = new MacBackend({ client: "glovebox setup" });
+    backend = new MacBackend({ client: "nostrings setup" });
   }
   perms = await backend.request("permissions", { prompt: false });
   if (!perms.inputMonitoring) {
     say("\nOptional: Input Monitoring lets you stop a running script by pressing Escape.");
     say("Without it, switching to another app (or js_reset) still stops a script.");
-    say('To enable it, turn on "Glovebox Helper" in System Settings > Privacy & Security >');
+    say('To enable it, turn on "Nostrings Helper" in System Settings > Privacy & Security >');
     say(`Input Monitoring (use + and ${helper.appPath()} if it is not listed), then run`);
-    say("`glovebox setup --restart`.");
+    say("`nostrings setup --restart`.");
     await backend.request("permissions", { prompt: true, inputMonitoring: true });
   }
   backend.close();
   const ready = perms.accessibility && perms.screenRecording;
-  say(ready ? "\nReady. Check with `glovebox doctor`, then try `glovebox smoke`." : "\nNot ready yet; run `glovebox doctor` to see what is missing.");
+  say(ready ? "\nReady. Check with `nostrings doctor`, then try `nostrings smoke`." : "\nNot ready yet; run `nostrings doctor` to see what is missing.");
   if (!ready) process.exitCode = 1;
 }
 
@@ -240,7 +240,7 @@ async function main() {
     }
     case "run": {
       const code = flags.file ? fs.readFileSync(flags.file, "utf8") : positionals.join(" ") || (await readStdin());
-      if (!code.trim()) die("glovebox run: no code. Pass it as an argument, with -f file, or on stdin.");
+      if (!code.trim()) die("nostrings run: no code. Pass it as an argument, with -f file, or on stdin.");
       const { daemonRequest } = await import("../src/daemon.mjs");
       printResult(
         await daemonRequest({
@@ -249,7 +249,7 @@ async function main() {
           title: flags.title,
           session: flags.session,
           timeoutMs: flags.timeout ? Number(flags.timeout) : undefined,
-          client: process.env.GLOVEBOX_CLIENT,
+          client: process.env.NOSTRINGS_CLIENT,
         }),
       );
       return;
@@ -287,14 +287,14 @@ async function main() {
       }
       if (identity) {
         process.stdout.write(`Signing identity "${helper.SIGNING_NAME}" (${identity}) is ready.\n`);
-        process.stdout.write("If macOS asks for your keychain password on each rebuild, run once: glovebox signing --trust\n");
-        process.stdout.write("Run `glovebox setup --rebuild` once to re-sign the helper with it, and grant permissions one last time.\n");
+        process.stdout.write("If macOS asks for your keychain password on each rebuild, run once: nostrings signing --trust\n");
+        process.stdout.write("Run `nostrings setup --rebuild` once to re-sign the helper with it, and grant permissions one last time.\n");
       } else {
         process.stdout.write(
           [
             "No local signing identity. The helper is signed ad hoc, so every rebuild resets its macOS permissions.",
             `Create one (a self-signed certificate named "${helper.SIGNING_NAME}" in your login keychain):`,
-            "  glovebox signing --create",
+            "  nostrings signing --create",
             "",
           ].join("\n"),
         );
@@ -313,15 +313,15 @@ async function main() {
     case "allow":
     case "deny":
     case "revoke": {
-      if (positionals.length === 0) die(`glovebox ${command}: name at least one app`);
+      if (positionals.length === 0) die(`nostrings ${command}: name at least one app`);
       const next = editList(command, positionals, command !== "revoke");
       process.stdout.write(`allow: ${JSON.stringify(next.allow)}\ndeny: ${JSON.stringify(next.deny)}\n`);
-      process.stdout.write("Running sessions keep approvals they already have; js_reset or glovebox reset to re-check.\n");
+      process.stdout.write("Running sessions keep approvals they already have; js_reset or nostrings reset to re-check.\n");
       return;
     }
     case "approval": {
       const mode = positionals[0];
-      if (!["ask", "allowlist", "allow-all"].includes(mode)) die("glovebox approval: use ask, allowlist, or allow-all");
+      if (!["ask", "allowlist", "allow-all"].includes(mode)) die("nostrings approval: use ask, allowlist, or allow-all");
       writeUserConfig({ approval: mode });
       process.stdout.write(`approval: ${mode}\n`);
       if (mode === "allow-all") {

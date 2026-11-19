@@ -21,7 +21,7 @@ export class Session {
   #start() {
     const child = spawn(process.execPath, [kernelPath], {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, GLOVEBOX_CLIENT: this.client, GLOVEBOX_IMAGE_MODE: this.imageMode },
+      env: { ...process.env, NOSTRINGS_CLIENT: this.client, NOSTRINGS_IMAGE_MODE: this.imageMode },
     });
     let buffer = "";
     child.stdout.setEncoding("utf8");
@@ -48,7 +48,7 @@ export class Session {
     let stderr = "";
     child.stderr.on("data", (chunk) => {
       stderr = (stderr + chunk).slice(-4000);
-      if (process.env.GLOVEBOX_DEBUG) process.stderr.write(chunk);
+      if (process.env.NOSTRINGS_DEBUG) process.stderr.write(chunk);
     });
     child.on("exit", (code, signal) => {
       if (this.kernel === child) this.kernel = null;

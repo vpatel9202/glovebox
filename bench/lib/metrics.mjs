@@ -1,6 +1,6 @@
 // Per-run counters derived from the recorded turns.
 //
-// The read counters apply to glovebox only, because they are about its diff:
+// The read counters apply to nostrings only, because they are about its diff:
 // - fullReads / diffReads / noChangeReads: tree reads by kind.
 // - reprints: a full tree printed again for a window already printed in this
 //   run, without disableDiffing. The roadmap's baseline-mismatch bugs show up
@@ -11,7 +11,7 @@ const HEADER = /^(.+) — window (\d+) "(.*)" — image \d+x\d+( — changes sin
 const READ = /getAXState|getScreenshot|getAXStateAndScreenshot/;
 const ACTION = /\.(click|doubleClick|rightClick|pressKey|typeText|scroll|drag|setValue|focus|selectText|performSecondaryAction|activate)\(/;
 
-function gloveboxReads(turns) {
+function nostringsReads(turns) {
   const counts = { fullReads: 0, diffReads: 0, noChangeReads: 0, reprints: 0, noChangeThenRead: 0 };
   const seen = new Set();
   const calls = turns.flatMap((t) => t.calls);
@@ -84,9 +84,9 @@ export function summarize(setupName, task, agent) {
     contextPerCall: { median: quantile(contextDeltas(agent.turns), 0.5), p90: quantile(contextDeltas(agent.turns), 0.9) },
     longPromptTurns: agent.turns.filter((t) => t.longPrompt).length,
     sideDoors: sideDoors(agent.turns),
-    // glovebox says so in a read's header when it lands on a tooltip-sized window.
+    // nostrings says so in a read's header when it lands on a tooltip-sized window.
     smallWindowReads: agent.turns.flatMap((t) => t.calls).filter((c) => /a small or uncapturable window/.test(c.text)).length,
   };
-  if (setupName === "glovebox") summary.reads = gloveboxReads(agent.turns);
+  if (setupName === "nostrings") summary.reads = nostringsReads(agent.turns);
   return summary;
 }

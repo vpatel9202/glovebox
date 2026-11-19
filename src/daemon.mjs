@@ -1,4 +1,4 @@
-// Background process that keeps CLI sessions alive between `glovebox run` calls,
+// Background process that keeps CLI sessions alive between `nostrings run` calls,
 // so shell-only agents get the same persistent bindings as MCP clients.
 // One JSON request per connection, one JSON reply.
 import { spawn } from "node:child_process";
@@ -17,7 +17,7 @@ export function runDaemon() {
   const sessionFor = (name, client) => {
     let session = sessions.get(name);
     if (!session) {
-      session = new Session({ client: client || `glovebox CLI (${name})`, imageMode: "file" });
+      session = new Session({ client: client || `nostrings CLI (${name})`, imageMode: "file" });
       sessions.set(name, session);
     }
     return session;
@@ -100,7 +100,7 @@ function send(request) {
       try {
         resolve(JSON.parse(buffer));
       } catch {
-        reject(new Error("Bad reply from glovebox daemon"));
+        reject(new Error("Bad reply from nostrings daemon"));
       }
     });
     socket.on("error", reject);
@@ -114,7 +114,7 @@ export async function daemonRequest(request, { autostart = true } = {}) {
   } catch (error) {
     if (!autostart || !["ENOENT", "ECONNREFUSED"].includes(error.code)) throw error;
   }
-  const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "glovebox.mjs");
+  const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "nostrings.mjs");
   const child = spawn(process.execPath, [cli, "daemon"], { detached: true, stdio: "ignore", env: process.env });
   child.unref();
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -123,5 +123,5 @@ export async function daemonRequest(request, { autostart = true } = {}) {
       return await send(request);
     } catch {}
   }
-  throw new Error(`glovebox daemon did not start (socket ${paths.socket})`);
+  throw new Error(`nostrings daemon did not start (socket ${paths.socket})`);
 }

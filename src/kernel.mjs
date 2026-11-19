@@ -14,8 +14,8 @@ import { loadConfig, paths } from "./config.mjs";
 import { transformCell } from "./transform.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const client = process.env.GLOVEBOX_CLIENT || "An agent";
-const imageMode = process.env.GLOVEBOX_IMAGE_MODE === "file" ? "file" : "inline";
+const client = process.env.NOSTRINGS_CLIENT || "An agent";
+const imageMode = process.env.NOSTRINGS_IMAGE_MODE === "file" ? "file" : "inline";
 
 // Anything a dependency prints must not corrupt the protocol on stdout.
 const protocolOut = process.stdout.write.bind(process.stdout);
@@ -120,7 +120,7 @@ function deviceBackend(serial) {
       if (running) abortReason = "Stopped: the user asked to stop on the device. Do not continue GUI actions until the user asks.";
     });
     device.on("exit", ({ reason }) => {
-      if (running) abortReason = `Stopped: the glovebox server on ${device.label} stopped (${reason}). Do not continue GUI actions on it until the user asks.`;
+      if (running) abortReason = `Stopped: the nostrings server on ${device.label} stopped (${reason}). Do not continue GUI actions on it until the user asks.`;
     });
     devices.set(key, device);
   }
@@ -159,7 +159,7 @@ const ctx = {
 };
 
 function makeContext() {
-  const gb = createApi(ctx);
+  const ui = createApi(ctx);
   const consoleProxy = Object.fromEntries(
     ["log", "info", "warn", "error", "debug"].map((name) => [
       name,
@@ -167,10 +167,10 @@ function makeContext() {
     ]),
   );
   const sandbox = {
-    gb,
-    cua: gb,
-    help: gb.help,
-    sleep: gb.sleep,
+    ui,
+    cua: ui,
+    help: ui.help,
+    sleep: ui.sleep,
     console: consoleProxy,
     nodeRepl: { write: (value) => out.text(value) },
     setTimeout,
@@ -186,7 +186,7 @@ function makeContext() {
     fetch,
     process: { platform: process.platform, env: {} },
   };
-  return vm.createContext(sandbox, { name: "glovebox" });
+  return vm.createContext(sandbox, { name: "nostrings" });
 }
 
 let context = makeContext();
@@ -241,5 +241,5 @@ process.stdin.on("data", (chunk) => {
 });
 process.stdin.on("end", () => process.exit(0));
 process.on("unhandledRejection", (error) => {
-  process.stderr.write(`glovebox kernel: unhandled rejection: ${error?.stack ?? error}\n`);
+  process.stderr.write(`nostrings kernel: unhandled rejection: ${error?.stack ?? error}\n`);
 });

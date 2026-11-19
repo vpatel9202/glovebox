@@ -8,7 +8,7 @@
 // Usage: open "Bench Fixture.app" --args --mode <mode> --out /path/to/file.jsonl [--target ID]
 //
 // Without arguments (a tool relaunching the app by bundle id, say) it reads
-// the same settings from ~/glovebox-bench/fixture.json, so a relaunch shows
+// the same settings from ~/nostrings-bench/fixture.json, so a relaunch shows
 // the window the task expects.
 import AppKit
 
@@ -18,7 +18,7 @@ func argument(_ name: String) -> String? {
     return arguments[i + 1]
 }
 let saved: [String: String] = {
-    let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("glovebox-bench/fixture.json")
+    let file = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("nostrings-bench/fixture.json")
     guard let data = try? Data(contentsOf: file) else { return [:] }
     return (try? JSONSerialization.jsonObject(with: data)) as? [String: String] ?? [:]
 }()

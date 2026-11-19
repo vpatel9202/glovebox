@@ -1,4 +1,4 @@
-// glovebox-ocr: text in an image, through macOS Vision. Reads a PNG or JPEG
+// nostrings-ocr: text in an image, through macOS Vision. Reads a PNG or JPEG
 // on stdin and prints one JSON array: [{text, confidence, frame: [x, y, w, h]}]
 // with the frame in image pixels, (0, 0) at the top left. Works on image
 // data only, so it needs no privacy permission.
@@ -9,7 +9,7 @@ import Vision
 let data = FileHandle.standardInput.readDataToEndOfFile()
 guard let source = CGImageSourceCreateWithData(data as CFData, nil),
       let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-    FileHandle.standardError.write("glovebox-ocr: not an image\n".data(using: .utf8)!)
+    FileHandle.standardError.write("nostrings-ocr: not an image\n".data(using: .utf8)!)
     exit(1)
 }
 let width = Double(image.width), height = Double(image.height)
@@ -21,7 +21,7 @@ if !languages.isEmpty { request.recognitionLanguages = Array(languages) }
 do {
     try VNImageRequestHandler(cgImage: image, options: [:]).perform([request])
 } catch {
-    FileHandle.standardError.write("glovebox-ocr: \(error)\n".data(using: .utf8)!)
+    FileHandle.standardError.write("nostrings-ocr: \(error)\n".data(using: .utf8)!)
     exit(1)
 }
 var out: [[String: Any]] = []

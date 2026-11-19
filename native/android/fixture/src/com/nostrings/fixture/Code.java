@@ -1,6 +1,6 @@
 // A one-time-code screen as many apps build it: six one-digit boxes that move
 // focus to the next box as each digit lands, and a label with the code so far.
-package com.glovebox.fixture;
+package com.nostrings.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;

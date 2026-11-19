@@ -1,9 +1,9 @@
 // The setups under test. Each exposes the same shape to the agent loop:
 //   { name, tools, instructions, execute(toolUseBlocks) -> toolResultBlocks, close() }
 //
-// glovebox and open-computer-use run as stdio MCP servers, exactly as an agent
+// nostrings and open-computer-use run as stdio MCP servers, exactly as an agent
 // would attach them. The screenshot-first setup is Anthropic's computer use
-// toolset, executed through a glovebox session so input reliability is the
+// toolset, executed through a nostrings session so input reliability is the
 // same and only the tool shape differs.
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
@@ -96,7 +96,7 @@ class McpClient {
     const init = await this.request("initialize", {
       protocolVersion: "2025-06-18",
       capabilities,
-      clientInfo: { name: "glovebox-bench", version: "1" },
+      clientInfo: { name: "nostrings-bench", version: "1" },
     });
     this.notify("notifications/initialized");
     const { tools } = await this.request("tools/list");
@@ -126,7 +126,7 @@ function sniffImageType(base64) {
 function fitImage(data, mimeType) {
   const size = imageSize(data);
   if (!size || Math.max(size.width, size.height) <= LIMITS.imageLongSide) return { data, mimeType };
-  const file = path.join(os.tmpdir(), `glovebox-bench-${process.pid}-${Date.now()}.${mimeType === "image/jpeg" ? "jpg" : "png"}`);
+  const file = path.join(os.tmpdir(), `nostrings-bench-${process.pid}-${Date.now()}.${mimeType === "image/jpeg" ? "jpg" : "png"}`);
   fs.writeFileSync(file, Buffer.from(data, "base64"));
   try {
     execFileSync("sips", ["-Z", String(LIMITS.imageLongSide), file], { stdio: "ignore" });
@@ -182,14 +182,14 @@ async function mcpSetup(name, command, args, { env, onRequest, capabilities, onT
   };
 }
 
-// Members the glovebox executor can't express are withheld rather than left
-// to fail. zoom is withheld because glovebox captures at the same capped size
+// Members the nostrings executor can't express are withheld rather than left
+// to fail. zoom is withheld because nostrings captures at the same capped size
 // its own agent sees (1568 px long side), so a zoom would add no detail.
 const WITHHELD = ["zoom", "left_mouse_down", "left_mouse_up", "hold_key", "middle_click"];
 const HALT = "Not executed: an earlier computer action in this turn failed.";
 
 async function computerUseSetup(task) {
-  const session = new Session({ client: "glovebox bench (screenshot-first)" });
+  const session = new Session({ client: "nostrings bench (screenshot-first)" });
   let cursor = [0, 0];
 
   async function js(code) {
@@ -198,11 +198,11 @@ async function computerUseSetup(task) {
     return result.content;
   }
   // Foreground input, like Anthropic's reference environment, which drives a
-  // real display. glovebox's background pixel clicks don't reach an open
-  // pop-up menu, and that limit belongs to glovebox, not to this baseline.
-  await js(`const __cu = await gb.getApp(${JSON.stringify(task.app)}, { foreground: true });`);
+  // real display. nostrings's background pixel clicks don't reach an open
+  // pop-up menu, and that limit belongs to nostrings, not to this baseline.
+  await js(`const __cu = await ui.getApp(${JSON.stringify(task.app)}, { foreground: true });`);
 
-  // The screenshot uses glovebox's default window (the focused one, unless it
+  // The screenshot uses nostrings's default window (the focused one, unless it
   // is a tooltip or field editor), so settings windows and dialogs are
   // visible, and clicks land in that same window. On macOS 27 a window capture
   // includes the app's open menus.
@@ -290,7 +290,7 @@ async function computerUseSetup(task) {
 // Codex computer use, run directly from the ChatGPT app's bundled plugin with
 // the command and environment Codex itself uses. App approvals arrive as MCP
 // elicitations; only the bench apps are approved, for this session only.
-const BENCH_BUNDLES = ["com.apple.calculator", "com.apple.textedit", "com.apple.finder", "dev.glovebox.bench-fixture"];
+const BENCH_BUNDLES = ["com.apple.calculator", "com.apple.textedit", "com.apple.finder", "dev.nostrings.bench-fixture"];
 
 function codexPluginConfig() {
   const root = path.join(os.homedir(), ".codex", "plugins", "cache", "openai-bundled", "unified-computer-use");
@@ -372,7 +372,7 @@ function agentDesktopSetup() {
 }
 
 export const SETUPS = {
-  glovebox: () => mcpSetup("glovebox", process.execPath, [path.join(repoDir, "bin", "glovebox.mjs"), "mcp"]),
+  nostrings: () => mcpSetup("nostrings", process.execPath, [path.join(repoDir, "bin", "nostrings.mjs"), "mcp"]),
   ocu: () => mcpSetup("open-computer-use", path.join(benchDir, "node_modules", ".bin", "ocu"), ["mcp"]),
   cu: (task) => computerUseSetup(task),
   "codex-cu": () => codexSetup(),

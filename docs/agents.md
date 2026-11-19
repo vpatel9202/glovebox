@@ -1,21 +1,21 @@
-# Attaching glovebox to an agent
+# Attaching nostrings to an agent
 
-glovebox speaks MCP over stdio (`glovebox mcp`) and also has a CLI
-(`glovebox run`) for agents that can only run shell commands. Both expose the
+nostrings speaks MCP over stdio (`nostrings mcp`) and also has a CLI
+(`nostrings run`) for agents that can only run shell commands. Both expose the
 same persistent JavaScript session.
 
 Install once, then attach to as many agents as you like:
 
 ```bash
-npm install -g github:vpatel9202/glovebox
-glovebox setup     # macOS: builds Glovebox Helper.app and walks through permissions
-glovebox doctor    # everything should say ok
-glovebox smoke     # optional: a real end-to-end check on Calculator
+npm install -g github:vpatel9202/nostrings
+nostrings setup     # macOS: builds Nostrings Helper.app and walks through permissions
+nostrings doctor    # everything should say ok
+nostrings smoke     # optional: a real end-to-end check on Calculator
 ```
 
-If `glovebox` is not on your PATH (for example, under a version manager), use
-the absolute path from `which glovebox`, or run it as
-`node /path/to/glovebox/bin/glovebox.mjs mcp`.
+If `nostrings` is not on your PATH (for example, under a version manager), use
+the absolute path from `which nostrings`, or run it as
+`node /path/to/nostrings/bin/nostrings.mjs mcp`.
 
 The MCP server exposes two tools: `js` (run a script) and `js_reset` (drop the
 session). Most agents name them `<server>__js` or `mcp__<server>__js`.
@@ -23,13 +23,13 @@ session). Most agents name them `<server>__js` or `mcp__<server>__js`.
 ## Claude Code
 
 ```bash
-claude mcp add --scope user glovebox -- glovebox mcp
+claude mcp add --scope user nostrings -- nostrings mcp
 ```
 
 Check with `/mcp` in a session. To teach Claude the loop, copy the skill:
 
 ```bash
-mkdir -p ~/.claude/skills && cp -R "$(npm root -g)/@vashp2029/glovebox/skills/glovebox" ~/.claude/skills/
+mkdir -p ~/.claude/skills && cp -R "$(npm root -g)/nostrings/skills/nostrings" ~/.claude/skills/
 ```
 
 ## Grok CLI
@@ -37,18 +37,18 @@ mkdir -p ~/.claude/skills && cp -R "$(npm root -g)/@vashp2029/glovebox/skills/gl
 Add to `~/.grok/config.toml`, then start a new session:
 
 ```toml
-[mcp_servers.glovebox]
-command = "glovebox"
+[mcp_servers.nostrings]
+command = "nostrings"
 args = ["mcp"]
 enabled = true
 ```
 
-Verify with `grok mcp doctor glovebox`. This config, and the OpenCode and
+Verify with `grok mcp doctor nostrings`. This config, and the OpenCode and
 Codex ones below, follow each client's documented MCP format but have not been
 exercised end to end. Skill:
 
 ```bash
-mkdir -p ~/.grok/skills && cp -R "$(npm root -g)/@vashp2029/glovebox/skills/glovebox" ~/.grok/skills/
+mkdir -p ~/.grok/skills && cp -R "$(npm root -g)/nostrings/skills/nostrings" ~/.grok/skills/
 ```
 
 ## OpenCode
@@ -59,9 +59,9 @@ Add to `opencode.json` (project) or `~/.config/opencode/opencode.json` (global):
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "glovebox": {
+    "nostrings": {
       "type": "local",
-      "command": ["glovebox", "mcp"],
+      "command": ["nostrings", "mcp"],
       "enabled": true
     }
   }
@@ -73,8 +73,8 @@ Add to `opencode.json` (project) or `~/.config/opencode/opencode.json` (global):
 Add to `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.glovebox]
-command = "glovebox"
+[mcp_servers.nostrings]
+command = "nostrings"
 args = ["mcp"]
 ```
 
@@ -85,40 +85,40 @@ Most clients accept the common `mcpServers` JSON shape:
 ```json
 {
   "mcpServers": {
-    "glovebox": { "command": "glovebox", "args": ["mcp"] }
+    "nostrings": { "command": "nostrings", "args": ["mcp"] }
   }
 }
 ```
 
 ## Agents without MCP: the CLI
 
-`glovebox run` sends a script to a background daemon that keeps the session
+`nostrings run` sends a script to a background daemon that keeps the session
 alive between calls, so bindings persist exactly as they do over MCP.
 
 ```bash
-glovebox run 'const calc = await gb.getApp("Calculator"); await calc.typeText("2+2="); await calc.getAXState()'
-glovebox run 'await calc.getAXState()'          # calc is still bound
-glovebox run -f step.js --title "fill form"     # or from a file, or stdin
-glovebox reset                                   # drop the bindings
+nostrings run 'const calc = await ui.getApp("Calculator"); await calc.typeText("2+2="); await calc.getAXState()'
+nostrings run 'await calc.getAXState()'          # calc is still bound
+nostrings run -f step.js --title "fill form"     # or from a file, or stdin
+nostrings reset                                   # drop the bindings
 ```
 
-Screenshots are written to `~/.glovebox/screenshots/` and the path is printed,
+Screenshots are written to `~/.nostrings/screenshots/` and the path is printed,
 so an agent that can read image files can look at them. Use `--session name`
 to keep separate sessions. The daemon exits after an hour idle
 (`daemon.idleMinutes` in the config).
 
 ## Approval prompts
 
-The first time a session touches an app, glovebox shows a native dialog:
+The first time a session touches an app, nostrings shows a native dialog:
 **Allow for This Session**, **Always Allow**, or **Deny**. "Session" means one
 MCP connection or one CLI session. To pre-approve apps without dialogs:
 
 ```bash
-glovebox allow Calculator TextEdit
-glovebox approval allowlist   # never prompt; only allowlisted apps work
+nostrings allow Calculator TextEdit
+nostrings approval allowlist   # never prompt; only allowlisted apps work
 ```
 
-`glovebox approval allow-all` turns prompts off for every app except the
+`nostrings approval allow-all` turns prompts off for every app except the
 blocked ones (terminals, password managers, and a few others). Those need an
-explicit `glovebox allow`. The full list is in
+explicit `nostrings allow`. The full list is in
 [SECURITY.md](../SECURITY.md#blocked-apps).

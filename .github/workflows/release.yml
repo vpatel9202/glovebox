@@ -2,10 +2,10 @@ name: release
 
 # Push a tag vX.Y.Z (after `npm run version:bump X.Y.Z` and a commit) and this
 # publishes that version everywhere it is listed:
-#   1. npm: @vashp2029/glovebox, with the Android server and test apps built
+#   1. npm: nostrings, with the Android server and test apps built
 #      here from the tagged source (pinned SDK), through npm trusted publishing (OIDC, with
 #      provenance), or the NPM_TOKEN secret if trusted publishing is not set up
-#   2. the official MCP Registry: io.github.vpatel9202/glovebox from server.json,
+#   2. the official MCP Registry: io.github.vpatel9202/nostrings from server.json,
 #      signed in with this workflow's GitHub OIDC token (no secret needed)
 #   3. a GitHub Release with that version's CHANGELOG section
 # Each step skips work that is already done, so a failed run can be re-run.
@@ -88,7 +88,7 @@ jobs:
           npm pack --dry-run --json > pack.json
           node -e '
             const files = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0].files.map((f) => f.path);
-            const want = ["glovebox-server.dex", "glovebox-fixture.apk", "glovebox-fixture2.apk"].map((f) => "native/android/build/" + f);
+            const want = ["nostrings-server.dex", "nostrings-fixture.apk", "nostrings-fixture2.apk"].map((f) => "native/android/build/" + f);
             const missing = want.filter((f) => !files.includes(f));
             const keys = files.filter((f) => /keystore/.test(f));
             if (missing.length || keys.length) { console.error("missing:", missing, "keys:", keys); process.exit(1); }
@@ -135,7 +135,7 @@ jobs:
         run: |
           version=$(node -p "require('./package.json').version")
           for i in $(seq 1 30); do
-            npm view "@vashp2029/glovebox@$version" version >/dev/null 2>&1 && exit 0
+            npm view "nostrings@$version" version >/dev/null 2>&1 && exit 0
             sleep 10
           done
           echo "npm never served $version"; exit 1
@@ -164,5 +164,5 @@ jobs:
             echo "Release $TAG exists"; exit 0
           fi
           version="${TAG#v}"
-          { node scripts/release-version.mjs notes "$version"; echo; echo; echo 'Install: `npm install -g @vashp2029/glovebox`, then `glovebox setup`.'; } > notes.md
-          gh release create "$TAG" --title "glovebox $version" --notes-file notes.md --verify-tag
+          { node scripts/release-version.mjs notes "$version"; echo; echo; echo 'Install: `npm install -g nostrings`, then `nostrings setup`.'; } > notes.md
+          gh release create "$TAG" --title "nostrings $version" --notes-file notes.md --verify-tag

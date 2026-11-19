@@ -1,6 +1,6 @@
 // Input for the backend protocol's keys, type, click, scroll and drag, injected
 // with UiAutomation (shell may inject events), plus element actions.
-package com.glovebox.server;
+package com.nostrings.server;
 
 import android.accessibilityservice.AccessibilityService;
 import android.app.UiAutomation;
@@ -206,7 +206,7 @@ final class Input {
             // Global actions act on the phone's screen. Back is a key the
             // hidden screen's app can take; the rest belong to the user's screen.
             if (!"Back".equals(key)) {
-                throw new Server.Coded("phone_screen_only", key + " acts on the phone's own screen, and this app is on glovebox's hidden screen."
+                throw new Server.Coded("phone_screen_only", key + " acts on the phone's own screen, and this app is on nostrings's hidden screen."
                         + " Use Back inside the app, or getApp(name, {foreground: true}) to work on the phone's screen.");
             }
             long now = SystemClock.uptimeMillis();

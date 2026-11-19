@@ -1,4 +1,4 @@
-// Client for Glovebox Helper.app over its Unix socket.
+// Client for Nostrings Helper.app over its Unix socket.
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import net from "node:net";
@@ -35,9 +35,9 @@ export class MacBackend extends EventEmitter {
   async #connect() {
     if (!fs.existsSync(helper.appPath()) || !helper.isBuilt()) {
       throw new Error(
-        "Glovebox Helper is missing, or was built from different source than this glovebox. " +
-          "Run: glovebox setup. That rebuilds the helper; unless you ran `glovebox signing --create`, " +
-          "macOS will ask for its permissions again. If you have more than one install, check which `glovebox` this client runs.",
+        "Nostrings Helper is missing, or was built from different source than this nostrings. " +
+          "Run: nostrings setup. That rebuilds the helper; unless you ran `nostrings signing --create`, " +
+          "macOS will ask for its permissions again. If you have more than one install, check which `nostrings` this client runs.",
       );
     }
     const path = helper.socketPath();
@@ -50,7 +50,7 @@ export class MacBackend extends EventEmitter {
         await new Promise((r) => setTimeout(r, 100));
         socket = await connectOnce(path).catch(() => null);
       }
-      if (!socket) throw new Error(`Glovebox Helper did not start (no socket at ${path}). Run: glovebox doctor`);
+      if (!socket) throw new Error(`Nostrings Helper did not start (no socket at ${path}). Run: nostrings doctor`);
     }
     this.socket = socket;
     let buffer = "";
@@ -66,7 +66,7 @@ export class MacBackend extends EventEmitter {
     });
     socket.on("close", () => {
       if (this.socket === socket) this.socket = null;
-      for (const { reject } of this.pending.values()) reject(new Error("Glovebox Helper disconnected"));
+      for (const { reject } of this.pending.values()) reject(new Error("Nostrings Helper disconnected"));
       this.pending.clear();
     });
     socket.on("error", () => {});

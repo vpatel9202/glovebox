@@ -1,4 +1,4 @@
-# glovebox benchmark
+# nostrings benchmark
 
 Runs the same seven macOS tasks through three computer-use setups with the
 same model, prompt, and agent loop, and records what each run costs. Results
@@ -15,8 +15,8 @@ This folder is not part of the published package.
 
 | Setup | What the model gets | Notes |
 |---|---|---|
-| `glovebox` | The `js` and `js_reset` tools from `glovebox mcp` | Exactly what an MCP client sees. |
-| `cu` | Anthropic's computer use toolset (`computer_toolset_20260801`) | Screenshot-first. Actions run through a glovebox session on its foreground route (window screenshots, raw pixel clicks, keys to the frontmost app), like Anthropic's reference environment, which drives a real display. |
+| `nostrings` | The `js` and `js_reset` tools from `nostrings mcp` | Exactly what an MCP client sees. |
+| `cu` | Anthropic's computer use toolset (`computer_toolset_20260801`) | Screenshot-first. Actions run through a nostrings session on its foreground route (window screenshots, raw pixel clicks, keys to the frontmost app), like Anthropic's reference environment, which drives a real display. |
 | `ocu` | The 11 tools from [open-computer-use](https://github.com/iFurySt/open-computer-use) 1.1.3 (`ocu mcp`) | One action per call over the accessibility tree. |
 | `codex-cu` | Codex computer use: the `js` and `js_reset` tools of the `cua_repl` MCP server bundled in the ChatGPT app, started with the command and environment from its Codex plugin config | No Codex and no OpenAI model; the same Claude loop as every other setup. App approvals arrive as MCP elicitations; the harness approves only the bench apps, for the session. The harness sends `turn_ended` after each user turn, as Codex does. Its first call returns about 20,000 characters of documentation, counted as shipped. |
 | `agent-desktop` | One tool that runs the [agent-desktop](https://github.com/vercel-labs/agent-desktop) 1.1.0 CLI, described by its bundled `desktop` and macOS guides | Agents normally run it from a shell; here the tool runs only that binary. Screenshots come back as images. |
@@ -31,15 +31,15 @@ Choices that affect the comparison:
   own `instructions` when it sends them. All other guidance comes from each
   setup's tool descriptions.
 - **Screenshot-first sees one window.** The `cu` screenshot is the target
-  app's focused window (glovebox's default window, which skips tooltips and
-  field editors) at glovebox's capture size (1568 px long side), not the
+  app's focused window (nostrings's default window, which skips tooltips and
+  field editors) at nostrings's capture size (1568 px long side), not the
   whole display. On macOS 27 that capture includes the app's open menus. It is
   cheaper than a full-display screenshot, so it favors `cu`. Members the
   executor can't run (`zoom`, `left_mouse_down`, `left_mouse_up`, `hold_key`,
   `middle_click`) are withheld through `configs`.
 - **Why foreground input for `cu`.** Anthropic's reference environment drives
   a real display, so `cu` clicks go to the front app. In the 2026-10-28
-  baseline, glovebox's background pixel clicks also missed open pop-up menus;
+  baseline, nostrings's background pixel clicks also missed open pop-up menus;
   that is fixed since, but `cu` stays on the foreground route.
 - **No refusal fallback.** A fallback model would mix two models in one
   measurement, so a refusal counts as a failed run.
@@ -56,7 +56,7 @@ Choices that affect the comparison:
   file or write the setting without touching the UI.
 - **Verification never uses the tool under test.** Each task checks files,
   `defaults`, or the fixture app's output file. Calculator's display is read
-  by a separate glovebox session that the model never sees.
+  by a separate nostrings session that the model never sees.
 
 ## Tasks
 
@@ -85,7 +85,7 @@ The tasks added for v2 each test one thing the first seven did not:
 
 - `bulk-entry`: ten records in one prompt, so a tool that can loop inside one
   call has room to.
-- `large-table`: 200 rows with random values per launch. glovebox's default
+- `large-table`: 200 rows with random values per launch. nostrings's default
   read stops at 800 elements, so the Answer field is not in the first read.
 - `remote-desktop`: modeled on the 2026-10-29 Citrix field run. One
   accessibility node, 11 pt text, the target row's Open button is off to the
@@ -102,12 +102,12 @@ The tasks added for v2 each test one thing the first seven did not:
   another app was in front.
 
 Every new task has a scripted solve that `--dry-run` runs through the
-harness's own glovebox session, twice, to prove the task can be done and that
+harness's own nostrings session, twice, to prove the task can be done and that
 verify notices.
 
-Task files live in `~/glovebox-bench/`. The harness touches only its own
+Task files live in `~/nostrings-bench/`. The harness touches only its own
 documents and windows. It closes TextEdit only when no other document is open,
-and restores the TextEdit default-format setting and your glovebox config when
+and restores the TextEdit default-format setting and your nostrings config when
 it finishes.
 
 ## Running
@@ -138,10 +138,10 @@ Run the pilot, one pass of every task through every setup, capped at $10:
 node bench/run.mjs --n 1 --budget 10
 ```
 
-Options: `--setups glovebox,cu,ocu`, `--tasks calculator,form`, `--n 5`,
+Options: `--setups nostrings,cu,ocu`, `--tasks calculator,form`, `--n 5`,
 `--model claude-sonnet-5-5`, `--effort medium`, `--max-turns` (40; `bulk-entry`
 and `form-repeat` allow 80), `--label v2` (a second file on the same day). Leave the Mac alone
-while it runs: apps open on screen, and glovebox stops a script if you switch
+while it runs: apps open on screen, and nostrings stops a script if you switch
 into the app it is driving.
 
 Spend and restarts:
@@ -190,10 +190,10 @@ Spend and restarts:
 - `wallMs`, `modelMs`, `toolMs`
 - `contextPerCall`: median and p90 growth of the prompt per request
 - `sideDoors`, `longPromptTurns` (Haiku requests over 100K prompt tokens,
-  billed at the higher rate), `smallWindowReads` (glovebox reads that landed
+  billed at the higher rate), `smallWindowReads` (nostrings reads that landed
   on a tooltip-sized window)
 - `infra`: true for runs that say nothing about the tool
-- `reads` (glovebox only): `fullReads`, `diffReads`, `noChangeReads`,
+- `reads` (nostrings only): `fullReads`, `diffReads`, `noChangeReads`,
   `reprints` (a full tree printed again for a window already printed), and
   `noChangeThenRead` (a "no change" result followed by another read before
   any action)

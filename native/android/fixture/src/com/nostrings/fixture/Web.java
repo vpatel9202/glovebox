@@ -1,6 +1,6 @@
 // Web content inside an app: a WebView with a heading, a link, a text input
 // and a button that writes what was typed into the page.
-package com.glovebox.fixture;
+package com.nostrings.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;

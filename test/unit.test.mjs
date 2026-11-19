@@ -1,5 +1,5 @@
 // Unit tests for the pure parts: cell rewriting, key parsing, tree diffs, and
-// the image/screen coordinate mapping. GUI behavior is covered by `glovebox smoke`.
+// the image/screen coordinate mapping. GUI behavior is covered by `nostrings smoke`.
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
@@ -150,7 +150,7 @@ test("image space round-trips to screen points", () => {
   assert.ok(Math.abs(sx - 1280) < 1 && Math.abs(sy - (25 + 1415 / 2)) < 1);
 });
 
-test("gb.device binds getApp to that device and keeps handles apart", async () => {
+test("ui.device binds getApp to that device and keeps handles apart", async () => {
   const { createApi } = await import("../src/api.mjs");
   const calls = [];
   const fake = (platform, pid) => ({
@@ -171,16 +171,16 @@ test("gb.device binds getApp to that device and keeps handles apart", async () =
     log() {},
     out: { text() {} },
   };
-  const gb = createApi(ctx);
-  const mac = await gb.getApp("Clock");
-  const phone = gb.device("emulator-5554");
+  const ui = createApi(ctx);
+  const mac = await ui.getApp("Clock");
+  const phone = ui.device("emulator-5554");
   const droid = await phone.getApp("Clock");
   assert.equal(mac.platform, "macos");
   assert.equal(droid.platform, "android");
   assert.equal(droid.pid, "com.clock");
   assert.notEqual(mac, droid);
   // The same device hands back the same handle.
-  assert.equal(await gb.device("emulator-5554").getApp("Clock"), droid);
+  assert.equal(await ui.device("emulator-5554").getApp("Clock"), droid);
   assert.deepEqual(calls.map(([p, m]) => `${p}:${m}`), ["macos:resolveApp", "android:resolveApp", "android:resolveApp"]);
 });
 
@@ -268,8 +268,8 @@ test("app.find, app.nodes and app.text return data and print nothing", async () 
     },
   };
   const config = { ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 }, screenshot: {} };
-  const gb = createApi({ backend, config, checkAbort() {}, log() {}, out: { text: (t) => printed.push(t) } });
-  const app = await gb.getApp("Form");
+  const ui = createApi({ backend, config, checkAbort() {}, log() {}, out: { text: (t) => printed.push(t) } });
+  const app = await ui.getApp("Form");
   assert.equal((await app.find({ role: "button", label: "save" })).index, 2);
   assert.equal((await app.find("notes")).index, 3); // a bare string matches placeholder too
   assert.equal((await app.find({ role: "button", disabled: false }, { all: true })).length, 1);

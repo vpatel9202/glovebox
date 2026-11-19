@@ -1,4 +1,4 @@
-// One glovebox server per phone, shared by every glovebox session on this
+// One nostrings server per phone, shared by every nostrings session on this
 // computer. A phone allows a single shell accessibility connection, so the
 // first session to use a phone starts this broker (a detached process); it
 // owns the adb shell that runs the server and relays JSON lines between the

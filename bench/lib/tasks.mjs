@@ -98,7 +98,7 @@ const FILL = `async function __fill(app, p) {
 }`;
 
 async function solveForm(people) {
-  await oracleRun(`${FILL}; const __form = await gb.getApp("Bench Fixture"); for (const p of ${JSON.stringify(people)}) await __fill(__form, p); undefined;`, 120_000);
+  await oracleRun(`${FILL}; const __form = await ui.getApp("Bench Fixture"); for (const p of ${JSON.stringify(people)}) await __fill(__form, p); undefined;`, 120_000);
 }
 
 // A user typing in TextEdit while the agent works. Words go out only while
@@ -335,7 +335,7 @@ export const TASKS = [
     },
     async solve() {
       const expected = readJsonLines(tableOut).find((r) => r.expected).expected;
-      await oracleRun(`const __t = await gb.getApp("Bench Fixture"); const __l = (await __t.getAXState({emit:false, disableDiffing:true, maxNodes: 4000})).split("\\n");
+      await oracleRun(`const __t = await ui.getApp("Bench Fixture"); const __l = (await __t.getAXState({emit:false, disableDiffing:true, maxNodes: 4000})).split("\\n");
 const __i = (re) => Number(__l.find((l) => re.test(l)).trim().split(" ")[0]);
 await __t.setValue(__i(/text field.*placeholder="Answer"/), ${JSON.stringify(expected)}); await __t.click(__i(/button "Submit"/)); await sleep(300); undefined;`);
     },
@@ -366,7 +366,7 @@ await __t.setValue(__i(/text field.*placeholder="Answer"/), ${JSON.stringify(exp
       const row = readJsonLines(remoteOut).find((r) => r.rows).rows.indexOf(this.target);
       // Layout from BenchFixture.swift: rows 26 pt from y 40, Open at x 1220,
       // fully scrolled right is an offset of 600 (1320 wide content, 720 window).
-      await oracleRun(`const __r = await gb.getApp("Bench Fixture"); await __r.getScreenshot({emit:false}); const v = __r.view;
+      await oracleRun(`const __r = await ui.getApp("Bench Fixture"); await __r.getScreenshot({emit:false}); const v = __r.view;
 const title = v.height / v.scale - 480; const px = (x, y) => [Math.round(x * v.scale), Math.round((title + y) * v.scale)];
 await __r.pressKey("Right Right Right"); await sleep(400);
 await __r.click(px(1220 - 600 + 35, 40 + ${row + 1} * 26 + 13)); await sleep(2600);
@@ -392,7 +392,7 @@ await __r.click(px(70, 480 - 41)); await sleep(300); undefined;`);
       return { ok, detail: `suggested ${suggested}, created ${JSON.stringify(created)}` };
     },
     async solve() {
-      await oracleRun(`const __s = await gb.getApp("Bench Fixture"); const __tree = async () => (await __s.getAXState({emit:false, disableDiffing:true})).split("\\n");
+      await oracleRun(`const __s = await ui.getApp("Bench Fixture"); const __tree = async () => (await __s.getAXState({emit:false, disableDiffing:true})).split("\\n");
 const __i = (l, re) => Number(l.find((x) => re.test(x)).trim().split(" ")[0]);
 let l = await __tree(); await __s.setValue(__i(l, /text field.*placeholder="Username"/), "ada"); await __s.setValue(__i(l, /text field.*placeholder="name@example.com"/), "ada.lovelace@example.com");
 await __s.click(__i(l, /button "Create account"/)); await sleep(2600);
@@ -410,7 +410,7 @@ await __s.setValue(__i(l, /text field.*Username/), sug); await __s.click(__i(l, 
     kind: "text",
     // No department: opening a pop-up menu in a background app takes the
     // user's keystrokes for as long as the menu is open (menu tracking is
-    // system-wide), whatever the tool. That is filed for glovebox; this task
+    // system-wide), whatever the tool. That is filed for nostrings; this task
     // measures what the tool's own input method does to the user.
     prompt: `The user is typing in TextEdit and must not be interrupted. In the background, in the Bench Fixture app's Bench Form window, add this person and submit the form: name "${COEXIST.name}", email ${COEXIST.email}, not subscribed to the newsletter. Leave Department as it is.`,
     async setup() {

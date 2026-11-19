@@ -1,13 +1,13 @@
 # Android plan
 
-A plan to bring glovebox to feature parity on Android. Nothing here is built
+A plan to bring nostrings to feature parity on Android. Nothing here is built
 or tested; it is a plan, written 2026-11-15.
 
 ## Summary
 
-glovebox reaches Android parity as a second backend behind the existing
+nostrings reaches Android parity as a second backend behind the existing
 [backend protocol](backend-protocol.md), with a new on-device server in place
-of Glovebox Helper.app. The diffs, the MCP server and the CLI keep their
+of Nostrings Helper.app. The diffs, the MCP server and the CLI keep their
 shape, but the kernel, the App layer and the protocol need the changes listed
 in [Kernel and protocol changes](#kernel-and-protocol-changes): today they
 assume one macOS backend per kernel. Nothing in this plan has been run on a
@@ -16,7 +16,7 @@ depends on it.
 
 **Who it is for.** One user and their agent, on the user's own devices,
 personal phone included: the agent should be able to do anything on the phone
-that the user could. A human stays in the loop. glovebox asks the user before
+that the user could. A human stays in the loop. nostrings asks the user before
 sensitive steps, but it does not forbid any action the user approves at the
 time. Decided 2026-11-18.
 
@@ -59,16 +59,16 @@ the order of `api.md`, then `design.md` and `SECURITY.md`.
 | macOS feature | Android approach | Parity |
 | --- | --- | --- |
 | Persistent JS session, `js` / `js_reset`, CLI daemon | Same tools and daemon, but the kernel holds one backend per device instead of one per process, and scripts see the target's platform, not only the host's `process.platform` (see Kernel and protocol changes) | Redesign |
-| `gb.getApp(query)` launches without focus | Resolve label or package name; `am start --display <session display>` | Port |
-| `gb.listApps({installed})` | PackageManager plus running tasks per display | Port |
-| `gb.permissions()` | Reports ADB link, server alive, accessibility connection, virtual display allowed, competing automation | Redesign |
+| `ui.getApp(query)` launches without focus | Resolve label or package name; `am start --display <session display>` | Port |
+| `ui.listApps({installed})` | PackageManager plus running tasks per display | Port |
+| `ui.permissions()` | Reports ADB link, server alive, accessibility connection, virtual display allowed, competing automation | Redesign |
 | `getAXState` text tree and diffs | Accessibility node tree; Android, Compose and Flutter roles mapped onto the AX role names | Port |
 | Stable element indices (`CFEqual` table) | Table keyed by window id plus node id, with a generation counter: lists reuse nodes and WebView ids reset on reload, so a reused index must raise `stale_index` | Redesign |
 | `menus: true` (menu bar) | No menu bar; overflow menus are ordinary popup windows. Drop it | No equivalent |
 | `frames: true`, image-pixel coordinates | One display is one image; the scale formula is unchanged | Port |
 | `getScreenshot` | Read the virtual display's surface; `screencap` on the default display. Secure windows come back black | Port |
 | `waitForChange`, `settle` | Polling first, as today; later driven by the accessibility event stream | Better on Android |
-| `windows()` | The glovebox window becomes the display or task, its windows merged in z-order. Dialogs, sheets and the keyboard must take over reads, the opposite of the macOS rule | Redesign |
+| `windows()` | The nostrings window becomes the display or task, its windows merged in z-order. Dialogs, sheets and the keyboard must take over reads, the opposite of the macOS rule | Redesign |
 | `click` (accessibility press, else pointer) | Click action on clickable nodes, else an injected tap | Port |
 | `doubleClick`, `rightClick`, modifiers | Double tap; right click becomes long press; most modifiers mean nothing | Redesign |
 | `pressKey` (xdotool names) | Android key codes; add Back, Home, Recents as global actions | Redesign |
@@ -103,7 +103,7 @@ keeping a second contract here.
 | Where | Today | Change |
 | --- | --- | --- |
 | [`src/backends/index.mjs`](../src/backends/index.mjs) | `createBackend` switches on `process.platform` and returns the macOS backend or an "unsupported" stub | A registry: the macOS backend for the host, plus one Android backend per ADB serial, created on first use |
-| [`src/kernel.mjs`](../src/kernel.mjs) | Builds a single `backend` when the module loads and hands it to every script and session; the Escape listener hangs off it | Keeps the registry instead; `gb.device(serial)` returns an object with the same `getApp` / `listApps` surface bound to that device's backend; stop events come from every backend |
+| [`src/kernel.mjs`](../src/kernel.mjs) | Builds a single `backend` when the module loads and hands it to every script and session; the Escape listener hangs off it | Keeps the registry instead; `ui.device(serial)` returns an object with the same `getApp` / `listApps` surface bound to that device's backend; stop events come from every backend |
 | `src/kernel.mjs`, script sandbox | Scripts see `process.platform` of the host | Unchanged for the host; device objects report their own platform, so recipes branch on the target, not the host |
 | [`src/api.mjs`](../src/api.mjs), App objects | Every request sends `{pid}`; the session's app map is keyed by `pid` | Keyed by device plus handle, so a Mac pid and a phone pid cannot collide; the handle the backend returns stays opaque to the App layer |
 | `src/api.mjs`, activate fallback | Runs `open -b <bundleId>` when activation fails, guarded by `process.platform === "darwin"` | Moves behind the backend (`activate` reports its own failure), so the App layer has no OS-specific commands |
@@ -217,15 +217,15 @@ a route. Input, capture and displays stay in the shell server either way.
   JSON-lines protocol over an ADB-forwarded socket. It answers `hello`,
   `ping`, `listApps`, `resolveApp`, `windows`, `axTree` and `screenshot`.
 - The host changes in [Kernel and protocol changes](#kernel-and-protocol-changes),
-  then `src/backends/android.mjs`, chosen per device through `gb.device()`
+  then `src/backends/android.mjs`, chosen per device through `ui.device()`
   rather than by `process.platform`, because the host is still a Mac.
 - Role map (Views, Compose, Flutter, WebView) onto the AX role names.
 - Element index table with a generation counter.
-- Window model: the display or task is the glovebox window, with its windows
+- Window model: the display or task is the nostrings window, with its windows
   merged in z-order.
 - Display id kept inside the opaque window and app handles, not added to
   every method.
-- A fixture APK glovebox owns (see Test strategy) and a backend conformance
+- A fixture APK nostrings owns (see Test strategy) and a backend conformance
   suite that runs the same protocol scripts against either backend.
 
 **Exit:** conformance read tests pass on the emulator matrix, and tree read
@@ -322,7 +322,7 @@ memory, not from a source.
 | --- | --- | --- | --- | --- |
 | The phone screen keeps focus while the agent taps elsewhere | Input on another display can move system focus: the user's video pauses, keyboard closes. Per-display focus may need Android 14 and a trusted display (unconfirmed) | Focused display in `dumpsys` before and after a tap; fixture logs focus changes | Android 14 floor for the background route | Answer `background_unavailable`, use the default display |
 | Shell can open an accessibility connection that coexists | Only one automation connection system-wide, so Appium, Maestro and `uiautomator dump` conflict. Connecting suspends TalkBack unless a flag is set. The hidden constructor changes between releases. Less prior art than first assumed: uiautomator2 and Maestro use instrumentation APKs, not shell servers | "Already registered" error; `dumpsys accessibility` | Always set the don't-suppress flag; `doctor` names a competing tool | Instrumentation APK using the public API with shell permissions |
-| Text can be entered reliably | Setting text skips validation listeners and fails in WebView, Flutter and games; key injection has no emoji or CJK; paste overwrites the user's clipboard; the keyboard may appear on the phone screen | Fixture text screens, including a split one-time-code field | Ladder with read-back after each step; paste off by default | A minimal input method glovebox ships (APK) |
+| Text can be entered reliably | Setting text skips validation listeners and fails in WebView, Flutter and games; key injection has no emoji or CJK; paste overwrites the user's clipboard; the keyboard may appear on the phone screen | Fixture text screens, including a split one-time-code field | Ladder with read-back after each step; paste off by default | A minimal input method nostrings ships (APK) |
 | Apps behave on a virtual display | One task per app; launcher trampolines relaunch on the phone screen; billing, permission and biometric sheets may land there (unconfirmed which); integrity checks | Spike pass rate over about 20 apps | Check the task's display before each action; stop with a coded error | Per-app `foregroundApps`, which the config already has |
 | Shell can set the display flags it needs | Trusted, own-group and always-unlocked flags vary by API level (unconfirmed); the secure flag is out of shell's reach, so secure windows capture black | Flags in `dumpsys display` after creation | Copy scrcpy's per-API flag choices | Default display |
 | Work continues while locked or screen-off | Doze, app standby and vendor battery killers; keyguard behaviour on a virtual display unknown | The same script locked and unlocked, with frame timestamps | Keep-active; ask before acting while locked | Unattended work on the emulator |
@@ -331,7 +331,7 @@ memory, not from a source.
 | Element indices stay stable | Lists reuse nodes for new rows; window ids change when an activity is recreated; WebView ids reset on reload | Fixture list and WebView screens | Generation counter so a reused index raises `stale_index` | Read again |
 | Sensitive views are visible | Android 16 lets apps hide views from accessibility services that are not accessibility tools; unknown whether a shell connection counts as one | Fixture screen with a flagged view | Treat hidden views as blocked, which is the safe outcome | Screenshot, black if the window is also secure |
 | Advanced Protection leaves shell alone | Android 17 revokes accessibility from non-tool apps when it is on; effect on a shell connection unknown | Physical test with Advanced Protection on | Detect it in `doctor` | Document as unsupported |
-| Apps run with developer options on | Banking apps and some games refuse | Launch error or app message | Tell the user; nothing glovebox can fix | None: by design |
+| Apps run with developer options on | Banking apps and some games refuse | Launch error or app message | Tell the user; nothing nostrings can fix | None: by design |
 
 Tree read speed is a smaller risk than it looks: expect roughly 100 to 500 ms
 for an 800-node tree, slower in WebView (unconfirmed). Polling is acceptable
@@ -360,12 +360,12 @@ designed in as the fallback for the accessibility half.
 
 On Android the ADB key is the grant, so the approval gate means nothing
 against an agent that has a shell: it can run `adb shell input` directly and
-skip glovebox entirely. On macOS the helper holds the grants, so an agent's
+skip nostrings entirely. On macOS the helper holds the grants, so an agent's
 terminal cannot do that. These go into an Android section of
 [SECURITY.md](../SECURITY.md).
 
 1. **Key custody.** The ADB key stays on the Mac (open decision 3). An agent
-   with a shell there can bypass glovebox through `adb`, so the user's
+   with a shell there can bypass nostrings through `adb`, so the user's
    approval of that shell is the control, as on macOS today.
 2. **No raw shell over the wire.** The server exposes named methods only;
    nothing the kernel can call runs arbitrary commands.
@@ -412,7 +412,7 @@ device matrix.
   A phone with both USB and wireless debugging on shows up twice in
   `adb devices` (its serial and an `adb-<serial>-..._adb-tls-connect._tcp`
   entry), so every command passes `-s`.
-- **Fixture APK glovebox owns.** Screens for Views, Compose, WebView, a long
+- **Fixture APK nostrings owns.** Screens for Views, Compose, WebView, a long
   list, a split one-time-code field, a secure window, a view flagged
   sensitive, and a canvas that logs every touch (position, display id, event
   flags) and every focus change to logcat. That log is the ground truth for
@@ -428,7 +428,7 @@ device matrix.
   virtual-display support is unknown.
 - **Default-display-untouched checks.** Focused display from `dumpsys`, a
   screenshot hash of the phone screen before and after, and a capture through
-  the emulator console as a check that does not go through glovebox.
+  the emulator console as a check that does not go through nostrings.
 - **Benchmark.** Port the `bench/` metrics (round trips, tokens split by
   cache, wall time, passes) to Android tasks on the emulator, and run
   AndroidWorld, Google's emulator benchmark, for numbers comparable with
@@ -450,7 +450,7 @@ focus; if that works, Phase 3 makes it the default route. Original options
 are kept below for the record.
 
 1. **How a script names a device (decided).**
-   `gb.device("emulator-5554").getApp(...)`, which keeps the App API
+   `ui.device("emulator-5554").getApp(...)`, which keeps the App API
    identical. Rejected: a prefix in the query (`"android:com.example"`), which
    overloads one string with two meanings, and one device per session, which
    rules out a script that checks the Mac and the phone together. The kernel
@@ -459,7 +459,7 @@ are kept below for the record.
    S24 is the real target, and the emulators carry CI and anything risky.
 3. **Where the ADB key lives (decided).** On the Mac. With one user in the
    loop, a separate key machine adds cost and no real protection. An agent
-   with a shell on the Mac can still bypass glovebox through `adb`; the
+   with a shell on the Mac can still bypass nostrings through `adb`; the
    control is the user's approval of that shell, as it is today.
 4. **Server language (decided).** Java, matching scrcpy's wrapper classes.
 5. **Licensing (decided).** Reuse scrcpy's Apache-2.0 classes, with a NOTICE

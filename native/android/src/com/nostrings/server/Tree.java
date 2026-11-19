@@ -1,6 +1,6 @@
 // Accessibility nodes as the backend protocol's flat node list: AX role names,
 // stable element indices, and nameless layout containers folded away.
-package com.glovebox.server;
+package com.nostrings.server;
 
 import android.graphics.Rect;
 import android.os.Build;

@@ -1,6 +1,6 @@
 // The smoke-test screen. Every control reports what happened to it in a
 // label next to it, so a read after each action shows whether it landed.
-package com.glovebox.fixture;
+package com.nostrings.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -28,7 +28,7 @@ public class Main extends Activity {
         root.setFitsSystemWindows(true);
 
         TextView title = new TextView(this);
-        title.setText("glovebox fixture");
+        title.setText("nostrings fixture");
         title.setTextSize(22);
         root.addView(title);
 

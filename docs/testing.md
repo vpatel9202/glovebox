@@ -1,33 +1,33 @@
 # Testing
 
-glovebox has two kinds of tests. Unit tests cover the pure parts and run
+nostrings has two kinds of tests. Unit tests cover the pure parts and run
 anywhere. The smoke test drives real apps through the real MCP server and
 helper, so it runs only on macOS with the helper built and permissions granted.
 Nothing in the smoke test is mocked.
 
 ## What has been run for real on macOS 27 (Apple silicon)
 
-- `glovebox smoke` over MCP: one batched call types `6*7=` and reads `42`;
+- `nostrings smoke` over MCP: one batched call types `6*7=` and reads `42`;
   the binding persists to the next call; index clicks compute `7+1=8` and
   the read comes back as a diff; a pixel click lands on the `9` key; the
   screenshot is 460x816, the same space as clicks; `js_reset` drops bindings.
-- Claude Code (headless) attached through `glovebox mcp`: two calls, the
+- Claude Code (headless) attached through `nostrings mcp`: two calls, the
   second reusing the first call's binding.
-- `glovebox smoke --full` with Firefox frontmost the whole time: background
+- `nostrings smoke --full` with Firefox frontmost the whole time: background
   keys in Calculator; in TextEdit, a pixel click placed the caret, a drag
   selected a line, a scroll moved the view; the frontmost app never changed.
 - The approval dialog and Escape to stop a script. (Terminal used to be
   refused outright; since 2026-11-19 it is ask first.)
-- `glovebox smoke --macos`, 2026-11-19: all 51 checks pass (37 earlier that day) on the fixture
+- `nostrings smoke --macos`, 2026-11-19: all 51 checks pass (37 earlier that day) on the fixture
   app (below). By hand the same day: Control Center read through
-  `gb.menuExtra("Control Center")`, Notification Center through
-  `gb.notifications()`, Chrome page content after the first read, VS Code
+  `ui.menuExtra("Control Center")`, Notification Center through
+  `ui.notifications()`, Chrome page content after the first read, VS Code
   Insiders' full tree (about 3,700 elements), background typing in Chrome's
   address bar. Approval: under `allow-all` an unlisted app (Stickies) opened
   without a dialog, an ask-first app (Script Editor) showed one, and an
   unanswered one (Automator) denied after 121 s without launching it.
   `pressKey("super+shift+p")` opened VS Code's Command Palette in the
-  background through its menu. `gb.spotlight("Chess")` opened Chess twice.
+  background through its menu. `ui.spotlight("Chess")` opened Chess twice.
 
 The Grok, OpenCode, and Codex configs in `agents.md` follow each client's
 documented MCP format but have not been exercised end to end yet.
@@ -52,16 +52,16 @@ npm test    # node --test test/ (Node 22+: node --test test/unit.test.mjs)
 ## Smoke test
 
 ```bash
-glovebox smoke
+nostrings smoke
 ```
 
-Starts `glovebox mcp` as a client would and works on Calculator. It prints one
+Starts `nostrings mcp` as a client would and works on Calculator. It prints one
 `PASS` or `FAIL` line per check and exits 0 only if all pass. Calculator's
 state changes during the run. The first time, macOS may ask to approve
-Calculator for "glovebox smoke"; run `glovebox allow Calculator TextEdit`
+Calculator for "nostrings smoke"; run `nostrings allow Calculator TextEdit`
 first to skip the dialogs. Checks:
 
-1. MCP handshake: the server is named `glovebox` and lists two tools.
+1. MCP handshake: the server is named `nostrings` and lists two tools.
 2. A batched call types `6*7=` and the read shows `42`.
 3. The binding persists to the next call; clicking by element index computes
    `7+1=8`; the read is a diff ("changes since last read").
@@ -73,7 +73,7 @@ first to skip the dialogs. Checks:
    `osascript`; skipped if it cannot run).
 
 ```bash
-glovebox smoke --full
+nostrings smoke --full
 ```
 
 Runs the checks above, then writes two temporary text files, opens them in
@@ -92,10 +92,10 @@ For a meaningful result, keep some other app frontmost while it runs.
 
 ```bash
 npm run build:android                 # a git checkout only: the npm package includes both
-glovebox smoke --android [--serial s] # --keep leaves the fixture installed
+nostrings smoke --android [--serial s] # --keep leaves the fixture installed
 ```
 
-Installs a small test app (`com.glovebox.fixture`, built from
+Installs a small test app (`com.nostrings.fixture`, built from
 `native/android/fixture` without Gradle) for the run and removes it after.
 Each control reports what it received in a label next to it. Over MCP, with
 the fixture's approval skipped (ask-first apps and a locked phone still ask):
@@ -136,11 +136,11 @@ probes ran on each emulator (scripts not in the repo):
 - `kill -9` of the server removes every hidden screen and its tasks; top
   focus stays on the phone's screen.
 - With the phone asleep, opening, reading, tapping and a screenshot on a
-  hidden screen work (glovebox wakes it).
+  hidden screen work (nostrings wakes it).
 
 Emulator notes: a fresh boot can show a System UI "not responding" dialog,
 and the Play Store image runs at a load average of 20 to 50 for several
-minutes after boot. Both fail the smoke for reasons outside glovebox; wait,
+minutes after boot. Both fail the smoke for reasons outside nostrings; wait,
 or dismiss the dialog first.
 
 ### Two sessions on one phone
@@ -150,7 +150,7 @@ broker: one tapped and typed in the fixture, the other read Clock and took a
 screenshot, each on its own hidden screen (displays 3 and 4), with the
 phone's top focus on display 0 throughout. Opening the fixture from the
 second session failed with `open_in_other_session`. Resetting one session
-closed only its display; the other kept reading. After `glovebox stop` the
+closed only its display; the other kept reading. After `nostrings stop` the
 broker exited within its ten-second idle window, and no display, socket or
 server was left.
 
@@ -176,10 +176,10 @@ Also on API 36:
 
 On the Galaxy S24 Ultra (One UI 9, Android 17, wireless debugging), with
 the phone dozing and its screen off at the start:
-- `smoke --android` passes every check; glovebox woke the phone for both
+- `smoke --android` passes every check; nostrings woke the phone for both
   the hidden screen and the phone's-screen step.
-- Two sessions at once, one per fixture package (`com.glovebox.fixture`
-  and `com.glovebox.fixture2`, both built by `npm run build:android`): A
+- Two sessions at once, one per fixture package (`com.nostrings.fixture`
+  and `com.nostrings.fixture2`, both built by `npm run build:android`): A
   dragged and swiped the slider (93 and 7, three times each) and tapped and
   long-pressed (3 and 3); B tapped six times and typed (`echo: bravO` after
   a BackSpace and a key). Each landed only on its own hidden screen, and
@@ -190,7 +190,7 @@ the phone dozing and its screen off at the start:
 ### Emulator run, 2026-11-19
 
 After Phase 4 and the usability work, `smoke --android` (now also covering
-the code screen, the web screen with `glovebox é 😀 日本` typed into it,
+the code screen, the web screen with `nostrings é 😀 日本` typed into it,
 and pinch and rotate) passes on API 34, 35, 36 and 37. The run found:
 - Typing right after tapping a web field failed on a freshly booted API 37
   emulator: the page gave the field focus late. typeText now waits up to
@@ -204,12 +204,12 @@ and pinch and rotate) passes on API 34, 35, 36 and 37. The run found:
 ## macOS capability test
 
 ```bash
-glovebox smoke --macos [--keep]
+nostrings smoke --macos [--keep]
 ```
 
-Builds Glovebox Fixture (`native/macos/fixture`, ad hoc signed into
-`~/.glovebox`) and drives it over MCP. The fixture logs every event it gets to
-`~/.glovebox/fixture.log`, and each check reads that log, so no model is
+Builds Nostrings Fixture (`native/macos/fixture`, ad hoc signed into
+`~/.nostrings`) and drives it over MCP. The fixture logs every event it gets to
+`~/.nostrings/fixture.log`, and each check reads that log, so no model is
 involved. Checks, in order: labeled form fields; web content; menu bar and
 submenu items; a menu shortcut in the background; `select` on a pop-up;
 `contextMenu`; checkbox; typing accents, emoji and CJK; `paste` (the clipboard

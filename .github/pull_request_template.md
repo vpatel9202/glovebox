@@ -5,8 +5,8 @@
 ## What I ran
 
 - [ ] `npm test`
-- [ ] `glovebox smoke`
-- [ ] `glovebox smoke --full`
+- [ ] `nostrings smoke`
+- [ ] `nostrings smoke --full`
 - macOS version:
 
 ## Docs updated

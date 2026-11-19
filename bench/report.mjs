@@ -21,13 +21,15 @@ const files = positionals.length
 // the retries) are not runs of the task.
 const records = files
   .flatMap((f) => fs.readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)))
-  .filter((r) => r.setup && !r.infra);
+  .filter((r) => r.setup && !r.infra)
+  // Results from before 0.5.0 name the setup by the project's old name.
+  .map((r) => (r.setup === "glovebox" ? { ...r, setup: "nostrings" } : r));
 if (!records.length) throw new Error("No results yet. Run node bench/run.mjs first.");
 
 // Only setups with results, so older result files report as they did.
 const SETUPS = [
-  { id: "glovebox", label: "glovebox" },
-  { id: "cu", label: "Anthropic toolset, run by glovebox" },
+  { id: "nostrings", label: "nostrings" },
+  { id: "cu", label: "Anthropic toolset, run by nostrings" },
   { id: "ocu", label: "open-computer-use" },
   { id: "codex-cu", label: "Codex cua_repl, driven by Claude" },
   { id: "agent-desktop", label: "agent-desktop" },
@@ -110,12 +112,12 @@ if (repeat.length) {
 const reads = records.filter((r) => r.reads);
 if (reads.length) {
   const sum = (k) => reads.reduce((n, r) => n + r.reads[k], 0);
-  const textRuns = records.filter((r) => r.setup === "glovebox" && r.kind === "text");
+  const textRuns = records.filter((r) => r.setup === "nostrings" && r.kind === "text");
   lines.push(
     "",
-    "## glovebox reads",
+    "## nostrings reads",
     "",
-    `Across ${reads.length} glovebox runs: ${sum("fullReads")} full trees, ${sum("diffReads")} diffs, ${sum("noChangeReads")} "no change" results.`,
+    `Across ${reads.length} nostrings runs: ${sum("fullReads")} full trees, ${sum("diffReads")} diffs, ${sum("noChangeReads")} "no change" results.`,
     `Full reprints of a window already printed: ${sum("reprints")}. "No change" followed by another read before acting: ${sum("noChangeThenRead")}.`,
     `Screenshots on tasks the tree can solve: ${textRuns.reduce((n, r) => n + (r.screenshotsOnTextTask ?? 0), 0)} across ${textRuns.length} runs.`,
   );
@@ -252,7 +254,7 @@ const firstPanel = 12 + legendRows * LEGEND_ROW + 8;
 const p1 = panel(firstPanel, "Median model round trips per task", "roundTrips", (v, d) => (d == null ? fmt.n(v) : v.toFixed(d)));
 const p2 = panel(p1.bottom + 16, "Median cost per task (USD, list price)", "cost", (v, d) => (d == null ? fmt.usd(v) : `$${v.toFixed(d)}`));
 writeChart("chart.svg", {
-  title: "glovebox benchmark: round trips and cost per task",
+  title: "nostrings benchmark: round trips and cost per task",
   desc: `Grouped bars comparing ${setupNames} on ${tasks.length} macOS tasks. Full numbers are in summary.md.`,
   height: p2.bottom + 24,
   body: `${legendAt(12)}\n${p1.svg}\n${p2.svg}`,
@@ -300,7 +302,7 @@ const stack = commonTasks.length ? stackPanel(8) : { svg: "", bottom: 8 };
 const speedLegend = stack.bottom + 12;
 const p3 = panel(speedLegend + legendRows * LEGEND_ROW + 4, "Median seconds per task, passing runs", "passWallS", (v, d) => (d == null ? `${v.toFixed(0)} s` : `${v.toFixed(d)} s`));
 writeChart("speed.svg", {
-  title: "glovebox benchmark: speed",
+  title: "nostrings benchmark: speed",
   desc: `Total tool and model time for ${setupNames}, then median seconds per task on passing runs. Full numbers are in summary.md.`,
   height: p3.bottom + 24,
   body: `${stack.svg}\n${legendAt(speedLegend)}\n${p3.svg}`,

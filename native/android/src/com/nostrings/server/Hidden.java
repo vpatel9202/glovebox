@@ -7,7 +7,7 @@
 // The flags and the IME policy call follow scrcpy's NewDisplayCapture and
 // WindowManager wrappers (Copyright (C) 2018 Genymobile, Apache License 2.0;
 // see NOTICE), plus STEAL_TOP_FOCUS_DISABLED, which scrcpy does not set.
-package com.glovebox.server;
+package com.nostrings.server;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -37,7 +37,7 @@ final class Hidden {
     final int height;
     final int dpi;
     final boolean imeHidden;
-    // Whether the app had a window on the phone's screen when glovebox
+    // Whether the app had a window on the phone's screen when nostrings
     // opened it here, so the user's own copy is not mistaken for a move.
     volatile boolean onPhoneAtStart;
     private final VirtualDisplay display;
@@ -66,7 +66,7 @@ final class Hidden {
                 latest = image;
             }
         }, frames);
-        display = dm.createVirtualDisplay("glovebox:" + owner, width, height, dpi, reader.getSurface(), FLAGS);
+        display = dm.createVirtualDisplay("nostrings:" + owner, width, height, dpi, reader.getSurface(), FLAGS);
         if (display == null) throw new Server.Coded("failed", "The phone would not create a hidden screen");
         id = display.getDisplay().getDisplayId();
         imeHidden = setImePolicy(id, IME_POLICY_HIDE);

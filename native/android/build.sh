@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds the glovebox Android server into native/android/build/glovebox-server.dex,
-# and the smoke-test app into native/android/build/glovebox-fixture.apk.
+# Builds the nostrings Android server into native/android/build/nostrings-server.dex,
+# and the smoke-test app into native/android/build/nostrings-fixture.apk.
 # Needs an Android SDK (platforms/android-N and build-tools) and a JDK 17+.
 #   ANDROID_HOME   SDK root (default ~/Library/Android/sdk)
 #   JAVA_HOME      JDK (default: Android Studio's bundled JBR, else java on PATH)
@@ -25,9 +25,9 @@ out=$here/build
 rm -rf "$out/classes" && mkdir -p "$out/classes"
 "$javac" -Xlint:-options --release 11 -cp "$jar" -d "$out/classes" $(find "$here/src" -name '*.java')
 JAVA_HOME=${JAVA_HOME:-} "$buildtools/d8" --min-api 30 --lib "$jar" --output "$out" $(find "$out/classes" -name '*.class')
-mv "$out/classes.dex" "$out/glovebox-server.dex"
+mv "$out/classes.dex" "$out/nostrings-server.dex"
 rm -rf "$out/classes"
-echo "Built $out/glovebox-server.dex"
+echo "Built $out/nostrings-server.dex"
 
 # The fixture: no Gradle, no resources; aapt2 links the manifest, d8 adds the
 # code, and a local debug key signs it.
@@ -39,17 +39,17 @@ JAVA_HOME=${JAVA_HOME:-} "$buildtools/d8" --min-api 30 --lib "$jar" --output "$w
 key=$out/fixture-debug.keystore
 if [ ! -f "$key" ]; then
   "$keytool" -genkeypair -keystore "$key" -storepass android -keypass android -alias fixture \
-    -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=glovebox fixture" >/dev/null 2>&1
+    -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=nostrings fixture" >/dev/null 2>&1
 fi
 # Two packages from the same code: the second lets two sessions each open one.
 for variant in fixture fixture2; do
   "$buildtools/aapt2" link --manifest "$fx/AndroidManifest.xml" -I "$jar" --min-sdk-version 30 --target-sdk-version 35 \
-    --rename-manifest-package "com.glovebox.$variant" -o "$work/$variant.apk"
+    --rename-manifest-package "com.nostrings.$variant" -o "$work/$variant.apk"
   (cd "$work" && zip -q "$variant.apk" classes.dex)
   "$buildtools/zipalign" -f 4 "$work/$variant.apk" "$work/$variant-aligned.apk"
   JAVA_HOME=${JAVA_HOME:-} PATH=${JAVA_HOME:+$JAVA_HOME/bin:}$PATH "$buildtools/apksigner" sign --ks "$key" --ks-pass pass:android \
-    --out "$out/glovebox-$variant.apk" "$work/$variant-aligned.apk"
-  rm -f "$out/glovebox-$variant.apk.idsig"
+    --out "$out/nostrings-$variant.apk" "$work/$variant-aligned.apk"
+  rm -f "$out/nostrings-$variant.apk.idsig"
 done
 rm -rf "$work"
-echo "Built $out/glovebox-fixture.apk and glovebox-fixture2.apk"
+echo "Built $out/nostrings-fixture.apk and nostrings-fixture2.apk"

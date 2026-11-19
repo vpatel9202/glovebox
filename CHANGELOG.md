@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.5.0 (2026-11-19)
+
+glovebox is now **nostrings**. Nothing else changed in this release.
+
+- npm package `nostrings` (was `@vashp2029/glovebox`), command `nostrings`,
+  MCP Registry name `io.github.vpatel9202/nostrings`, repo
+  `vpatel9202/nostrings` (the old URLs redirect).
+- In scripts, the global is `ui` (was `gb`): `ui.getApp("Calculator")`,
+  `ui.device()`. `cua` still works.
+- The helper is **Nostrings Helper.app** (`io.github.vpatel9202.nostrings.helper`),
+  the state folder is `~/.nostrings`, and environment variables start with
+  `NOSTRINGS_`. The Android server and test apps are `com.nostrings.*`.
+
+### Upgrading from glovebox
+
+macOS sees the renamed helper as a new app, so grant it again:
+
+```bash
+npm uninstall -g @vashp2029/glovebox
+npm install -g nostrings
+mkdir -p ~/.nostrings && cp ~/.glovebox/config.json ~/.nostrings/   # keeps your allow list
+nostrings signing --create   # optional, as before
+nostrings setup
+claude mcp remove glovebox --scope user
+claude mcp add --scope user nostrings -- nostrings mcp
+```
+
+Then delete `~/.glovebox` and the old grants:
+
+```bash
+for s in Accessibility ScreenCapture ListenEvent; do
+  tccutil reset $s io.github.vpatel9202.glovebox.helper
+done
+```
+
+On Android, `adb uninstall com.glovebox.fixture` and `com.glovebox.fixture2`
+if you ran the smoke test.
+
 ## 0.4.1 (2026-11-19)
 
 - Android: the npm package now includes the Android server and the two test

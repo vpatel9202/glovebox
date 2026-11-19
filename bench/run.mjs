@@ -3,7 +3,7 @@
 // to bench/results/raw/. See bench/README.md.
 //
 //   node bench/run.mjs --dry-run
-//   node bench/run.mjs --setups glovebox,cu,ocu --tasks all --n 3 --budget 30 --stop-after-rep 1
+//   node bench/run.mjs --setups nostrings,cu,ocu --tasks all --n 3 --budget 30 --stop-after-rep 1
 //   node bench/run.mjs --resume bench/results/raw/<file>.jsonl --n 3 --budget 30
 //       (add --accept-sha <sha> if the code changed in a way that cannot affect the recorded runs)
 import { execFileSync, spawn } from "node:child_process";
@@ -19,7 +19,7 @@ import { TASKS } from "./lib/tasks.mjs";
 
 const { values: opts } = parseArgs({
   options: {
-    setups: { type: "string", default: "glovebox,cu,ocu" },
+    setups: { type: "string", default: "nostrings,cu,ocu" },
     tasks: { type: "string", default: "all" },
     n: { type: "string", default: "1" },
     model: { type: "string", default: "claude-sonnet-5-5" },
@@ -69,8 +69,8 @@ function restoreTextEdit() {
 }
 
 // Approval dialogs would stall unattended runs, so the bench apps are allowed
-// for the length of the run and the user's glovebox config is put back after.
-const configFile = path.join(process.env.GLOVEBOX_HOME ?? path.join(os.homedir(), ".glovebox"), "config.json");
+// for the length of the run and the user's nostrings config is put back after.
+const configFile = path.join(process.env.NOSTRINGS_HOME ?? path.join(os.homedir(), ".nostrings"), "config.json");
 const savedConfig = fs.existsSync(configFile) ? fs.readFileSync(configFile, "utf8") : null;
 function restoreConfig() {
   if (savedConfig == null) fs.rmSync(configFile, { force: true });
@@ -95,7 +95,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 
 fs.mkdirSync(workDir, { recursive: true });
 await buildFixture();
-await sh(process.execPath, [path.join(repoDir, "bin", "glovebox.mjs"), "allow", ...new Set(TASKS.map((t) => t.app)), FIXTURE_BUNDLE_ID]);
+await sh(process.execPath, [path.join(repoDir, "bin", "nostrings.mjs"), "allow", ...new Set(TASKS.map((t) => t.app)), FIXTURE_BUNDLE_ID]);
 
 try {
   if (opts["dry-run"]) await dryRun();
@@ -153,7 +153,7 @@ function versions() {
   };
   const cuaRepl = "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/cua-repl/package.json";
   return {
-    glovebox: JSON.parse(fs.readFileSync(path.join(repoDir, "package.json"), "utf8")).version,
+    nostrings: JSON.parse(fs.readFileSync(path.join(repoDir, "package.json"), "utf8")).version,
     sdk: lock["node_modules/@anthropic-ai/sdk"]?.version ?? null,
     ocu: lock["node_modules/open-computer-use"]?.version ?? null,
     chatgpt: plist("/Applications/ChatGPT.app", "CFBundleShortVersionString"),
@@ -168,12 +168,12 @@ function runKey(r) {
 
 async function benchmark() {
   if (!PRICES[opts.model]) fail(`No price for ${opts.model}`);
-  // The last commit that changed glovebox or the harness, so committing
+  // The last commit that changed nostrings or the harness, so committing
   // results or docs mid-run does not block --resume.
   const code = ["src", "native", "bin", "bench", ":!bench/results", ":!bench/*.md"];
   const sha = git("log", "-1", "--format=%h", "--", ...code);
   const dirty = git("status", "--porcelain", "--", ...code) !== "";
-  if (dirty && !opts["allow-dirty"]) fail("glovebox or the harness has uncommitted changes; commit first so the SHA in the results means something, or pass --allow-dirty for a throwaway run");
+  if (dirty && !opts["allow-dirty"]) fail("nostrings or the harness has uncommitted changes; commit first so the SHA in the results means something, or pass --allow-dirty for a throwaway run");
 
   const rawDir = path.join(benchDir, "results", "raw");
   const transcriptDir = path.join(benchDir, "results", "transcripts");

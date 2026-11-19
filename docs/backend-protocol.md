@@ -95,7 +95,7 @@ port may leave them out. `format` is `png` or `jpeg`; `quality` is 0 to 1.
 booleans: `postEventRecord`, `postToPid`, `setWindowLocation`,
 `setIntegerField`, `processSerialNumber`. Background input needs
 `postEventRecord`, `setIntegerField`, and `processSerialNumber`.
-`glovebox doctor` prints this; it is informational. Clients decide to fall
+`nostrings doctor` prints this; it is informational. Clients decide to fall
 back from the error codes below, not from `ping`.
 
 `permissions` returns `inputMonitoring` (listening for key events, which

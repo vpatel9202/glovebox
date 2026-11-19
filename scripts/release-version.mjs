@@ -48,7 +48,7 @@ const places = {
     get: (s) => s.match(/export const VERSION = "([^"]+)"/)?.[1],
     set: (s, v) => s.replace(/(export const VERSION = ")[^"]+(")/, `$1${v}$2`),
   },
-  "native/macos/GloveboxHelper.swift": {
+  "native/macos/NostringsHelper.swift": {
     get: (s) => s.match(/let helperVersion = "([^"]+)"/)?.[1],
     set: (s, v) => s.replace(/(let helperVersion = ")[^"]+(")/, `$1${v}$2`),
   },

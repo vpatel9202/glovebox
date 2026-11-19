@@ -1,13 +1,13 @@
 // Paths and user configuration. Everything lives under one directory so a user
-// can inspect or delete it: GLOVEBOX_HOME, else ~/.glovebox.
+// can inspect or delete it: NOSTRINGS_HOME, else ~/.nostrings.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const VERSION = "0.4.1";
+export const VERSION = "0.5.0";
 
 export function homeDir() {
-  return process.env.GLOVEBOX_HOME || path.join(os.homedir(), ".glovebox");
+  return process.env.NOSTRINGS_HOME || path.join(os.homedir(), ".nostrings");
 }
 
 export const paths = {
@@ -28,7 +28,7 @@ export const paths = {
   },
   get socket() {
     return process.platform === "win32"
-      ? `\\\\.\\pipe\\glovebox-${os.userInfo().username}`
+      ? `\\\\.\\pipe\\nostrings-${os.userInfo().username}`
       : path.join(homeDir(), "daemon.sock");
   },
 };
@@ -81,7 +81,7 @@ export function readUserConfig() {
 
 export function loadConfig() {
   const config = merge(DEFAULTS, readUserConfig());
-  if (process.env.GLOVEBOX_APPROVAL) config.approval = process.env.GLOVEBOX_APPROVAL;
+  if (process.env.NOSTRINGS_APPROVAL) config.approval = process.env.NOSTRINGS_APPROVAL;
   if (!["ask", "allowlist", "allow-all"].includes(config.approval)) {
     throw new Error(`approval must be ask, allowlist, or allow-all (got ${config.approval})`);
   }

@@ -29,7 +29,7 @@ class UnsupportedBackend {
   }
   async request() {
     throw new Error(
-      `glovebox has no ${this.platform} desktop backend yet. macOS is supported today; Android devices work through gb.device(). Windows and Linux are planned (see docs/roadmap.md).`,
+      `nostrings has no ${this.platform} desktop backend yet. macOS is supported today; Android devices work through ui.device(). Windows and Linux are planned (see docs/roadmap.md).`,
     );
   }
 }

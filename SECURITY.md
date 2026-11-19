@@ -1,24 +1,24 @@
 # Security
 
-glovebox lets an AI agent click, type, and read the screen in apps on your
+nostrings lets an AI agent click, type, and read the screen in apps on your
 computer. Treat it with the same care as giving someone remote control.
 
 ## What protects you
 
 - **Per-app approval.** By default, the first action a session takes in an app
   shows a dialog: Allow for This Session, Always Allow, or Deny. The check runs
-  inside Glovebox Helper, the process that holds the macOS permissions, so
+  inside Nostrings Helper, the process that holds the macOS permissions, so
   scripts cannot skip it.
 - **Ask-first apps.** Nothing is blocked outright: you decide. Apps that can
   run commands, hold secrets, send messages, or change system settings always
   show the dialog, even under `approval: "allow-all"`, unless you add them
-  with `glovebox allow` (see the list below). The dialog says why. An agent
+  with `nostrings allow` (see the list below). The dialog says why. An agent
   with terminal access could use the GUI to run commands its sandbox would
   not allow, so approve a terminal only when you mean to. Surfaces that are
   not one app (the whole screen, the clipboard, notifications, the Dock and
   menu bar, opening files) are ask first too. An app on the `deny` list is
   refused even if it is also allowed.
-- **System-wide keys ask twice.** `gb.pressKey` and `gb.typeText` go to
+- **System-wide keys ask twice.** `ui.pressKey` and `ui.typeText` go to
   whatever app is in front, so they need `macos:system` and that app's
   approval too. Two cases skip the second check because the keys never reach
   that app: system hotkeys (Cmd+Space, Mission Control, screenshots, the app
@@ -29,15 +29,15 @@ computer. Treat it with the same care as giving someone remote control.
   you switch away, the script stops instead of taking focus back. A script
   working in the background keeps running while you use other apps, so switching
   apps does not stop it. With the optional Input Monitoring permission, pressing
-  Escape stops any script (glovebox marks its own key events, so its own Escapes
+  Escape stops any script (nostrings marks its own key events, so its own Escapes
   do not count).
-- **Menu-bar item.** While an agent is connected, Glovebox Helper shows a
+- **Menu-bar item.** While an agent is connected, Nostrings Helper shows a
   menu-bar item listing each session and its approved apps. Stop Running
   Scripts stops every running script. Revoke Session Approvals clears the
   per-session approvals, so apps must be approved again; it does not touch
-  `allow` entries in `config.json`. Quit Glovebox Helper exits the helper; the
+  `allow` entries in `config.json`. Quit Nostrings Helper exits the helper; the
   next agent call starts it again.
-- **Action log.** `~/.glovebox/actions.log` has one JSON object per action:
+- **Action log.** `~/.nostrings/actions.log` has one JSON object per action:
   `ts`, `client` (the agent's name), `step` (the call's title, when given),
   then the action's own fields (`app`, `action`, and for example `target`,
   `keys`, or `length`). Typed text is recorded as a length only, unless you
@@ -48,8 +48,8 @@ computer. Treat it with the same care as giving someone remote control.
 ## Ask-first apps
 
 This is the full default list, from `askFirstByDefault` in
-`native/macos/GloveboxHelper.swift`. Bundle ids are matched case-insensitively.
-`glovebox allow <name or bundle id>` skips the dialog for one; `askFirst` in
+`native/macos/NostringsHelper.swift`. Bundle ids are matched case-insensitively.
+`nostrings allow <name or bundle id>` skips the dialog for one; `askFirst` in
 `config.json` adds more.
 
 | Kind | Bundle ids |
@@ -64,14 +64,14 @@ This is the full default list, from `askFirstByDefault` in
 Order of checks for each app: `deny`, then `allow`, then this list (ask), then
 the `approval` mode.
 
-One target is refused: Glovebox Helper itself
-(`io.github.vpatel9202.glovebox.helper`). Its windows are the approval
+One target is refused: Nostrings Helper itself
+(`io.github.vpatel9202.nostrings.helper`). Its windows are the approval
 dialogs, and an agent that could press them would approve itself.
 
 ## What does not
 
-- Code running as your user can edit `~/.glovebox/config.json` and approve
-  apps for itself, or talk to the helper directly. glovebox does not defend
+- Code running as your user can edit `~/.nostrings/config.json` and approve
+  apps for itself, or talk to the helper directly. nostrings does not defend
   against malware already running as you.
 - `approval: "allow-all"` removes the dialogs for every app that is not ask
   first.
@@ -80,27 +80,27 @@ dialogs, and an agent that could press them would approve itself.
   the agent use every site you are signed in to.
 - Background input uses two private macOS (SkyLight) functions, the same
   approach as yabai, cua-driver, and Peekaboo. They are looked up at runtime;
-  if a macOS update removes them, glovebox falls back to bringing the app
+  if a macOS update removes them, nostrings falls back to bringing the app
   forward. They do not bypass any permission: the helper still needs
   Accessibility.
 - Scripts have no `require`, `fs`, or dynamic `import`, and see an empty
-  `process.env`. That limits a script to the `gb` API and approved apps, but an
+  `process.env`. That limits a script to the `ui` API and approved apps, but an
   approved app can still reach whatever that app can reach. Finder is not on the
   ask-first list, and approving it lets an agent read or change any file Finder
   can.
-- glovebox does not screen app or page content for prompt injection. Text an
+- nostrings does not screen app or page content for prompt injection. Text an
   agent reads in an approved app can try to steer it.
-- The optional "glovebox local signing" certificate lives in your login
+- The optional "nostrings local signing" certificate lives in your login
   keychain and signs only the helper you build. Without it, macOS ties
   privacy grants to an ad-hoc signature and a rebuild means granting again.
 
 ## Android devices
 
-- **ADB is the grant.** The glovebox server on a phone runs with shell
+- **ADB is the grant.** The nostrings server on a phone runs with shell
   privileges over ADB. Anything else on the Mac that can run `adb` (an agent
-  with a terminal, for one) can do the same without glovebox, so approve
+  with a terminal, for one) can do the same without nostrings, so approve
   terminal access with that in mind.
-- **Ask first, never forbid.** glovebox asks before acting in apps and screens
+- **Ask first, never forbid.** nostrings asks before acting in apps and screens
   that can move money, read messages or one-time codes, or change the phone's
   settings, even under `allow-all`, and it asks again when one of them shows
   inside an app you already approved. It does not block an action you approve.
@@ -119,15 +119,15 @@ dialogs, and an agent that could press them would approve itself.
 - **Hidden screens.** On Android 14 and later the agent's apps run on private
   displays that never take focus from the phone's screen and show no
   keyboard; input and typing are addressed to that display only and fail
-  rather than fall back to the user's screen. glovebox will not open an app
+  rather than fall back to the user's screen. nostrings will not open an app
   there that the user is running, since a second copy can close or take over
   theirs. The displays and their apps are destroyed when the session ends or
   the server dies, and never appear in the phone's recent apps. Hidden-screen work
   wakes the phone and keeps it awake until a minute after the last action.
 - **No network socket.** The server on the phone talks only over the `adb
   shell` that started it. On the computer, a per-phone broker process owns
-  that shell and relays for every glovebox session through a Unix socket in
-  `~/.glovebox` that only your user can open; it exits, and the server with
+  that shell and relays for every nostrings session through a Unix socket in
+  `~/.nostrings` that only your user can open; it exits, and the server with
   it, ten seconds after the last session ends.
 - **Personal phones.** Developer options and USB debugging are themselves a
   weaker security setting. Use the emulator, or a phone set aside for agents,
@@ -136,5 +136,5 @@ dialogs, and an agent that could press them would approve itself.
 ## Reporting a vulnerability
 
 Please open a private security advisory at
-https://github.com/vpatel9202/glovebox/security/advisories/new rather than a
+https://github.com/vpatel9202/nostrings/security/advisories/new rather than a
 public issue.

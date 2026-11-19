@@ -1,6 +1,6 @@
 # Design
 
-This is the design glovebox follows. It records what we chose and why, so
+This is the design nostrings follows. It records what we chose and why, so
 changes can argue with the reasons rather than the code.
 
 ## The bar
@@ -21,7 +21,7 @@ median script about 130 characters), the properties that made that loop cheap:
 
 The shapes we compared against:
 
-| | Codex (`@oai/sky`) | Claude computer use | Orca | glovebox |
+| | Codex (`@oai/sky`) | Claude computer use | Orca | nostrings |
 |---|---|---|---|---|
 | Calls per step | 1 script | 1 per action, or a fixed batch list | 1 CLI call per action | 1 script |
 | Persistent bindings | yes | no | no | yes |
@@ -42,14 +42,14 @@ We expose a JavaScript session, not a set of action tools, because it is the
 only shape that gets properties 1, 2, and 6 at once. Every agent we target
 writes JavaScript fluently, and the surface stays close to the one Codex
 models already know (`getApp`, `click`, `pressKey`, `typeText`,
-`getAXState`), with `cua` kept as an alias for `gb`.
+`getAXState`), with `cua` kept as an alias for `ui`.
 
 The same session is reachable two ways:
 
-- **MCP** (`glovebox mcp`): two tools, `js` and `js_reset`. The tool
+- **MCP** (`nostrings mcp`): two tools, `js` and `js_reset`. The tool
   description is the cheat sheet (about 1.8 KB, sent once with `tools/list`).
   `help()` prints the full reference only when asked.
-- **CLI** (`glovebox run`): a background daemon keeps named sessions alive,
+- **CLI** (`nostrings run`): a background daemon keeps named sessions alive,
   so agents that can only run shell commands get the same persistence.
   Images go to files and the path is printed.
 
@@ -66,7 +66,7 @@ The session runs in its own process (the kernel), so the host can stop a
 runaway script. A timeout first sets an abort flag that every action checks;
 if the script still has not stopped after five seconds, the kernel is killed
 and the result says the bindings were lost. MCP sessions live as long as the
-connection. CLI sessions live until `glovebox reset`, `glovebox stop`, or an
+connection. CLI sessions live until `nostrings reset`, `nostrings stop`, or an
 idle limit (an hour by default).
 
 ## Reads and output
@@ -120,9 +120,9 @@ the user's frontmost app keeps focus and the real cursor never moves.
 - A focus guard notes the frontmost app before each background action and
   gives it focus back if the target took it anyway.
 - Each private function is looked up at runtime. If one is missing (a future
-  macOS may remove it), the helper says so and glovebox falls back to the
+  macOS may remove it), the helper says so and nostrings falls back to the
   foreground route: bring the app forward once per call, then post events.
-  On that route, switching to another app stops the script. `glovebox doctor`
+  On that route, switching to another app stops the script. `nostrings doctor`
   reports whether background input is available, and `app.lastRoute` shows
   which route the last action took.
 - The record layouts and event fields come from open-source tools that do the
@@ -139,7 +139,7 @@ the user's frontmost app keeps focus and the real cursor never moves.
   sessions and their approved apps, with Stop Running Scripts, Revoke Session
   Approvals, Hide Agent Cursor, and Quit.
 
-Measured on macOS 27 with Firefox frontmost throughout (`glovebox smoke
+Measured on macOS 27 with Firefox frontmost throughout (`nostrings smoke
 --full`): background keys in Calculator, a pixel click that placed TextEdit's
 caret at the start of the text, a drag that selected a line, and a scroll
 that moved the scroll bar, with the frontmost app unchanged.
@@ -158,7 +158,7 @@ Computer use can click anything, so approval is part of the product:
   Terminals, password managers, Keychain Access, System Settings, messaging
   and scripting apps, and the surfaces that are not one app (whole screen,
   clipboard, notifications, menu bar) are ask first: they prompt even under
-  `allow-all`, and `glovebox allow` skips the prompt. Unanswered dialogs deny
+  `allow-all`, and `nostrings allow` skips the prompt. Unanswered dialogs deny
   after two minutes. The one refused target is the helper itself, whose
   windows are the dialogs. The full list is in `SECURITY.md`.
 - Switching away stops a script on the foreground route; background scripts
@@ -166,11 +166,11 @@ Computer use can click anything, so approval is part of the product:
   the same call, the user took over, and the script stops rather than taking
   focus back. (An earlier version re-activated before every key and fought
   the user for focus.)
-- With Input Monitoring granted, Escape pressed by the user (glovebox marks
+- With Input Monitoring granted, Escape pressed by the user (nostrings marks
   its own events) stops the running script. In testing on macOS 27, an
   Accessibility-only global key monitor saw no key events, so Escape is
   documented as needing Input Monitoring.
-- Every action is appended to `~/.glovebox/actions.log` as one JSON object:
+- Every action is appended to `~/.nostrings/actions.log` as one JSON object:
   `ts`, `client`, `step` (the call's title, when given), then the action's own
   fields (`app`, `action`, and for example `target`, `keys`, or `length`).
   Typed text is logged as a length unless `log.text` is true.
@@ -181,18 +181,18 @@ Computer use can click anything, so approval is part of the product:
 macOS ties Accessibility, Screen Recording, and Input Monitoring grants to the
 helper's designated requirement. An ad-hoc signature's requirement is the
 binary's hash, so every rebuild lost the grants (and stale entries kept
-showing as on). `glovebox signing --create` makes a self-signed code-signing
+showing as on). `nostrings signing --create` makes a self-signed code-signing
 certificate in the login keychain; signed with it, the requirement becomes
 "identifier + certificate", and grants survive rebuilds. The certificate
 does not need to be trusted. Verified by rebuilding twice without re-granting.
 
 ## The macOS backend
 
-Glovebox Helper is a small Swift app (`native/macos/GloveboxHelper.swift`)
-built locally by `glovebox setup` with the Xcode command line tools. It is
-signed with the local certificate from `glovebox signing --create` when one
+Nostrings Helper is a small Swift app (`native/macos/NostringsHelper.swift`)
+built locally by `nostrings setup` with the Xcode command line tools. It is
+signed with the local certificate from `nostrings signing --create` when one
 exists, and ad hoc otherwise. It runs as its own app, launched through LaunchServices, so
-macOS attributes Accessibility and Screen Recording to "Glovebox Helper"
+macOS attributes Accessibility and Screen Recording to "Nostrings Helper"
 rather than to whatever terminal or agent started it. One grant covers every
 agent. (The first prototype ran the native code as a child process; macOS
 then charges the permission to the parent, and some hosts disclaim
@@ -202,7 +202,7 @@ It uses AXUIElement for the tree and actions, CGEvent for input, and
 ScreenCaptureKit for window capture, all public APIs. Background input
 (see Input delivery) also uses private SkyLight functions, looked up at
 runtime, with a foreground fallback when they are missing. It speaks JSON
-lines over `~/.glovebox/helper.sock`. See `backend-protocol.md`.
+lines over `~/.nostrings/helper.sock`. See `backend-protocol.md`.
 
 ## What we did not do
 

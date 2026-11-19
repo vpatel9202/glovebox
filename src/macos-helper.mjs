@@ -1,4 +1,4 @@
-// Builds and launches "Glovebox Helper.app", the macOS backend.
+// Builds and launches "Nostrings Helper.app", the macOS backend.
 //
 // The helper is its own app bundle (not a child of the agent) so that macOS
 // attributes Accessibility and Screen Recording to it. One grant then covers
@@ -14,15 +14,15 @@ import { homeDir, VERSION } from "./config.mjs";
 
 const run = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const HELPER_SOURCE = path.join(here, "..", "native", "macos", "GloveboxHelper.swift");
-export const BUNDLE_ID = "io.github.vpatel9202.glovebox.helper";
+export const HELPER_SOURCE = path.join(here, "..", "native", "macos", "NostringsHelper.swift");
+export const BUNDLE_ID = "io.github.vpatel9202.nostrings.helper";
 
 export function appPath() {
-  return path.join(homeDir(), "Glovebox Helper.app");
+  return path.join(homeDir(), "Nostrings Helper.app");
 }
 
 export function socketPath() {
-  return process.env.GLOVEBOX_SOCKET || path.join(homeDir(), "helper.sock");
+  return process.env.NOSTRINGS_SOCKET || path.join(homeDir(), "helper.sock");
 }
 
 // Keyed on the helper source only: macOS ties privacy grants to the build,
@@ -49,9 +49,9 @@ function infoPlist() {
 <plist version="1.0">
 <dict>
   <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
-  <key>CFBundleName</key><string>Glovebox Helper</string>
-  <key>CFBundleDisplayName</key><string>Glovebox Helper</string>
-  <key>CFBundleExecutable</key><string>glovebox-helper</string>
+  <key>CFBundleName</key><string>Nostrings Helper</string>
+  <key>CFBundleDisplayName</key><string>Nostrings Helper</string>
+  <key>CFBundleExecutable</key><string>nostrings-helper</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>${VERSION}</string>
   <key>CFBundleVersion</key><string>${VERSION}</string>
@@ -68,7 +68,7 @@ function infoPlist() {
 // grants. Signing with a local certificate makes the requirement
 // "identifier + certificate", which survives rebuilds. The certificate does not
 // need to be trusted for this; it only needs to be the same one each time.
-export const SIGNING_NAME = "glovebox local signing";
+export const SIGNING_NAME = "nostrings local signing";
 
 // SHA-1 of the local signing identity, or null. Untrusted identities count.
 export async function signingIdentity() {
@@ -83,14 +83,14 @@ export async function signingIdentity() {
 
 // Lets codesign use the signing key without asking for the keychain password
 // on every build. macOS asks for the password once, here: `security` prompts
-// in the terminal, or reads GLOVEBOX_KEYCHAIN_PASSWORD if it is set. glovebox
+// in the terminal, or reads NOSTRINGS_KEYCHAIN_PASSWORD if it is set. nostrings
 // never stores the password.
 export async function trustSigningKey({ log = () => {} } = {}) {
   const keychain = path.join(os.homedir(), "Library", "Keychains", "login.keychain-db");
   const args = ["set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-s", "-l", SIGNING_NAME];
-  if (process.env.GLOVEBOX_KEYCHAIN_PASSWORD) args.push("-k", process.env.GLOVEBOX_KEYCHAIN_PASSWORD);
+  if (process.env.NOSTRINGS_KEYCHAIN_PASSWORD) args.push("-k", process.env.NOSTRINGS_KEYCHAIN_PASSWORD);
   args.push(keychain);
-  log("macOS needs your login keychain password once so codesign can use the glovebox key without asking again.");
+  log("macOS needs your login keychain password once so codesign can use the nostrings key without asking again.");
   await new Promise((resolve, reject) => {
     const child = spawn("security", args, { stdio: ["inherit", "ignore", "inherit"] });
     child.on("error", reject);
@@ -100,9 +100,9 @@ export async function trustSigningKey({ log = () => {} } = {}) {
 }
 
 // Creates the signing identity in the login keychain. Run only on the user's
-// request (`glovebox signing --create`); it adds a key to their keychain.
+// request (`nostrings signing --create`); it adds a key to their keychain.
 export async function createSigningIdentity({ log = () => {} } = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "glovebox-signing-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nostrings-signing-"));
   try {
     const key = path.join(dir, "key.pem");
     const cert = path.join(dir, "cert.pem");
@@ -138,14 +138,14 @@ export async function build({ log = () => {} } = {}) {
   fs.mkdirSync(macos, { recursive: true });
   fs.mkdirSync(resources, { recursive: true });
   fs.writeFileSync(path.join(app, "Contents", "Info.plist"), infoPlist());
-  log("Compiling Glovebox Helper (about a minute)...");
-  const binary = path.join(macos, "glovebox-helper");
+  log("Compiling Nostrings Helper (about a minute)...");
+  const binary = path.join(macos, "nostrings-helper");
   await run("xcrun", ["swiftc", "-O", "-swift-version", "5", HELPER_SOURCE, "-o", binary], {
     maxBuffer: 16 * 1024 * 1024,
   });
   const identity = await signingIdentity();
   await run("codesign", ["--force", "--sign", identity ?? "-", "--identifier", BUNDLE_ID, app]);
-  log(identity ? `Signed with "${SIGNING_NAME}"; permission grants survive rebuilds.` : "Signed ad hoc; a rebuild will need permissions granted again (see: glovebox signing).");
+  log(identity ? `Signed with "${SIGNING_NAME}"; permission grants survive rebuilds.` : "Signed ad hoc; a rebuild will need permissions granted again (see: nostrings signing).");
   fs.writeFileSync(stampPath(), `${sourceHash()}\n`);
   log(`Built ${app}`);
   return app;
@@ -154,7 +154,7 @@ export async function build({ log = () => {} } = {}) {
 // Starts the helper through LaunchServices so it is its own responsible process.
 export async function launch({ requestPermissions = false } = {}) {
   const args = ["-g", "-a", appPath()]; // Not -j: a hidden app cannot show the agent cursor.
-  for (const name of ["GLOVEBOX_HOME", "GLOVEBOX_APPROVAL", "GLOVEBOX_SOCKET"]) {
+  for (const name of ["NOSTRINGS_HOME", "NOSTRINGS_APPROVAL", "NOSTRINGS_SOCKET"]) {
     if (process.env[name]) args.push("--env", `${name}=${process.env[name]}`);
   }
   if (requestPermissions) args.push("--args", "--request-permissions");
@@ -164,7 +164,7 @@ export async function launch({ requestPermissions = false } = {}) {
 // Stops the helper and waits for it to exit, so the next client does not
 // connect to a process that is shutting down.
 export async function quit() {
-  const pattern = path.join(appPath(), "Contents", "MacOS", "glovebox-helper");
+  const pattern = path.join(appPath(), "Contents", "MacOS", "nostrings-helper");
   try {
     await run("pkill", ["-f", pattern]);
   } catch {

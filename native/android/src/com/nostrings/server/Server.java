@@ -1,7 +1,7 @@
-// glovebox server for Android. Started by the host over ADB with shell
+// nostrings server for Android. Started by the host over ADB with shell
 // privileges (app_process), it speaks the backend protocol as JSON lines on
 // stdin and stdout and exits when stdin closes. See docs/backend-protocol.md.
-package com.glovebox.server;
+package com.nostrings.server;
 
 import android.os.Looper;
 import android.system.Os;
@@ -44,7 +44,7 @@ public final class Server {
     private java.util.concurrent.ExecutorService lane(String session) {
         synchronized (lanes) {
             return lanes.computeIfAbsent(session, k -> java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, "glovebox-session");
+                Thread t = new Thread(r, "nostrings-session");
                 t.setDaemon(true);
                 return t;
             }));

@@ -1,34 +1,34 @@
-# glovebox API
+# nostrings API
 
 Scripts run in one persistent JavaScript session. Top-level `const`, `let`,
 `function`, `class`, and `await` persist until `js_reset` (MCP) or
-`glovebox reset` (CLI). Redeclaring a name is allowed. `gb` is the entry
+`nostrings reset` (CLI). Redeclaring a name is allowed. `ui` is the entry
 point; `cua` is an alias.
 
 ```js
-const calc = await gb.getApp("Calculator");
+const calc = await ui.getApp("Calculator");
 await calc.pressKey("Escape");
 await calc.typeText("12*3=");
 await calc.getAXState();
 ```
 
-## gb
+## ui
 
-- `gb.getApp(query, {activate, foreground})` returns an App handle. `query` is
+- `ui.getApp(query, {activate, foreground})` returns an App handle. `query` is
   a display name, a bundle id, or `"pid:123"`. Launches the app if it is not
   running, without bringing it to the front unless `activate: true`.
   `foreground: true` makes every input to the handle use the foreground
   route; it takes effect only on the call that first creates the handle.
   The first action in each app may show an approval dialog to the user.
-- `gb.listApps({installed, emit})` lists running apps (or installed ones too)
+- `ui.listApps({installed, emit})` lists running apps (or installed ones too)
   and returns `[{name, bundleId, pid, running, active}]`. It prints the list
   unless `emit: false`.
-- `gb.device(serial)` returns an Android device with the same `listApps`,
+- `ui.device(serial)` returns an Android device with the same `listApps`,
   `getApp` and `permissions`. `serial` is the ADB serial (`adb devices`);
   either the USB or the wireless serial names the same phone, and it may be
   left out when one device is connected. See [Android](#android).
-- `gb.sleep(ms)` waits. Also available as `sleep(ms)`.
-- `gb.permissions()` reports Accessibility and Screen Recording status.
+- `ui.sleep(ms)` waits. Also available as `sleep(ms)`.
+- `ui.permissions()` reports Accessibility and Screen Recording status.
 - `help(topic)` prints this document, or the sections mentioning `topic`.
 - `console.log(...)` and `nodeRepl.write(value)` add text to the result. The
   value of the last expression is added too, unless a read already printed it.
@@ -122,13 +122,13 @@ image size. If the window is resized, read again before clicking by pixels.
 
 Input stays in the background: the app is not brought to the front, the
 user's real cursor does not move, and a drawn agent cursor shows where each
-action lands. If this macOS or an app can't take background input, glovebox
+action lands. If this macOS or an app can't take background input, nostrings
 brings the app forward instead. `app.lastRoute` says how the last action got
 there: `accessibility`, `background`, `background-skylight` (Chromium and
 Electron), or `foreground`, with " (focus restored)" appended if the app took
-focus and glovebox gave it back. Pass
+focus and nostrings gave it back. Pass
 `{foreground: true}` to `click`, `doubleClick`, `rightClick`, `pressKey`,
-`typeText`, `scroll`, or `drag`, or `gb.getApp(name, {foreground: true})` for
+`typeText`, `scroll`, or `drag`, or `ui.getApp(name, {foreground: true})` for
 every action, for apps that ignore background input (some Java, Tk, and game
 windows).
 
@@ -161,7 +161,7 @@ windows).
 ## macOS: menus, windows, files, and the rest of the Mac
 
 Everything here works on the background route unless it says foreground.
-`glovebox smoke --macos` checks each item on the Glovebox Fixture test app.
+`nostrings smoke --macos` checks each item on the Nostrings Fixture test app.
 
 ### Menus and pop-ups
 
@@ -193,7 +193,7 @@ Everything here works on the background route unless it says foreground.
 - `app.quit({force})`, `app.hide()`, `app.unhide()`. `quit` returns
   `{terminated: false}` when the app stays open to ask about unsaved changes;
   its sheet shows in the next read.
-- `gb.quitLaunched()` quits the apps this session launched (not ones the
+- `ui.quitLaunched()` quits the apps this session launched (not ones the
   user had open) and returns `{quit, left}`.
 - A read says when windows opened or closed since the last one:
   `(windows: window 1 "Untitled" opened; "Find" closed)`.
@@ -239,62 +239,62 @@ Everything here works on the background route unless it says foreground.
   person would. Foreground: it uses the real pointer, then puts it back.
   Asks first (`macos:files`).
 - `app.open(pathOrUrl)` opens a file or link in that app, in the background.
-- `gb.open(pathOrUrl, {app, activate})` opens it in the app that handles it
+- `ui.open(pathOrUrl, {app, activate})` opens it in the app that handles it
   (or `app`) and returns that app's handle. Files ask first (`macos:files`).
-- `gb.clipboard.read()` returns `{text, files, image, types}`;
-  `gb.clipboard.write(text)` or `write({files: [paths]})`. Asks first
+- `ui.clipboard.read()` returns `{text, files, image, types}`;
+  `ui.clipboard.write(text)` or `write({files: [paths]})`. Asks first
   (`macos:clipboard`).
 
 ### The whole Mac
 
 These are not one app, so each asks first under its own key.
 
-- `gb.displays()`: `[{index, frame, scale, main, name}]` in screen points.
-- `gb.windows({all})` prints and returns every window on screen, front to
+- `ui.displays()`: `[{index, frame, scale, main, name}]` in screen points.
+- `ui.windows({all})` prints and returns every window on screen, front to
   back, with its owner `{app, pid, bundleId, title, frame, layer}`. Use it
   to find a dialog you did not expect (a permission prompt, "downloaded from
-  the internet") and `gb.getApp("pid:N")` its owner. (`macos:screen`)
-- `gb.screenshot({display, format})` captures a whole display; `gb.ocr()`
+  the internet") and `ui.getApp("pid:N")` its owner. (`macos:screen`)
+- `ui.screenshot({display, format})` captures a whole display; `ui.ocr()`
   reads its text, each with `screen` coordinates. (`macos:screen`)
-- `gb.menuExtras()` lists the menu bar's extras (Wi-Fi, battery, Control
-  Center, the clock, third-party icons) left to right; `gb.menuExtra(query)`
+- `ui.menuExtras()` lists the menu bar's extras (Wi-Fi, battery, Control
+  Center, the clock, third-party icons) left to right; `ui.menuExtra(query)`
   opens one and returns the app whose menu or panel opened: Control Center
   reads as toggles and sliders. (`macos:system`)
-- `gb.notifications({keepOpen})` opens Notification Center, reads it
+- `ui.notifications({keepOpen})` opens Notification Center, reads it
   (`[{app, title, body, when, stacked, index}]`, newest first) and closes it.
   The result's `center` handle acts on a notification by `index`.
   (`macos:notifications`)
-- `gb.pressKey(keys)` and `gb.typeText(text)` go system-wide to whatever is
+- `ui.pressKey(keys)` and `ui.typeText(text)` go system-wide to whatever is
   in front: `super+space` (Spotlight), `ctrl+Up` (Mission Control),
-  `super+shift+4`. `gb.spotlight(query, {open})` opens an app or file through
+  `super+shift+4`. `ui.spotlight(query, {open})` opens an app or file through
   Spotlight. (`macos:system`) Keys land in the app in front, so that app must
   be approved too, except for system hotkeys (Spotlight, Mission Control,
   screenshots, the app switcher) and while Spotlight's panel is open.
-- The Dock is an app: `gb.getApp("Dock")`.
+- The Dock is an app: `ui.getApp("Dock")`.
 
 ## Approval and stopping
 
 The first time a session touches an app, the user sees a dialog: Allow for
 This Session, Always Allow, or Deny. Nothing is blocked: terminals, password
 managers, System Settings and messaging apps always ask, even under
-`allow-all`, unless the user runs `glovebox allow <app>`. A dialog nobody
+`allow-all`, unless the user runs `nostrings allow <app>`. A dialog nobody
 answers denies after two minutes (`denied`). If a script
 brought an app forward and the user switches away, the script stops with a
 "Stopped: ..." message. Background scripts keep running while the user works in
 other apps. Escape stops any script, but only when the user has granted Input
 Monitoring. Do not continue GUI work until the user asks.
 On the foreground route a script brings an app forward at most once per call.
-Every action is appended to `~/.glovebox/actions.log` (typed text is logged
+Every action is appended to `~/.nostrings/actions.log` (typed text is logged
 as a length only).
 
 ## Android
 
 Reads, screenshots, clicks, keys, typing, scrolling, swipes and long presses
 work. On Android 14 (API 34) and later each app runs on its own **hidden
-screen**: a private display only glovebox sees. The phone's own screen keeps
+screen**: a private display only nostrings sees. The phone's own screen keeps
 focus and shows what the user had open, the keyboard stays hidden, and the
 hidden screen and everything on it close when the session ends. `lastRoute`
-starts with `hidden screen`. `gb.device(...).getApp(name, {foreground: true})`
+starts with `hidden screen`. `ui.device(...).getApp(name, {foreground: true})`
 (or `"androidScreen": "phone"` in the config) works on the phone's own screen
 instead, as on older Android versions.
 
@@ -304,11 +304,11 @@ screens that can move money, read messages or codes, or change the phone's
 settings (Play Store, Messages, Phone, Settings, wallets, password managers,
 authenticators, Google sign-in, permission prompts) ask first even under
 `allow-all`. A screen from one of them inside an approved app asks again, and
-acting on a locked phone asks once per session. `glovebox allow <package>`
+acting on a locked phone asks once per session. `nostrings allow <package>`
 skips the dialog. Without a dialog, the error code is `needs_approval`.
 
 ```js
-const phone = gb.device();               // or gb.device("emulator-5554")
+const phone = ui.device();               // or ui.device("emulator-5554")
 const clock = await phone.getApp("Clock");
 await clock.activate();                  // brings it to the phone's screen
 await clock.getAXState();
@@ -327,11 +327,11 @@ await clock.getAXState();
   (Chrome) close the older one. So if the user has the app running,
   `activate()` fails with `open_on_phone` and changes nothing; ask the user
   to close it, or pass `{foreground: true}` to `getApp`, which also switches
-  an existing handle. While glovebox has a single-copy app on a hidden
+  an existing handle. While nostrings has a single-copy app on a hidden
   screen, the user opening it on the phone shows nothing until the session
   ends.
 - Hidden-screen apps stay out of the phone's recent apps.
-- Several glovebox sessions (agents, CLI sessions) can use one phone at the
+- Several nostrings sessions (agents, CLI sessions) can use one phone at the
   same time, each with its own hidden screens and element indices. One app
   can be open in only one session at a time, on a hidden screen or the
   phone's (opening it on the phone's screen would pull the other session's
@@ -339,7 +339,7 @@ await clock.getAXState();
   switches its own handle to `{foreground: true}` brings its hidden copy to
   the phone's screen. Ending a session closes its hidden screens.
 - If an app on a hidden screen moves itself to the phone's own screen (some
-  sign-in and system screens might), glovebox stops with
+  sign-in and system screens might), nostrings stops with
   `moved_to_phone_screen` rather than follow it. (No app has been seen to do
   this in testing yet, so this check is untested.)
 - `HomeScreen`, `Recents`, `Notifications` and `QuickSettings` act on the
@@ -357,8 +357,8 @@ await clock.getAXState();
 - `phone.notifications({max, emit})` lists the notifications in the shade,
   newest first, as `[{app, package, title, text, subtext, when, ongoing}]`,
   and prints them unless `{emit: false}`: one-time codes, for one. It
-  always asks first (approval key `android:notifications`; `glovebox allow
-  android:notifications` skips the dialog, `glovebox revoke` restores it),
+  always asks first (approval key `android:notifications`; `nostrings allow
+  android:notifications` skips the dialog, `nostrings revoke` restores it),
   and each read is logged.
 - `phone.push(localPath, {to})` copies a file from this computer to the
   phone (default `/sdcard/Download/`; a `to` ending in `/` keeps the name)
@@ -406,7 +406,7 @@ await clock.getAXState();
 - System keys for `pressKey`: `Back`, `HomeScreen`, `Recents`,
   `Notifications`, `QuickSettings`, `VolumeUp`, `VolumeDown`, `Menu`. `Home`
   and `End` move the text cursor.
-- After each action glovebox waits until the app has sent no change events
+- After each action nostrings waits until the app has sent no change events
   for 150 ms (at most 1.5 s), instead of a fixed pause: about 150-300 ms
   on the fixture, longer for screens that keep changing. A number in
   `androidSettleMs` (config) restores a fixed pause.
@@ -421,8 +421,8 @@ await clock.getAXState();
   `npm run build:android` (Android SDK and a JDK). The server runs over ADB with shell privileges and stops with the
   session. Only one automation tool can read the screen at a time; stop
   uiautomator, Appium or Maestro first.
-- `glovebox doctor` lists connected devices and checks each one;
-  `glovebox smoke --android` runs an end-to-end check with a test app.
+- `nostrings doctor` lists connected devices and checks each one;
+  `nostrings smoke --android` runs an end-to-end check with a test app.
 
 ## Known limits
 

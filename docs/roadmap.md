@@ -25,7 +25,7 @@ Ordered by expected impact. These come before new platforms.
    setting in a non-blocked app, and filling a form in a native app. Add two
    more: a Citrix-or-canvas task (pixel fallback, one-node tree) and a replay
    task (run the same task again from a saved script), so the differentiators
-   below are measured against this baseline. Compare glovebox, Anthropic
+   below are measured against this baseline. Compare nostrings, Anthropic
    computer use (screenshot-first), and one per-action AX MCP server
    (open-computer-use or agent-desktop). Measure model round trips,
    input tokens including image tokens, output tokens, wall-clock time, and
@@ -38,7 +38,7 @@ Ordered by expected impact. These come before new platforms.
    Done when the raw results and the harness are in the repo and one chart is
    in the README.
 2. **A prebuilt helper.** Ship a Developer ID signed, notarized helper in each
-   release. Done when `npx -y @vashp2029/glovebox setup` works on a Mac without
+   release. Done when `npx -y nostrings setup` works on a Mac without
    the Xcode command line tools and grants survive an upgrade.
 3. **Demo media, then launch.** Record a GIF and a short video. Launch (Show HN, X, Codex computer-use
    threads) only after one or two of these exist. Done when the GIF is at the
@@ -50,12 +50,12 @@ Ordered by expected impact. These come before new platforms.
 5. **CI on real GUI runs.** Unit tests run on every push and PR. Smoke tests
    still need a Mac with permissions granted, so they run by hand.
 6. **Listings.** The official MCP registry, the Claude Code plugin
-   marketplace, and skills.sh (for `skills/glovebox/SKILL.md`). Done when each
+   marketplace, and skills.sh (for `skills/nostrings/SKILL.md`). Done when each
    listing is live and links back to the repo.
 7. **Packaging and docs fixes found in review.** Done; see the changelog.
 
 After these, Windows is the highest-priority platform: cross-platform support
-is what lcu, agent-desktop, open-computer-use, and cua have over glovebox, and
+is what lcu, agent-desktop, open-computer-use, and cua have over nostrings, and
 Windows-MCP has about 10.5k stars.
 
 ## Token efficiency
@@ -113,8 +113,8 @@ competitors checked on 2026-10-27).
    one node. None of the eight competitors checked documents this. The OCR
    runs locally, but the recognized text still goes to the model.
 2. **Durable scripts and replay.** Selectors (token item 1) and `waitFor`
-   (token item 2) feed functions saved to `~/.glovebox/lib/*.mjs`, which load
-   automatically. `glovebox run file.mjs` replays a script with zero model
+   (token item 2) feed functions saved to `~/.nostrings/lib/*.mjs`, which load
+   automatically. `nostrings run file.mjs` replays a script with zero model
    calls. For comparison, ghost-os recipes appear to need a small model, and
    Peekaboo and open-computer-use replay JSON step lists with no branching.
 

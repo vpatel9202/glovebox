@@ -1,8 +1,8 @@
-// glovebox-helper: the macOS backend for glovebox.
+// nostrings-helper: the macOS backend for nostrings.
 //
-// A small JSON-lines RPC server on a Unix socket (~/.glovebox/helper.sock),
+// A small JSON-lines RPC server on a Unix socket (~/.nostrings/helper.sock),
 // packaged as its own app so macOS grants Accessibility and Screen Recording
-// to "Glovebox Helper" once, whichever agent or terminal starts it. Each request is
+// to "Nostrings Helper" once, whichever agent or terminal starts it. Each request is
 // {"id": n, "method": "...", "params": {...}} and each reply is
 // {"id": n, "result": ...} or {"id": n, "error": {"message": "..."}}.
 // Unsolicited events are {"event": "..."}.
@@ -11,7 +11,7 @@
 // (the same space AX and CGEvent use). The Node side owns the mapping between
 // those points and the image pixels a model sees.
 //
-// Build: glovebox setup (see src/macos-helper.mjs).
+// Build: nostrings setup (see src/macos-helper.mjs).
 
 import AppKit
 import ApplicationServices
@@ -20,7 +20,7 @@ import Foundation
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
-let helperVersion = "0.4.1"
+let helperVersion = "0.5.0"
 // Marks events we synthesize so the Escape watcher ignores them.
 let syntheticMarker: Int64 = 0x676C_6F76
 
@@ -1845,7 +1845,7 @@ func dropFiles(_ params: [String: Any]) throws -> [String: Any] {
         let w = NSWindow(contentRect: NSRect(x: sx, y: primary.frame.height - sy - size, width: size, height: size), styleMask: .borderless, backing: .buffered, defer: false)
         w.level = .floating
         w.isOpaque = false
-        w.title = "glovebox drag source"
+        w.title = "nostrings drag source"
         let v = DragSourceView(frame: NSRect(x: 0, y: 0, width: size, height: size))
         v.files = urls
         w.contentView = v
@@ -1903,7 +1903,7 @@ final class AgentCursor {
         w.level = .normal
         w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         w.sharingType = .readOnly
-        w.title = "glovebox cursor"
+        w.title = "nostrings cursor"
         let view = NSImageView(frame: NSRect(origin: .zero, size: size))
         let config = NSImage.SymbolConfiguration(pointSize: 22, weight: .regular).applying(.init(paletteColors: [.white, .systemPurple]))
         view.image = NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "agent cursor")?.withSymbolConfiguration(config)
@@ -2010,7 +2010,7 @@ func screenshot(_ params: [String: Any]) throws -> [String: Any] {
     if let error = failure as? HelperError { throw error }
     if let error = failure {
         if !screenCaptureAllowed() {
-            throw HelperError("Screen Recording permission is missing for Glovebox Helper. Run `glovebox doctor`.", code: "permission")
+            throw HelperError("Screen Recording permission is missing for Nostrings Helper. Run `nostrings doctor`.", code: "permission")
         }
         throw HelperError("Screenshot failed: \(error.localizedDescription)")
     }
@@ -2115,24 +2115,24 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         }
         if item == nil {
             let created = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-            if let image = NSImage(systemSymbolName: "hand.raised.fill", accessibilityDescription: "glovebox") {
+            if let image = NSImage(systemSymbolName: "hand.raised.fill", accessibilityDescription: "nostrings") {
                 image.isTemplate = true
                 created.button?.image = image
             } else {
-                created.button?.title = "glovebox"
+                created.button?.title = "nostrings"
             }
             let menu = NSMenu()
             menu.delegate = self
             created.menu = menu
             item = created
         }
-        item?.button?.toolTip = "glovebox: \(connections.count) agent session(s) connected"
+        item?.button?.toolTip = "nostrings: \(connections.count) agent session(s) connected"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         let connections = Connection.all()
-        menu.addItem(withTitle: "glovebox — \(connections.count) connected", action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: "nostrings — \(connections.count) connected", action: nil, keyEquivalent: "")
         for c in connections {
             let apps = c.approved.sorted().joined(separator: ", ")
             menu.addItem(withTitle: "  \(c.client)\(apps.isEmpty ? "" : ": \(apps)")", action: nil, keyEquivalent: "")
@@ -2148,7 +2148,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         cursor.target = self
         cursor.state = AgentCursor.shared.enabled ? .off : .on
         menu.addItem(cursor)
-        let quit = NSMenuItem(title: "Quit Glovebox Helper", action: #selector(quitHelper), keyEquivalent: "")
+        let quit = NSMenuItem(title: "Quit Nostrings Helper", action: #selector(quitHelper), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
     }
@@ -2181,8 +2181,8 @@ func refreshStatusMenu() {
 // The approval gate lives here, at the process that holds the Accessibility
 // grant, so a client cannot skip it by talking to the socket directly.
 
-let gloveboxHome: String = ProcessInfo.processInfo.environment["GLOVEBOX_HOME"] ?? (NSHomeDirectory() + "/.glovebox")
-let configPath = gloveboxHome + "/config.json"
+let nostringsHome: String = ProcessInfo.processInfo.environment["NOSTRINGS_HOME"] ?? (NSHomeDirectory() + "/.nostrings")
+let configPath = nostringsHome + "/config.json"
 
 // Apps that can run arbitrary commands, hold secrets, send messages, or change
 // system settings. Nothing is blocked: these ask first, even under allow-all,
@@ -2207,8 +2207,8 @@ let askFirstByDefault: [String] = [
 ]
 
 // The helper's own windows are the approval dialogs. Driving them would let an
-// agent approve itself, so this is the one target glovebox refuses.
-let helperBundleId = "io.github.vpatel9202.glovebox.helper"
+// agent approve itself, so this is the one target nostrings refuses.
+let helperBundleId = "io.github.vpatel9202.nostrings.helper"
 
 func isAskFirst(_ bundleId: String, _ config: [String: Any]) -> Bool {
     let id = bundleId.lowercased()
@@ -2234,7 +2234,7 @@ func persistAllow(_ bundleId: String) {
     var allow = (config["allow"] as? [String]) ?? []
     if !allow.contains(where: { $0.lowercased() == bundleId.lowercased() }) { allow.append(bundleId) }
     config["allow"] = allow
-    try? FileManager.default.createDirectory(atPath: gloveboxHome, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    try? FileManager.default.createDirectory(atPath: nostringsHome, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     if let data = try? JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys]) {
         FileManager.default.createFile(atPath: configPath, contents: data, attributes: [.posixPermissions: 0o600])
     }
@@ -2248,7 +2248,7 @@ func askUser(client: String, app: String, bundleId: String, reason: String? = ni
         let alert = NSAlert()
         alert.messageText = "Allow \(client) to control \(app)?"
         let what = bundleId.hasPrefix("macos:") ? app : "\(app) (\(bundleId))"
-        alert.informativeText = "An agent using glovebox wants to click, type, and read the screen in \(what).\(reason.map { " \($0)" } ?? "") Every action is logged in \(gloveboxHome)/actions.log. Press Escape any time to stop a running script. This dialog denies on its own after 2 minutes."
+        alert.informativeText = "An agent using nostrings wants to click, type, and read the screen in \(what).\(reason.map { " \($0)" } ?? "") Every action is logged in \(nostringsHome)/actions.log. Press Escape any time to stop a running script. This dialog denies on its own after 2 minutes."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Allow for This Session")
         alert.addButton(withTitle: "Always Allow")
@@ -2272,12 +2272,12 @@ func askUser(client: String, app: String, bundleId: String, reason: String? = ni
 func authorize(_ connection: Connection, bundleId: String, name: String, reason: String? = nil) throws {
     if connection.approved.contains(bundleId) { return }
     if bundleId.lowercased() == helperBundleId {
-        throw HelperError("Glovebox Helper's own windows are its approval dialogs; an agent cannot drive them.", code: "denied")
+        throw HelperError("Nostrings Helper's own windows are its approval dialogs; an agent cannot drive them.", code: "denied")
     }
     let config = readConfig()
     let allow = (config["allow"] as? [String]) ?? []
     let deny = (config["deny"] as? [String]) ?? []
-    let mode = (ProcessInfo.processInfo.environment["GLOVEBOX_APPROVAL"] ?? config["approval"] as? String) ?? "ask"
+    let mode = (ProcessInfo.processInfo.environment["NOSTRINGS_APPROVAL"] ?? config["approval"] as? String) ?? "ask"
     if matches(deny, bundleId, name) {
         throw HelperError("\(name) is on the deny list in \(configPath).", code: "denied")
     }
@@ -2291,13 +2291,13 @@ func authorize(_ connection: Connection, bundleId: String, name: String, reason:
         return
     }
     if mode == "allowlist" {
-        throw HelperError("\(name) is not in the allowlist. Run: glovebox allow \"\(bundleId)\"", code: "not_allowed")
+        throw HelperError("\(name) is not in the allowlist. Run: nostrings allow \"\(bundleId)\"", code: "not_allowed")
     }
-    let why = reason ?? (askFirst ? "\(name) can run commands, hold secrets, send messages, or change system settings, so glovebox always asks first." : nil)
+    let why = reason ?? (askFirst ? "\(name) can run commands, hold secrets, send messages, or change system settings, so nostrings always asks first." : nil)
     switch askUser(client: connection.client, app: name, bundleId: bundleId, reason: why) {
     case .session: connection.approved.insert(bundleId)
     case .always: connection.approved.insert(bundleId); persistAllow(bundleId)
-    case .deny: throw HelperError("The user denied access to \(name) (or nobody answered within 2 minutes). Ask the user; `glovebox allow \(bundleId)` skips the dialog.", code: "denied")
+    case .deny: throw HelperError("The user denied access to \(name) (or nobody answered within 2 minutes). Ask the user; `nostrings allow \(bundleId)` skips the dialog.", code: "denied")
     }
 }
 
@@ -2461,7 +2461,7 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
 // MARK: - Socket server
 
 // All GUI work runs on one queue so actions from different clients never interleave.
-let work = DispatchQueue(label: "glovebox.work")
+let work = DispatchQueue(label: "nostrings.work")
 
 final class Connection {
     static var lock = NSLock()
@@ -2557,7 +2557,7 @@ func listen(at path: String) -> Int32 {
     } == 0
     close(probe)
     if alive {
-        FileHandle.standardError.write("glovebox-helper: already running\n".data(using: .utf8)!)
+        FileHandle.standardError.write("nostrings-helper: already running\n".data(using: .utf8)!)
         exit(0)
     }
     unlink(path)
@@ -2566,7 +2566,7 @@ func listen(at path: String) -> Int32 {
         $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
     }
     if bound != 0 || Darwin.listen(fd, 16) != 0 {
-        FileHandle.standardError.write("glovebox-helper: cannot listen on \(path)\n".data(using: .utf8)!)
+        FileHandle.standardError.write("nostrings-helper: cannot listen on \(path)\n".data(using: .utf8)!)
         exit(1)
     }
     chmod(path, 0o600)
@@ -2591,10 +2591,10 @@ func acceptLoop(_ server: Int32) {
     }
 }
 
-let socketPath = ProcessInfo.processInfo.environment["GLOVEBOX_SOCKET"] ?? (gloveboxHome + "/helper.sock")
+let socketPath = ProcessInfo.processInfo.environment["NOSTRINGS_SOCKET"] ?? (nostringsHome + "/helper.sock")
 let idleQuitSeconds: TimeInterval = 30 * 60
 
-try? FileManager.default.createDirectory(atPath: gloveboxHome, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+try? FileManager.default.createDirectory(atPath: nostringsHome, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
 _ = NSApplication.shared
 NSApp.setActivationPolicy(.accessory)
 signal(SIGPIPE, SIG_IGN)

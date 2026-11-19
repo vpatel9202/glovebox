@@ -1,20 +1,20 @@
 {
-  "name": "@vashp2029/glovebox",
-  "version": "0.4.1",
-  "mcpName": "io.github.vpatel9202/glovebox",
+  "name": "nostrings",
+  "version": "0.5.0",
+  "mcpName": "io.github.vpatel9202/nostrings",
   "description": "Computer use for coding agents on macOS: one JavaScript call per step, accessibility diffs instead of screenshots, input in the background. MCP and CLI.",
   "type": "module",
   "license": "MIT",
   "author": "Vash Patel",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vpatel9202/glovebox.git"
+    "url": "git+https://github.com/vpatel9202/nostrings.git"
   },
-  "homepage": "https://github.com/vpatel9202/glovebox#readme",
-  "bugs": "https://github.com/vpatel9202/glovebox/issues",
+  "homepage": "https://github.com/vpatel9202/nostrings#readme",
+  "bugs": "https://github.com/vpatel9202/nostrings/issues",
   "keywords": ["computer-use", "mcp", "mcp-server", "claude-code", "macos", "accessibility", "automation", "agents", "gui"],
   "bin": {
-    "glovebox": "bin/glovebox.mjs"
+    "nostrings": "bin/nostrings.mjs"
   },
   "files": ["bin", "src", "native", "!native/android/build/*.keystore", "skills", "docs", "README.md", "LICENSE", "NOTICE", "SECURITY.md", "CHANGELOG.md"],
   "engines": {
@@ -22,9 +22,9 @@
   },
   "scripts": {
     "test": "node --test test/unit.test.mjs",
-    "build:helper": "node bin/glovebox.mjs setup --rebuild",
+    "build:helper": "node bin/nostrings.mjs setup --rebuild",
     "build:android": "sh native/android/build.sh",
-    "smoke": "node bin/glovebox.mjs smoke",
+    "smoke": "node bin/nostrings.mjs smoke",
     "version:bump": "node scripts/release-version.mjs bump",
     "version:check": "node scripts/release-version.mjs check"
   },

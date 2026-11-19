@@ -8,8 +8,8 @@ marked done only when a check has run on a real Mac.
 
 **Who it is for.** One user and their agent, on the user's own Mac. The agent
 should be able to do anything the user could do with a keyboard, a pointer
-and their eyes. The agent asks the user before sensitive steps; glovebox asks
-before sensitive apps and surfaces; **glovebox itself forbids nothing**.
+and their eyes. The agent asks the user before sensitive steps; nostrings asks
+before sensitive apps and surfaces; **nostrings itself forbids nothing**.
 Decided 2026-11-19 (same model as Android, decided 2026-11-18).
 
 **Done means:**
@@ -17,7 +17,7 @@ Decided 2026-11-19 (same model as Android, decided 2026-11-18).
 1. Every row in the [capability matrix](#capability-matrix) has a check that
    runs on a real Mac and passes, or names an OS limit that stops a human's
    synthetic stand-in too (see [OS limits](#os-limits)).
-2. No row fails because glovebox refused. Sensitive apps ask; the user's
+2. No row fails because nostrings refused. Sensitive apps ask; the user's
    answer decides.
 3. The properties in [design.md](design.md) "The bar" still hold: one call per
    step, diffed text reads, background by default, image-pixel clicks.
@@ -32,7 +32,7 @@ Run before writing this plan, on macOS 27, helper rebuilt from `android/phase-1`
 | Safari | WebKit | good | chrome and page content |
 | Notes | AppKit | good | |
 | Pages | AppKit | good (127 nodes) | |
-| System Settings | SwiftUI | good (170 nodes) | read only after `glovebox allow`; blocked by default |
+| System Settings | SwiftUI | good (170 nodes) | read only after `nostrings allow`; blocked by default |
 | Reminders | SwiftUI | thin (16 nodes) | to check with a list open |
 | Terminal | AppKit | one text area | blocked by default |
 | Google Chrome | Chromium | **no web content** (73 nodes, all browser chrome) | needs `AXManualAccessibility` / `AXEnhancedUserInterface` |
@@ -43,7 +43,7 @@ gb-1iz.12), in the order they are built:
 
 ## Status, 2026-11-19
 
-M0 through M7 are built. `glovebox smoke --macos` passes 37 of 37 checks on
+M0 through M7 are built. `nostrings smoke --macos` passes 37 of 37 checks on
 the fixture app. Rows marked done below ran on this Mac. Still open: other
 displays (one display here) and the not-tried OS limits below.
 
@@ -53,7 +53,7 @@ displays (one display here) and the not-tried OS limits below.
 
 - `blockedByDefault` (terminals, System Settings, Keychain, password managers,
   Script Editor) becomes **ask first**: these prompt even under `allow-all`;
-  `glovebox allow` skips the prompt. The error code `blocked` goes away.
+  `nostrings allow` skips the prompt. The error code `blocked` goes away.
 - The approval dialog gives up after 120 s (Deny), as the Android prompt does,
   so an unattended run cannot hang on it.
 - System surfaces that are not one app get approval keys of their own, all
@@ -72,7 +72,7 @@ canvas that logs pointer events (hover, press-and-hold, middle click,
 gestures), a web view, drag and drop targets, notifications it posts itself.
 It writes what it received to a log the checks read, so checks need no model.
 
-Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
+Check: `nostrings smoke --macos` drives every area and prints PASS/FAIL per row.
 
 ### M2. Chromium and Electron
 
@@ -115,27 +115,27 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 - `app.pinch` and `app.rotate`, as on Android, through trackpad gesture
   events; `app.swipe` for two-finger swipes (back and forward in browsers).
 
-### M6. System surfaces (`gb.system`)
+### M6. System surfaces (`ui.system`)
 
-- `gb.screenshot({display})` and `gb.ocr()` capture a whole display;
-  `gb.windows()` lists every window on screen with its owner, so an agent can
+- `ui.screenshot({display})` and `ui.ocr()` capture a whole display;
+  `ui.windows()` lists every window on screen with its owner, so an agent can
   find an unexpected dialog (permission prompts, "downloaded from the
   internet") and `getApp` its owner.
-- `gb.menuExtras()` lists menu bar extras (Wi-Fi, battery, third-party icons)
-  and `gb.menuExtra(name)` opens one; Control Center is reachable the same way.
-- `gb.notifications()` reads Notification Center; actions on a notification go
+- `ui.menuExtras()` lists menu bar extras (Wi-Fi, battery, third-party icons)
+  and `ui.menuExtra(name)` opens one; Control Center is reachable the same way.
+- `ui.notifications()` reads Notification Center; actions on a notification go
   through its element index.
-- `gb.pressKey(keys)` sends a global key (Spotlight, Mission Control,
-  screenshots) on the foreground route; `gb.spotlight(query)` opens an app or
+- `ui.pressKey(keys)` sends a global key (Spotlight, Mission Control,
+  screenshots) on the foreground route; `ui.spotlight(query)` opens an app or
   file by name.
-- The Dock is an app handle: `gb.getApp("Dock")`.
+- The Dock is an app handle: `ui.getApp("Dock")`.
 
 ### M7. Data in and out
 
-- `gb.clipboard.read()` and `gb.clipboard.write(text)` (ask first);
+- `ui.clipboard.read()` and `ui.clipboard.write(text)` (ask first);
   `app.paste(text)` pastes and restores the user's clipboard, for long text and
   scripts the key map cannot type.
-- `gb.open(pathOrUrl, {app, background})` opens files and links;
+- `ui.open(pathOrUrl, {app, background})` opens files and links;
   `app.open(path)` opens a file in a given app.
 - `app.dropFiles(target, paths)` drops files on a window (foreground route).
 
@@ -146,14 +146,14 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 
 ### M9. Prove it
 
-- `glovebox smoke --macos` covers every row of the matrix that the fixture can
+- `nostrings smoke --macos` covers every row of the matrix that the fixture can
   show; real apps cover the rest (Safari, Chrome, VS Code, Finder, Notes,
   System Settings read only).
 - Docs: `api.md`, `SECURITY.md`, `design.md`, `testing.md`, changelog.
 
 ## Capability matrix
 
-| # | A human can... | glovebox call | Phase |
+| # | A human can... | nostrings call | Phase |
 |---|---|---|---|
 | 1 | Read and act in AppKit apps | `getAXState`, `click`, `typeText` | done |
 | 2 | ... in SwiftUI apps | same | done 2026-11-19: the fixture's SwiftUI window (toggle, picker, text field, slider, stepper, menu, list, button) in the background |
@@ -172,17 +172,17 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | 15 | Hover for tooltips and hover menus | `app.hover` | done 2026-11-19 |
 | 16 | Press and hold, middle click | `app.press`, `button: "middle"` | done 2026-11-19 |
 | 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | pinch and rotate done; swipe sends a two-finger phased scroll that apps receive, but browsers do not take it as back/forward (use super+[ and super+]) |
-| 18 | See the whole screen | `gb.screenshot`, `gb.ocr`, `gb.windows` | done 2026-11-19 |
-| 19 | Use menu bar extras and Control Center | `gb.menuExtras` | done 2026-11-19 |
-| 20 | Read notifications | `gb.notifications` | done 2026-11-19 |
-| 21 | Spotlight, Mission Control, global shortcuts | `gb.pressKey`, `gb.spotlight` | done 2026-11-19: gb.spotlight("Chess") opened Chess, twice in a row |
-| 22 | Use the Dock | `gb.getApp("Dock")` | done 2026-11-19 (read) |
-| 23 | Copy and paste | `gb.clipboard`, `app.paste` | done 2026-11-19 |
-| 24 | Open files and links | `gb.open`, `app.open` | done 2026-11-19 |
+| 18 | See the whole screen | `ui.screenshot`, `ui.ocr`, `ui.windows` | done 2026-11-19 |
+| 19 | Use menu bar extras and Control Center | `ui.menuExtras` | done 2026-11-19 |
+| 20 | Read notifications | `ui.notifications` | done 2026-11-19 |
+| 21 | Spotlight, Mission Control, global shortcuts | `ui.pressKey`, `ui.spotlight` | done 2026-11-19: ui.spotlight("Chess") opened Chess, twice in a row |
+| 22 | Use the Dock | `ui.getApp("Dock")` | done 2026-11-19 (read) |
+| 23 | Copy and paste | `ui.clipboard`, `app.paste` | done 2026-11-19 |
+| 24 | Open files and links | `ui.open`, `app.open` | done 2026-11-19 |
 | 25 | Drag files into apps | `app.dropFiles` | done 2026-11-19 |
 | 26 | Work on other displays and Spaces | reads and `restore` | Spaces done 2026-11-19: full screen, then Ctrl+Left; reads say other_space, activate() goes there, restore() leaves full screen. One display here, so other displays are untested |
 | 27 | Type any text (accents, emoji, CJK) | `typeText`, `paste` | done 2026-11-19 |
-| 28 | Respond to system dialogs (permission prompts) | `gb.windows` + `getApp` | M6 |
+| 28 | Respond to system dialogs (permission prompts) | `ui.windows` + `getApp` | M6 |
 | 29 | Read canvases and remote desktops | `ocr`, screenshots | done |
 
 ## OS limits

@@ -14,8 +14,8 @@ Which app or apps does this involve?
 
 ## What you tried
 
-What did you try with glovebox, and what got in the way?
+What did you try with nostrings, and what got in the way?
 
 ## Proposed API
 
-Optional. If you have one, sketch it as glovebox code.
+Optional. If you have one, sketch it as nostrings code.

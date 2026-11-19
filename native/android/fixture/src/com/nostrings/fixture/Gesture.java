@@ -1,6 +1,6 @@
 // Two-finger gestures: a pad that reports the pinch scale and the twist
 // angle it received, as a map or photo view would act on them.
-package com.glovebox.fixture;
+package com.nostrings.fixture;
 
 import android.app.Activity;
 import android.os.Bundle;

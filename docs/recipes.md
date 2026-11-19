@@ -1,9 +1,9 @@
 # Recipes
 
-Short scripts an agent can paste into one `js` call (or `glovebox run`). They
+Short scripts an agent can paste into one `js` call (or `nostrings run`). They
 use only the API in `api.md`.
 
-Only recipes 1 and 2, the Calculator and TextEdit flows, match what `glovebox
+Only recipes 1 and 2, the Calculator and TextEdit flows, match what `nostrings
 smoke` has exercised on a real machine (see `testing.md`). Every other recipe
 is marked "not yet run on a real machine": it follows the documented API and
 the code, but nobody has run it. Treat the details, such as app names and menu
@@ -11,10 +11,10 @@ labels, as things to check against the tree.
 
 ## 1. Calculator: one batched step
 
-Bind the app, press keys, read once. This is the loop `glovebox smoke` runs.
+Bind the app, press keys, read once. This is the loop `nostrings smoke` runs.
 
 ```js
-const calc = await gb.getApp("Calculator");
+const calc = await ui.getApp("Calculator");
 await calc.pressKey("Escape");
 await calc.typeText("6*7=");
 await calc.getAXState();   // the display line shows value="42"
@@ -32,14 +32,14 @@ await calc.getAXState();   // prints only what changed
 
 Uses the tree for the text area's box, a pixel click inside it, then typing.
 Assumes TextEdit already has a document window open. This follows the
-`glovebox smoke --full` flow.
+`nostrings smoke --full` flow.
 
 ```js
-const te = await gb.getApp("TextEdit");
+const te = await ui.getApp("TextEdit");
 const tree = await te.getAXState({ frames: true, disableDiffing: true, emit: false });
 const [, x, y] = tree.match(/text area[^\n]*@(\d+),(\d+)/);
 await te.click([Number(x) + 8, Number(y) + 10]);   // inside the text area
-await te.typeText("Hello from glovebox\n");
+await te.typeText("Hello from nostrings\n");
 await te.getAXState();
 ```
 
@@ -51,7 +51,7 @@ accessibility like buttons. This clicks the bar item, reads again, then
 clicks the item.
 
 ```js
-const app = await gb.getApp("TextEdit");
+const app = await ui.getApp("TextEdit");
 const find = (tree, role, label) => {
   const m = tree.match(new RegExp(`^\\s*(\\d+) ${role} "${label}"`, "m"));
   if (!m) throw new Error(`No ${role} "${label}" in the tree`);
@@ -74,7 +74,7 @@ read coordinates off the image, and click `[x, y]`. Pixels are the
 screenshot's own: `(0, 0)` is the window's top-left corner.
 
 ```js
-const app = await gb.getApp("Citrix Viewer");   // any app with a one-node tree
+const app = await ui.getApp("Citrix Viewer");   // any app with a one-node tree
 const shot = await app.getScreenshot();         // the image comes back in the result
 console.log(shot.width, shot.height);
 await app.click([412, 230]);                    // a point you read off the image
@@ -102,7 +102,7 @@ const clickLabel = async (app, label) => {
 Later calls:
 
 ```js
-const calc = await gb.getApp("Calculator");
+const calc = await ui.getApp("Calculator");
 for (const label of ["7", "Add", "1", "Equals"]) await clickLabel(calc, label);
 await calc.getAXState();
 ```
@@ -149,14 +149,14 @@ click on a button is pressed through accessibility and never needs this; it
 matters for mouse clicks, keys, typing, scroll, and drag.
 
 ```js
-const app = await gb.getApp("Some Java App");
+const app = await ui.getApp("Some Java App");
 await app.click([120, 80], { foreground: true });
 await app.typeText("hello", { foreground: true });
 app.lastRoute;   // "foreground"
 ```
 
 To make every action on an app use the foreground route, pass
-`gb.getApp(name, {foreground: true})` on the call that first binds it, or ask
+`ui.getApp(name, {foreground: true})` on the call that first binds it, or ask
 the user to add the app to `foregroundApps` in the config (`cli.md`). In
 foreground mode a script brings the app forward once per call and stops if
 the user switches away.

@@ -1,4 +1,4 @@
-// `glovebox smoke`: proves the loop end to end on Calculator through the same
+// `nostrings smoke`: proves the loop end to end on Calculator through the same
 // MCP server an agent would use. It checks that a batched call lands, that a
 // binding survives to the next call, that reads diff, and that js_reset drops
 // the binding. Nothing here is mocked.
@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "glovebox.mjs");
+const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "nostrings.mjs");
 
 function client(env = process.env) {
   const child = spawn(process.execPath, [cli, "mcp"], { stdio: ["pipe", "pipe", "inherit"], env });
@@ -33,7 +33,7 @@ function client(env = process.env) {
       child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id, method, params })}\n`);
     });
   const js = async (code) => {
-    const reply = await request("tools/call", { name: "js", arguments: { code, title: "glovebox smoke" } });
+    const reply = await request("tools/call", { name: "js", arguments: { code, title: "nostrings smoke" } });
     const text = (reply.result?.content ?? []).filter((c) => c.type === "text").map((c) => c.text).join("\n");
     return { text, isError: reply.result?.isError ?? true, images: (reply.result?.content ?? []).filter((c) => c.type === "image") };
   };
@@ -62,14 +62,14 @@ export async function runSmoke({ screenshot = true, full = false } = {}) {
     const init = await mcp.request("initialize", {
       protocolVersion: "2025-11-25",
       capabilities: {},
-      clientInfo: { name: "glovebox smoke", version: "1" },
+      clientInfo: { name: "nostrings smoke", version: "1" },
     });
     const list = await mcp.request("tools/list", {});
-    step("MCP handshake", init.result?.serverInfo?.name === "glovebox" && list.result?.tools?.length === 2);
+    step("MCP handshake", init.result?.serverInfo?.name === "nostrings" && list.result?.tools?.length === 2);
 
     // One call: bind the app, several actions, one read.
     const first = await mcp.js(`
-const calc = await gb.getApp("Calculator");
+const calc = await ui.getApp("Calculator");
 await calc.pressKey("Escape");
 await calc.typeText("6*7=");
 await calc.getAXState();`);
@@ -111,18 +111,18 @@ await calc.getAXState();`);
     if (full) {
       // Raw mouse input in a background text editor: a click places the caret,
       // a drag selects, a scroll moves the view. Only real mouse events do these.
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "glovebox-smoke-"));
-      const short = path.join(dir, "glovebox-smoke.txt");
-      const long = path.join(dir, "glovebox-smoke-long.txt");
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nostrings-smoke-"));
+      const short = path.join(dir, "nostrings-smoke.txt");
+      const long = path.join(dir, "nostrings-smoke-long.txt");
       fs.writeFileSync(short, "AAAA\nBBBB\nCCCC\n");
       fs.writeFileSync(long, Array.from({ length: 300 }, (_, i) => `line ${i} ${"x".repeat(40)}`).join("\n"));
       execFileSync("open", ["-g", "-a", "TextEdit", short, long]);
       await new Promise((r) => setTimeout(r, 2500));
       const te = await mcp.js(`
-const te = await gb.getApp("TextEdit");
+const te = await ui.getApp("TextEdit");
 const wins = await te.windows();
-const shortWin = wins.find((w) => w.title.startsWith("glovebox-smoke.txt"));
-const longWin = wins.find((w) => w.title.startsWith("glovebox-smoke-long"));
+const shortWin = wins.find((w) => w.title.startsWith("nostrings-smoke.txt"));
+const longWin = wins.find((w) => w.title.startsWith("nostrings-smoke-long"));
 const area = async (i) => (await te.getAXState({ window: i, emit: false, disableDiffing: true, frames: true })).match(/text area value="([^"]*)".*@(\\d+),(\\d+)/);
 let a = await area(shortWin.index);
 const [ax, ay] = [Number(a[2]), Number(a[3])];
@@ -159,7 +159,7 @@ JSON.stringify({ afterClick, afterDrag, before, afterScroll, route: te.lastRoute
   return passed;
 }
 
-// `glovebox smoke --android`: the same loop on a phone or emulator, against
+// `nostrings smoke --android`: the same loop on a phone or emulator, against
 // the fixture app (native/android/fixture), which reports every tap, key,
 // long press, drag and scroll in a label. The fixture is installed for the
 // run and removed after it unless `keep`. Failure details print only the
@@ -203,7 +203,7 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
     step("fixture app installs", false, error.message);
     return false;
   }
-  // The user's screen, watched from outside glovebox: which display has top
+  // The user's screen, watched from outside nostrings: which display has top
   // focus, and a hash of display 0 without its status and navigation bars.
   // Only the hash is kept, never the image.
   const emulator = transport.startsWith("emulator-");
@@ -211,7 +211,7 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
     const focus = (await adb(["-s", transport, "shell", "dumpsys", "window"]).catch(() => "")).match(/mTopFocusedDisplayId=(-?\d+)/)?.[1] ?? null;
     let hash = null;
     try {
-      const raw = execFileSync(process.env.GLOVEBOX_ADB || "adb", ["-s", transport, "exec-out", "screencap"], { maxBuffer: 128 << 20 });
+      const raw = execFileSync(process.env.NOSTRINGS_ADB || "adb", ["-s", transport, "exec-out", "screencap"], { maxBuffer: 128 << 20 });
       const w = raw.readUInt32LE(0), h = raw.readUInt32LE(4);
       const header = raw.length - w * h * 4;
       const crypto = await import("node:crypto");
@@ -222,7 +222,7 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
     return { focus, hash };
   };
   // An emulator's home screen updates its app suggestions after any launch,
-  // hidden or not; a static Files screen shows only what glovebox changes.
+  // hidden or not; a static Files screen shows only what nostrings changes.
   if (emulator) {
     await adb(["-s", transport, "shell", "input", "keyevent", "KEYCODE_WAKEUP"]).catch(() => {});
     await adb(["-s", transport, "shell", "wm", "dismiss-keyguard"]).catch(() => {});
@@ -234,7 +234,7 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
   }
   const before = await watch();
   // The fixture is ours: skip its dialog. Ask-first apps and a locked phone still ask.
-  const mcp = client({ ...process.env, GLOVEBOX_APPROVAL: "allow-all" });
+  const mcp = client({ ...process.env, NOSTRINGS_APPROVAL: "allow-all" });
   // Runs `code` and parses the JSON its last line prints.
   const run = async (code) => {
     const reply = await mcp.js(code);
@@ -246,9 +246,9 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
     }
   };
   try {
-    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "glovebox smoke", version: "1" } });
+    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "nostrings smoke", version: "1" } });
     const hello = await run(`
-const phone = gb.device(${JSON.stringify(transport)});
+const phone = ui.device(${JSON.stringify(transport)});
 const fx = await phone.getApp(${JSON.stringify(FIXTURE_PACKAGE)});
 await fx.activate();
 const tree = () => fx.getAXState({ emit: false, disableDiffing: true, frames: true });
@@ -272,13 +272,13 @@ JSON.stringify({ counts: await label("taps") });`);
 
     const typed = await run(`
 await fx.click(await idx(/^\\s*(\\d+) text field/m));
-await fx.typeText("hello glovebox");
+await fx.typeText("hello nostrings");
 const route = fx.lastRoute;
 const echo1 = await label("echo");
 await fx.pressKey("BackSpace");
 JSON.stringify({ echo1, echo2: await label("echo"), route });`);
-    step("typeText fills the field", typed.echo1 === "echo: hello glovebox", typed.error ?? typed.echo1);
-    step("pressKey BackSpace deletes a character", typed.echo2 === "echo: hello glovebo", typed.error ?? typed.echo2);
+    step("typeText fills the field", typed.echo1 === "echo: hello nostrings", typed.error ?? typed.echo1);
+    step("pressKey BackSpace deletes a character", typed.echo2 === "echo: hello nostring", typed.error ?? typed.echo2);
     if (hello.screen === "hidden") step("input went to the hidden screen", /^hidden screen/.test(typed.route ?? ""), typed.route);
 
     const code = await run(`
@@ -304,7 +304,7 @@ await fx.click((await fx.find({ role: "link" })).index);
 const out = async () => (await fx.find({ role: "text", label: /^(nothing yet|link tapped|hello)/ }))?.label;
 link = await out();
 await fx.click((await fx.find({ role: "text field" })).index);
-await fx.typeText("glovebox é 😀 日本");
+await fx.typeText("nostrings é 😀 日本");
 await fx.click((await fx.find({ role: "button", label: "Greet" })).index);
 greet = await out();
 } catch (e) {
@@ -317,7 +317,7 @@ greet = await out();
 }
 JSON.stringify({ heading, link, greet, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
     step("web content reads (heading, link)", web.heading === "Web fixture", web.error ?? `heading ${web.heading}`);
-    step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox é 😀 日本" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
+    step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello nostrings é 😀 日本" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
 
     const gest = await run(`
 await fx.click((await fx.find({ role: "button", label: "Gesture screen" })).index);
@@ -371,7 +371,7 @@ JSON.stringify({ code });`);
       step("the phone's screen kept focus", after.focus === before.focus, `top focused display ${before.focus} -> ${after.focus}`);
       // An emulator's screen holds still; a phone's can change under the user.
       if (emulator) step("the phone's screen did not change", after.hash != null && after.hash === before.hash, `display 0 changed ${changedBox(before, after)}`);
-      else process.stdout.write(`info  the phone's screen ${after.hash === before.hash ? "did not change" : "changed (the user, a notification, or glovebox)"}\n`);
+      else process.stdout.write(`info  the phone's screen ${after.hash === before.hash ? "did not change" : "changed (the user, a notification, or nostrings)"}\n`);
     }
 
     await mcp.request("tools/call", { name: "js_reset", arguments: {} });
@@ -380,7 +380,7 @@ JSON.stringify({ code });`);
 
     // The phone's own screen, as getApp(name, {foreground: true}) asks.
     const phoneRoute = await run(`
-const fp = await gb.device(${JSON.stringify(transport)}).getApp(${JSON.stringify(FIXTURE_PACKAGE)}, { foreground: true });
+const fp = await ui.device(${JSON.stringify(transport)}).getApp(${JSON.stringify(FIXTURE_PACKAGE)}, { foreground: true });
 await fp.activate();
 const t1 = await fp.getAXState({ emit: false, disableDiffing: true });
 await fp.click(await fp.center(Number(t1.match(/^\\s*(\\d+) button "Tap me"/im)[1])), { raw: true });
@@ -402,7 +402,7 @@ JSON.stringify({ screen: fp.screen, route, counts });`);
   return passed;
 }
 
-// `glovebox smoke --macos`: every capability row the fixture app
+// `nostrings smoke --macos`: every capability row the fixture app
 // (native/macos/fixture) can show, through the MCP server. The fixture logs
 // what reached it, so each check reads that log, not a model. Background
 // checks run first with the frontmost app checked; the last few use the
@@ -416,10 +416,10 @@ export async function runMacSmoke({ keep = false, foreground = true } = {}) {
     results.push(pass);
     process.stdout.write(`${pass ? "PASS" : "FAIL"}  ${name}${detail && !pass ? `\n      ${String(detail).split("\n").slice(0, 6).join("\n      ")}` : ""}\n`);
   };
-  process.stdout.write("Building Glovebox Fixture if needed...\n");
+  process.stdout.write("Building Nostrings Fixture if needed...\n");
   await fixture.buildFixture();
   await fixture.launchFixture();
-  const raw = new MacBackend({ client: "glovebox smoke" });
+  const raw = new MacBackend({ client: "nostrings smoke" });
   // Keep the user's clipboard (all of it) in the helper; put it back at the
   // end. The stash is the helper's, so the fixture's pid just passes the gate.
   const fixturePid = (await raw.request("resolveApp", { query: fixture.FIXTURE_BUNDLE_ID })).pid;
@@ -441,8 +441,8 @@ export async function runMacSmoke({ keep = false, foreground = true } = {}) {
     return r;
   };
   try {
-    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "glovebox smoke", version: "1" } });
-    const first = await run(`const fx = await gb.getApp("${fixture.FIXTURE_BUNDLE_ID}"); await fx.getAXState();`);
+    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "nostrings smoke", version: "1" } });
+    const first = await run(`const fx = await ui.getApp("${fixture.FIXTURE_BUNDLE_ID}"); await fx.getAXState();`);
     step("read: form fields are named by their labels", !first.isError && /text field "Name"/.test(first.text) && /pop up button "Color"/.test(first.text), first.text.slice(0, 400));
     const web = await run(`await fx.expect({role: "heading", label: "Web Fixture"}, {timeout: 5000}); (await fx.find({role: "button", label: "Web button"})) != null`);
     step("read: web content inside the app", !web.isError && /true/.test(web.text), web.text.slice(0, 300));
@@ -498,24 +498,24 @@ export async function runMacSmoke({ keep = false, foreground = true } = {}) {
       process.stdout.write(ok ? `\nAll ${results.length} background macOS checks passed.\n` : `\n${results.filter((r) => !r).length} of ${results.length} macOS checks failed.\n`);
       return ok;
     }
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "glovebox-smoke-"));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "nostrings-smoke-"));
     const file = path.join(dir, "pick-me.txt");
-    fs.writeFileSync(file, "glovebox smoke\n");
+    fs.writeFileSync(file, "nostrings smoke\n");
     await check("drop a file on the app (foreground)", `await fx.dropFiles((await fx.find({id: "dropTarget"})).index, ${JSON.stringify([file])})`, "drop", (e) => e.files === "pick-me.txt");
     await check("hover (foreground)", `await fx.hover([20, 20]); await fx.hover(${canvas})`, "canvas.enter");
     await check("open panel: choose a file (foreground)", `await fx.menu("File > Open…"); await sleep(1200); await fx.choosePath(${JSON.stringify(file)})`, "open", (e) => e.ok && e.path.endsWith("pick-me.txt"));
     await check("save panel: name and folder (foreground)", `await fx.menu("File > Save…"); await sleep(1200); await fx.choosePath(${JSON.stringify(path.join(dir, "named.txt"))})`, "save", (e) => e.ok && e.path.endsWith("named.txt"));
     await check("full screen", `await fx.window().fullScreen(true); await sleep(2500)`, "window.fullscreen", (e) => e.on === true);
-    const away = await run(`await gb.pressKey("ctrl+Left"); await sleep(1500); let code = "read"; try { await fx.getAXState({emit: false}); } catch (e) { code = e.code; } code`);
+    const away = await run(`await ui.pressKey("ctrl+Left"); await sleep(1500); let code = "read"; try { await fx.getAXState({emit: false}); } catch (e) { code = e.code; } code`);
     step("a full-screen window on another Space says so (other_space)", /other_space/.test(away.text), away.text);
     await check("activate switches to its Space; restore leaves full screen", `await fx.activate(); await sleep(1500); await fx.window().restore(); await sleep(2500)`, "window.fullscreen", (e) => e.on === false);
     const mods = execFileSync("osascript", ["-l", "JavaScript", "-e", 'ObjC.import("AppKit"); $.NSEvent.modifierFlags']).toString().trim();
     step("no modifier key left held down", mods === "0", `modifier flags ${mods}`);
-    const shot = await run(`const s = await gb.screenshot({emit: false}); s.width + "x" + s.height`);
+    const shot = await run(`const s = await ui.screenshot({emit: false}); s.width + "x" + s.height`);
     step("whole-screen screenshot", !shot.isError && /\d+x\d+/.test(shot.text), shot.text);
-    const wins = await run(`(await gb.windows({emit: false})).some((w) => w.bundleId === "${fixture.FIXTURE_BUNDLE_ID}")`);
+    const wins = await run(`(await ui.windows({emit: false})).some((w) => w.bundleId === "${fixture.FIXTURE_BUNDLE_ID}")`);
     step("every window on screen, with owners", !wins.isError && /true/.test(wins.text), wins.text);
-    const extras = await run(`(await gb.menuExtras({emit: false})).length`);
+    const extras = await run(`(await ui.menuExtras({emit: false})).length`);
     step("menu bar extras listed", !extras.isError && Number(extras.text.trim()) > 0, extras.text);
     if (!keep) await check("quit the app", `await fx.quit()`, "quit");
     fs.rmSync(dir, { recursive: true, force: true });

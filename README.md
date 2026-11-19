@@ -1,19 +1,17 @@
-# glovebox
+# nostrings
 
-[![CI](https://github.com/vpatel9202/glovebox/actions/workflows/test.yml/badge.svg)](https://github.com/vpatel9202/glovebox/actions/workflows/test.yml)
-[![npm](https://img.shields.io/npm/v/@vashp2029/glovebox.svg)](https://www.npmjs.com/package/@vashp2029/glovebox)
+[![CI](https://github.com/vpatel9202/nostrings/actions/workflows/test.yml/badge.svg)](https://github.com/vpatel9202/nostrings/actions/workflows/test.yml)
+[![npm](https://img.shields.io/npm/v/nostrings.svg)](https://www.npmjs.com/package/nostrings)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](#status)
-
-[![glovebox MCP server](https://mcprush.com/badge/vpatel9202-glovebox-mcp/card.svg)](https://mcprush.com/to/vpatel9202-glovebox-mcp?ref=badge)
 
 **Computer use for coding agents on macOS: one JavaScript call per step,
 accessibility diffs instead of screenshots, and your screen stays yours.**
 
-![Someone browses Wikipedia in Safari while an agent works Calculator and types the result into TextEdit in the background](https://raw.githubusercontent.com/vpatel9202/glovebox/main/media/demo.gif)
+![Someone browses Wikipedia in Safari while an agent works Calculator and types the result into TextEdit in the background](https://raw.githubusercontent.com/vpatel9202/nostrings/main/media/demo.gif)
 
 ```js
-const calc = await gb.getApp("Calculator");
+const calc = await ui.getApp("Calculator");
 await calc.pressKey("Escape");
 await calc.typeText("6*7=");
 await calc.getAXState();
@@ -39,31 +37,30 @@ fresh picture of the window.
   cursor shows what the agent is doing.
 
 In an [author-run test](#benchmark) of six setups on 12 tasks (2 runs each),
-glovebox had the lowest total cost, $0.57 against $1.41 to $5.67, and the
+nostrings had the lowest total cost, $0.57 against $1.41 to $5.67, and the
 fewest round trips and the most passes.
 
 **What to know first:** macOS only, tested on macOS 27 on Apple silicon. You
 need the Xcode command line tools to build a small helper app, and you grant it
 Accessibility and Screen Recording. Background input uses two private macOS
 calls, with a foreground fallback. Only Claude Code has been tested end to end.
-Despite the name, this is not a sandbox, and it is unrelated to
-[glovebox-mcp](https://github.com/segentic-lab/glovebox-mcp).
+nostrings was called glovebox until 0.5.0.
 
 ## Quickstart
 
 Requires Node 20.10+ and the Xcode command line tools (`xcode-select --install`).
 
 ```bash
-npm install -g @vashp2029/glovebox
-glovebox signing --create   # optional: macOS keeps the grants across helper rebuilds
-glovebox setup              # builds the helper, walks through permissions
-glovebox doctor             # every line should say ok
-glovebox smoke              # a real end-to-end test on Calculator
-                            # (Android: glovebox smoke --android; needs only adb)
-claude mcp add --scope user glovebox -- glovebox mcp
+npm install -g nostrings
+nostrings signing --create   # optional: macOS keeps the grants across helper rebuilds
+nostrings setup              # builds the helper, walks through permissions
+nostrings doctor             # every line should say ok
+nostrings smoke              # a real end-to-end test on Calculator
+                            # (Android: nostrings smoke --android; needs only adb)
+claude mcp add --scope user nostrings -- nostrings mcp
 ```
 
-`setup` builds **Glovebox Helper.app** into `~/.glovebox/` and asks you to turn
+`setup` builds **Nostrings Helper.app** into `~/.nostrings/` and asks you to turn
 it on under System Settings > Privacy & Security > **Accessibility** and
 **Screen & System Audio Recording**. **Input Monitoring** is optional and only
 enables Escape-to-stop. The helper is its own app, so one grant covers every
@@ -73,17 +70,17 @@ rebuild as a new app; see the [upgrade note](CHANGELOG.md#upgrading).
 
 **Works with:** Claude Code (tested end to end). Codex, Grok CLI, OpenCode,
 Gemini CLI, and Cursor have documented configs that have not been exercised.
-Any agent that can run shell commands can use `glovebox run`.
+Any agent that can run shell commands can use `nostrings run`.
 See [docs/agents.md](docs/agents.md).
 
 ## Why not Claude Code's built-in computer use?
 
 If it fits your setup, it is the easier choice: nothing to install, supported
-by Anthropic, and it keeps your terminal out of screenshots. glovebox is for
+by Anthropic, and it keeps your terminal out of screenshots. nostrings is for
 the cases where it does not fit. From [Anthropic's docs](https://code.claude.com/docs/en/computer-use),
 checked 2026-11-03:
 
-| | Claude Code built-in | glovebox |
+| | Claude Code built-in | nostrings |
 |---|---|---|
 | Your other apps | Hidden while Claude works | Stay visible; input goes to the target app in the background |
 | Default read | Downscaled screenshot | Accessibility text diff |
@@ -105,16 +102,16 @@ the tool under test decides each result.
 
 | Setup | Passed | Round trips | Images returned | Cost at list price |
 |---|---|---|---|---|
-| glovebox | 24/24 | 128 | 21 | $0.57 |
+| nostrings | 24/24 | 128 | 21 | $0.57 |
 | Codex `cua_repl`, driven by Claude | 20/24 | 166 | 30 | $1.41 |
-| Anthropic toolset, run by glovebox | 22/24 | 187 | 179 | $1.65 |
+| Anthropic toolset, run by nostrings | 22/24 | 187 | 179 | $1.65 |
 | agent-desktop | 22/24 | 204 | 22 | $2.32 |
 | open-computer-use | 21/24 | 244 | 385 | $2.76 |
 | Peekaboo | 20/24 | 359 | 183 | $5.67 |
 
 ![Median round trips and cost per task for each setup](bench/results/v2/chart.svg)
 
-**Where glovebox did not win.** It was not cheapest on `finder-rename`
+**Where nostrings did not win.** It was not cheapest on `finder-rename`
 ($0.061 against $0.041 for Codex `cua_repl`). It did not have the fewest round
 trips on 3 of the 12 tasks, or the fastest time on 3 of the 12. On
 `remote-desktop` it took 36 seconds against 22 and 23 for two others.
@@ -123,15 +120,15 @@ trips on 3 of the 12 tasks, or the fastest time on 3 of the 12. On
 
 - I wrote the tasks and ran the test, on one Mac, in one sitting. Several tasks
   (`bulk-entry`, `remote-desktop`, `coexistence`) were designed around things
-  glovebox set out to do.
+  nostrings set out to do.
 - With two runs per task, pass counts mean little: 24/24 against 20/24 is not
   statistically significant. The cost gap is the sturdier result, because it
-  holds task by task: glovebox cost less than each other setup on at least 11
+  holds task by task: nostrings cost less than each other setup on at least 11
   of 12 tasks.
-- The glovebox tested is the code released as 0.3.0. Result files say 0.2.0,
+- The nostrings tested is the code released as 0.3.0. Result files say 0.2.0,
   because the version had not been bumped yet.
 - "Anthropic toolset" is Anthropic's API computer-use toolset, executed through
-  glovebox's foreground route. It failed `coexistence` because of that route,
+  nostrings's foreground route. It failed `coexistence` because of that route,
   so that result doesn't describe a shipping product. "Codex `cua_repl`" measures
   the tool shape under Claude, not Codex with its own model.
 - Peekaboo's first pass was rerun with foreground input allowed, which helped
@@ -148,7 +145,7 @@ not confirm it from those.
 
 | | Platforms | Actions per call | State between calls | Default read | Diffed reads | Background input | Needs |
 |---|---|---|---|---|---|---|---|
-| **glovebox** | macOS | many (one script) | persistent JS session | accessibility text | yes | yes | Xcode CLT to build the helper |
+| **nostrings** | macOS | many (one script) | persistent JS session | accessibility text | yes | yes | Xcode CLT to build the helper |
 | Claude Code built-in | macOS (CLI) | — | — | screenshot | — | no, hides other apps | Pro, Max, or Ultra |
 | Codex computer use | macOS, Windows | many (one script) | persistent JS session | accessibility text | yes | yes on macOS | ChatGPT app and plugin |
 | [lcu](https://github.com/amontlabs/lcu) | macOS (Apple silicon), Linux | as Codex; it runs Codex's runtime | as Codex | as Codex | as Codex | — | ChatGPT app installed |
@@ -167,15 +164,15 @@ OpenAI's actual runtime and already have the ChatGPT app (lcu).
 The first time a session touches an app, you get a dialog: Allow for This
 Session, Always Allow, or Deny. Nothing is blocked outright. Terminals,
 password managers, System Settings, messaging apps, and a few others always
-ask, even under `allow-all`, unless you run `glovebox allow <bundle id>`; the
+ask, even under `allow-all`, unless you run `nostrings allow <bundle id>`; the
 list is in [SECURITY.md](SECURITY.md#ask-first-apps). A script that had to bring
 an app forward stops if you switch away. Scripts running in the background keep
 going while you use other apps, and Escape stops any script if you grant Input
 Monitoring. Every action is
-logged to `~/.glovebox/actions.log`.
+logged to `~/.nostrings/actions.log`.
 
 An approved app is approved for everything in it: allowing a browser lets the
-agent use every site you are signed in to. glovebox does not screen page
+agent use every site you are signed in to. nostrings does not screen page
 content for prompt injection. Treat it like giving someone remote control of
 that app. Details: [SECURITY.md](SECURITY.md).
 
@@ -186,15 +183,15 @@ keystrokes to that app, so a word you type can land in it
 ## How it works
 
 ```
-agent ──MCP stdio──▶ glovebox mcp ──▶ kernel (persistent JS session)
-agent ──shell──▶ glovebox run ──▶ daemon ──▶ kernel        │
+agent ──MCP stdio──▶ nostrings mcp ──▶ kernel (persistent JS session)
+agent ──shell──▶ nostrings run ──▶ daemon ──▶ kernel        │
                                                             ▼ Unix socket
-                                        Glovebox Helper.app (Swift: AX, CGEvent,
+                                        Nostrings Helper.app (Swift: AX, CGEvent,
                                         ScreenCaptureKit, approval dialogs)
 ```
 
 Background input uses two private macOS (SkyLight) functions, looked up at
-runtime with a foreground fallback; `glovebox doctor` reports which route you
+runtime with a foreground fallback; `nostrings doctor` reports which route you
 have. Everything else is public API. No OpenAI, Anthropic, or other vendor
 binaries.
 
@@ -206,14 +203,14 @@ binaries.
 | Windows | Planned (UI Automation). See [roadmap](docs/roadmap.md). |
 | Linux | Planned (AT-SPI; Wayland limited). See [roadmap](docs/roadmap.md). |
 
-Run for real, not mocked: `glovebox smoke` and `smoke --full` over MCP (batched
+Run for real, not mocked: `nostrings smoke` and `smoke --full` over MCP (batched
 steps, persistent bindings, diffs, pixel clicks, and background click, drag, and
 scroll with another app frontmost), and Claude Code attached through
-`glovebox mcp`. Full list: [docs/testing.md](docs/testing.md).
+`nostrings mcp`. Full list: [docs/testing.md](docs/testing.md).
 
 ## The API in one screen
 
-- `gb.getApp(name)` launches or finds an app without stealing focus. `gb.listApps()`.
+- `ui.getApp(name)` launches or finds an app without stealing focus. `ui.listApps()`.
 - `app.getAXState()` returns the accessibility tree as text; later reads are
   diffs. `{frames: true}` adds element boxes, `{disableDiffing: true}` the full tree.
 - `app.getScreenshot()` is the only way to get an image.

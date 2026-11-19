@@ -23,7 +23,7 @@ were not run there, nor was the probe.
 
 ## Follow-up in Phase 1: reading a display that does not have focus
 
-Q2 left one question open: can glovebox read the virtual display while
+Q2 left one question open: can nostrings read the virtual display while
 display 0 keeps focus? The Phase 1 server answers it, using test-only
 methods. The server creates a display with flags `0x1fdcb` and starts Clock
 on it, then reads that display through `UiAutomation.getWindowsOnAllDisplays`.
@@ -39,7 +39,7 @@ on it, then reads that display through `UiAutomation.getWindowsOnAllDisplays`.
 | Galaxy S24 Ultra | `0xfdcb` (no steal flag) | the virtual display | yes |
 
 So the hidden screen works end to end on emulators and on the S24, over
-wireless ADB: the user's screen keeps focus, and glovebox can still read the
+wireless ADB: the user's screen keeps focus, and nostrings can still read the
 agent's app. Samsung honours `STEAL_TOP_FOCUS_DISABLED`. (On Samsung the
 server's system context also needs a `ConfigurationController`, the same
 workaround scrcpy carries.) The first read after
@@ -47,7 +47,7 @@ creating the display took 0.25 to 1.6 s; later reads are fast.
 
 ## By device
 
-Pass means the answer is what glovebox needs. Q7 "bypass" is a finding
+Pass means the answer is what nostrings needs. Q7 "bypass" is a finding
 against the user, not a pass.
 
 | Device | Q1 stock | Q1 probe | Q2 | Q3 | Q4 | Q5 | Q6 | Q7 |

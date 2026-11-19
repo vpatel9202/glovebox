@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.vpatel9202/glovebox",
-  "title": "glovebox",
+  "name": "io.github.vpatel9202/nostrings",
+  "title": "nostrings",
   "description": "Computer use for coding agents on macOS: JS scripts, accessibility diffs, background input.",
   "repository": {
-    "url": "https://github.com/vpatel9202/glovebox",
+    "url": "https://github.com/vpatel9202/nostrings",
     "source": "github"
   },
-  "version": "0.4.1",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@vashp2029/glovebox",
-      "version": "0.4.1",
+      "identifier": "nostrings",
+      "version": "0.5.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

@@ -1,5 +1,5 @@
-// Builds and starts Glovebox Fixture.app (native/macos/fixture), the test app
-// `glovebox smoke --macos` drives. It is signed ad hoc: it needs no grants.
+// Builds and starts Nostrings Fixture.app (native/macos/fixture), the test app
+// `nostrings smoke --macos` drives. It is signed ad hoc: it needs no grants.
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
@@ -9,9 +9,9 @@ import { promisify } from "node:util";
 import { paths } from "./config.mjs";
 
 const run = promisify(execFile);
-export const FIXTURE_SOURCE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "native", "macos", "fixture", "GloveboxFixture.swift");
-export const FIXTURE_BUNDLE_ID = "io.github.vpatel9202.glovebox.fixture";
-export const FIXTURE_NAME = "Glovebox Fixture";
+export const FIXTURE_SOURCE = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "native", "macos", "fixture", "NostringsFixture.swift");
+export const FIXTURE_BUNDLE_ID = "io.github.vpatel9202.nostrings.fixture";
+export const FIXTURE_NAME = "Nostrings Fixture";
 
 export function fixturePath() {
   return path.join(paths.home, `${FIXTURE_NAME}.app`);
@@ -52,7 +52,7 @@ export async function buildFixture({ log = () => {} } = {}) {
 <key>CFBundleIdentifier</key><string>${FIXTURE_BUNDLE_ID}</string>
 <key>CFBundleName</key><string>${FIXTURE_NAME}</string>
 <key>CFBundleDisplayName</key><string>${FIXTURE_NAME}</string>
-<key>CFBundleExecutable</key><string>glovebox-fixture</string>
+<key>CFBundleExecutable</key><string>nostrings-fixture</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>1.0</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
@@ -61,8 +61,8 @@ export async function buildFixture({ log = () => {} } = {}) {
 </dict></plist>
 `,
   );
-  log("Compiling Glovebox Fixture (about a minute)...");
-  await run("xcrun", ["swiftc", "-O", "-swift-version", "5", FIXTURE_SOURCE, "-o", path.join(macos, "glovebox-fixture")], { maxBuffer: 16 * 1024 * 1024 });
+  log("Compiling Nostrings Fixture (about a minute)...");
+  await run("xcrun", ["swiftc", "-O", "-swift-version", "5", FIXTURE_SOURCE, "-o", path.join(macos, "nostrings-fixture")], { maxBuffer: 16 * 1024 * 1024 });
   await run("codesign", ["--force", "--sign", "-", "--identifier", FIXTURE_BUNDLE_ID, app]);
   fs.writeFileSync(stamp(), `${sourceHash()}\n`);
   // LaunchServices must see the new build before `open -b` can find it.
@@ -80,7 +80,7 @@ export async function launchFixture() {
     if (readFixtureLog().some((e) => e.event === "launched")) return;
     await new Promise((r) => setTimeout(r, 100));
   }
-  throw new Error("Glovebox Fixture did not start");
+  throw new Error("Nostrings Fixture did not start");
 }
 
 export function readFixtureLog() {

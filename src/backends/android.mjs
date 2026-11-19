@@ -1,4 +1,4 @@
-// Client for the glovebox server on an Android device. The server is a dex
+// Client for the nostrings server on an Android device. The server is a dex
 // run over ADB with shell privileges (app_process) that speaks the backend
 // protocol as JSON lines on the adb shell's stdin and stdout. One server per
 // phone is shared by every session through the phone's broker
@@ -18,11 +18,11 @@ import { brokerSocket, runBroker } from "./android-broker.mjs";
 
 const execFileAsync = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
-export const SERVER_DEX = path.join(here, "..", "..", "native", "android", "build", "glovebox-server.dex");
-export const FIXTURE_APK = path.join(here, "..", "..", "native", "android", "build", "glovebox-fixture.apk");
-export const FIXTURE_PACKAGE = "com.glovebox.fixture";
-const REMOTE_DEX = "/data/local/tmp/glovebox-server.dex";
-const SERVER_CLASS = "com.glovebox.server.Server";
+export const SERVER_DEX = path.join(here, "..", "..", "native", "android", "build", "nostrings-server.dex");
+export const FIXTURE_APK = path.join(here, "..", "..", "native", "android", "build", "nostrings-fixture.apk");
+export const FIXTURE_PACKAGE = "com.nostrings.fixture";
+const REMOTE_DEX = "/data/local/tmp/nostrings-server.dex";
+const SERVER_CLASS = "com.nostrings.server.Server";
 
 // Methods that only read the app list or the server's own state.
 const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp", "resolveIntent", "forget", "cursor", "inspect", "waitEvent", "waitQuiet", "_createDisplay", "_displayTree", "_removeRecents", "_tapDisplay", "_events", "_nodeInfo"]);
@@ -30,7 +30,7 @@ const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp
 const ACTING = new Set(["activate", "keys", "type", "click", "scroll", "drag", "longPress", "touches", "performAction", "setValue", "focusElement", "selectText"]);
 
 function adbPath() {
-  if (process.env.GLOVEBOX_ADB) return process.env.GLOVEBOX_ADB;
+  if (process.env.NOSTRINGS_ADB) return process.env.NOSTRINGS_ADB;
   const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
   if (sdk && fs.existsSync(path.join(sdk, "platform-tools", "adb"))) return path.join(sdk, "platform-tools", "adb");
   return "adb";
@@ -47,7 +47,7 @@ export async function adb(args, options = {}) {
     const { stdout } = await execFileAsync(adbPath(), args, { timeout: options.timeout ?? 20_000, maxBuffer: 8 << 20 });
     return stdout.replace(/\r/g, "");
   } catch (error) {
-    if (error.code === "ENOENT") throw codedError("adb not found. Install Android platform-tools or set GLOVEBOX_ADB.", "permission");
+    if (error.code === "ENOENT") throw codedError("adb not found. Install Android platform-tools or set NOSTRINGS_ADB.", "permission");
     throw codedError(`adb ${args.join(" ")} failed: ${(error.stderr || error.message).trim()}`, "failed");
   }
 }
@@ -74,7 +74,7 @@ export async function resolveSerial(wanted) {
     const physical = new Map();
     for (const d of online) physical.set(await hardwareSerial(d.serial), d.serial);
     if (physical.size > 1) {
-      throw codedError(`More than one Android device is connected; name one: gb.device("${[...physical.keys()].join('") or gb.device("')}")`, "bad_request");
+      throw codedError(`More than one Android device is connected; name one: ui.device("${[...physical.keys()].join('") or ui.device("')}")`, "bad_request");
     }
     return [...physical.values()][0];
   }
@@ -95,17 +95,17 @@ const COMPETING = [
   [/com\.github\.uiautomator/, "uiautomator2 (Python)"],
 ];
 
-// `glovebox doctor` checks: [{level: "ok"|"fail"|"warn"|"info", label, fix}].
-// A phone with a glovebox server already running is reported, not
+// `nostrings doctor` checks: [{level: "ok"|"fail"|"warn"|"info", label, fix}].
+// A phone with a nostrings server already running is reported, not
 // connected to: connecting would stop that session's server.
-export async function doctorChecks({ client = "glovebox doctor" } = {}) {
+export async function doctorChecks({ client = "nostrings doctor" } = {}) {
   const out = [];
   const add = (level, label, fix) => out.push({ level, label, fix });
   let version;
   try {
     version = (await adb(["version"])).split("\n")[0].trim();
   } catch (error) {
-    add("info", "Android: adb not found (optional)", "Install Android platform-tools, or set GLOVEBOX_ADB");
+    add("info", "Android: adb not found (optional)", "Install Android platform-tools, or set NOSTRINGS_ADB");
     return out;
   }
   add("ok", `${version} (${adbPath()})`);
@@ -146,7 +146,7 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
       add("ok", `${serial}: ${info.manufacturer} ${info.model}, Android ${info.release} (API ${info.sdk}), screen ${info.display.join("x")}`);
       add(info.accessibility ? "ok" : "fail", `${serial}: accessibility connection${info.accessibility ? "" : `: ${info.error ?? "failed"}`}`, "Turn off other automation tools, or reboot the phone");
     } catch (error) {
-      add("fail", `${serial}: glovebox server did not start`, error.message);
+      add("fail", `${serial}: nostrings server did not start`, error.message);
     } finally {
       backend.close();
     }
@@ -156,7 +156,7 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
 
 const BROKER_LOG = path.join(paths.home, "android-broker.log");
 const NOTIFICATIONS = "android:notifications"; // the approval key for reading the shade
-const CLI = path.join(here, "..", "..", "bin", "glovebox.mjs");
+const CLI = path.join(here, "..", "..", "bin", "nostrings.mjs");
 
 // A short hash of the server dex, so a rebuilt server gets its own broker.
 function serverBuild() {
@@ -179,7 +179,7 @@ function startBroker(transport, hardware) {
   fs.closeSync(log);
 }
 
-// `glovebox android-broker <transport> <hardware serial>` (started by the first session).
+// `nostrings android-broker <transport> <hardware serial>` (started by the first session).
 export function runDeviceBroker(transport, hardware) {
   return runBroker({ transport, hardware, build: serverBuild(), adb, adbBin: adbPath(), dex: SERVER_DEX, remoteDex: REMOTE_DEX, serverClass: SERVER_CLASS });
 }
@@ -216,7 +216,7 @@ export class AndroidBackend extends EventEmitter {
 
   async #connect() {
     if (!fs.existsSync(SERVER_DEX)) {
-      throw codedError("The glovebox Android server is not built. Run: npm run build:android", "not_found");
+      throw codedError("The nostrings Android server is not built. Run: npm run build:android", "not_found");
     }
     const transport = await resolveSerial(this.serial);
     this.transport = transport;
@@ -230,7 +230,7 @@ export class AndroidBackend extends EventEmitter {
         await new Promise((r) => setTimeout(r, 100));
         conn = await openSocket(socket).catch(() => null);
       }
-      if (!conn) throw codedError(`The glovebox device broker for ${transport} did not start; see ${BROKER_LOG}`, "failed");
+      if (!conn) throw codedError(`The nostrings device broker for ${transport} did not start; see ${BROKER_LOG}`, "failed");
     }
     this.child = conn;
     let buffer = "";
@@ -258,7 +258,7 @@ export class AndroidBackend extends EventEmitter {
       const reason = exitReason ?? "the connection to the device broker closed";
       for (const { reject, timer } of this.pending.values()) {
         clearTimeout(timer);
-        reject(codedError(`The glovebox server on ${this.label} stopped: ${reason}`, "failed"));
+        reject(codedError(`The nostrings server on ${this.label} stopped: ${reason}`, "failed"));
       }
       this.pending.clear();
       if (!this.closing) this.emit("exit", { reason });
@@ -332,7 +332,7 @@ export class AndroidBackend extends EventEmitter {
 
   #send(method, params, timeout) {
     const child = this.child;
-    if (!child) throw codedError(`The glovebox server on ${this.label} is not running`, "failed");
+    if (!child) throw codedError(`The nostrings server on ${this.label} is not running`, "failed");
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {

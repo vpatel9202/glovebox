@@ -1,8 +1,8 @@
 {
-  "name": "glovebox-bench",
+  "name": "nostrings-bench",
   "private": true,
   "type": "module",
-  "description": "Benchmark harness for glovebox; not part of the published package.",
+  "description": "Benchmark harness for nostrings; not part of the published package.",
   "scripts": {
     "dry-run": "node run.mjs --dry-run",
     "pilot": "node run.mjs --n 1 --budget 10",

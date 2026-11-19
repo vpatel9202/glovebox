@@ -118,16 +118,16 @@ export async function authorize({ pkg, name, client, device, approved, reason, p
     return;
   }
   if (!askFirst && config.approval === "allowlist") {
-    throw coded(`${label} is not in the allowlist. Run: glovebox allow ${pkg}`, "not_allowed");
+    throw coded(`${label} is not in the allowlist. Run: nostrings allow ${pkg}`, "not_allowed");
   }
   const why = reason ?? (askFirst ? `${name ?? pkg} can move money, read messages or codes, or change the phone's settings.` : "");
   const answer = await prompt({
     client,
-    title: "glovebox",
+    title: "nostrings",
     detail: `Allow ${client} to control ${label} on ${device}?\n\n${why ? `${why}\n\n` : ""}Every action is logged in ${paths.log}.`,
   });
   if (answer === null) {
-    throw coded(`${label} needs approval and there is no dialog on this host. Ask the user, then run: glovebox allow ${pkg}`, "needs_approval");
+    throw coded(`${label} needs approval and there is no dialog on this host. Ask the user, then run: nostrings allow ${pkg}`, "needs_approval");
   }
   if (answer === "deny") throw coded(`The user denied access to ${label}.`, "denied");
   approved.add(pkg);
@@ -144,7 +144,7 @@ export async function authorizeLocked({ device, client, approved, prompt = defau
   if (approved.has(key)) return;
   const answer = await prompt({
     client,
-    title: "glovebox",
+    title: "nostrings",
     detail: `${device} is locked. Allow ${client} to act on it anyway?\n\nThis reaches apps behind the lock screen.`,
   });
   if (answer === null) throw coded(`${device} is locked and there is no dialog on this host. Unlock it, or ask the user.`, "needs_approval");
