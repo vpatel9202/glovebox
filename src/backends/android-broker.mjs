@@ -60,8 +60,14 @@ export async function runBroker({ transport, hardware, build, adb, adbBin, dex, 
   if (!listener) process.exit(0);
   const log = (message) => process.stderr.write(`${new Date().toISOString()} ${hardware}: ${message}\n`);
   // Sessions can connect while the server is still being pushed; hold them.
-  const early = [];
-  const hold = (conn) => early.push(conn);
+  // (A second broker checking whether this one is alive connects and hangs
+  // up at once; a held connection that closes is dropped, or it would count
+  // as a session forever and keep the broker from ever going idle.)
+  const early = new Set();
+  const hold = (conn) => {
+    early.add(conn);
+    conn.once("close", () => early.delete(conn));
+  };
   listener.on("connection", hold);
 
   await adb(["-s", transport, "push", dex, remoteDex]);
@@ -133,6 +139,7 @@ export async function runBroker({ transport, hardware, build, adb, adbBin, dex, 
   });
 
   const accept = (conn) => {
+    if (conn.destroyed) return;
     const client = { socket: conn, session: `s${nextSession++}` };
     clients.add(client);
     idle();
@@ -166,7 +173,8 @@ export async function runBroker({ transport, hardware, build, adb, adbBin, dex, 
   };
   listener.off("connection", hold);
   listener.on("connection", accept);
-  for (const conn of early.splice(0)) accept(conn);
+  for (const conn of early) accept(conn);
+  early.clear();
   idle();
 
   process.on("SIGTERM", () => shutdown(0));

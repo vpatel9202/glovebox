@@ -32,16 +32,22 @@ echo "Built $out/glovebox-server.dex"
 fx=$here/fixture
 work=$out/fixture
 rm -rf "$work" && mkdir -p "$work/classes"
-"$buildtools/aapt2" link --manifest "$fx/AndroidManifest.xml" -I "$jar" --min-sdk-version 30 --target-sdk-version 35 -o "$work/base.apk"
 "$javac" -Xlint:-options --release 11 -cp "$jar" -d "$work/classes" $(find "$fx/src" -name '*.java')
 JAVA_HOME=${JAVA_HOME:-} "$buildtools/d8" --min-api 30 --lib "$jar" --output "$work" $(find "$work/classes" -name '*.class')
-(cd "$work" && zip -q base.apk classes.dex)
-"$buildtools/zipalign" -f 4 "$work/base.apk" "$work/aligned.apk"
 key=$out/fixture-debug.keystore
 if [ ! -f "$key" ]; then
   "$keytool" -genkeypair -keystore "$key" -storepass android -keypass android -alias fixture \
     -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=glovebox fixture" >/dev/null 2>&1
 fi
-JAVA_HOME=${JAVA_HOME:-} PATH=${JAVA_HOME:+$JAVA_HOME/bin:}$PATH "$buildtools/apksigner" sign --ks "$key" --ks-pass pass:android --out "$out/glovebox-fixture.apk" "$work/aligned.apk"
-rm -rf "$work" "$out/glovebox-fixture.apk.idsig"
-echo "Built $out/glovebox-fixture.apk"
+# Two packages from the same code: the second lets two sessions each open one.
+for variant in fixture fixture2; do
+  "$buildtools/aapt2" link --manifest "$fx/AndroidManifest.xml" -I "$jar" --min-sdk-version 30 --target-sdk-version 35 \
+    --rename-manifest-package "com.glovebox.$variant" -o "$work/$variant.apk"
+  (cd "$work" && zip -q "$variant.apk" classes.dex)
+  "$buildtools/zipalign" -f 4 "$work/$variant.apk" "$work/$variant-aligned.apk"
+  JAVA_HOME=${JAVA_HOME:-} PATH=${JAVA_HOME:+$JAVA_HOME/bin:}$PATH "$buildtools/apksigner" sign --ks "$key" --ks-pass pass:android \
+    --out "$out/glovebox-$variant.apk" "$work/$variant-aligned.apk"
+  rm -f "$out/glovebox-$variant.apk.idsig"
+done
+rm -rf "$work"
+echo "Built $out/glovebox-fixture.apk and glovebox-fixture2.apk"

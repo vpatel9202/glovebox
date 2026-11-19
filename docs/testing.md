@@ -160,3 +160,16 @@ Also on API 36:
 - A rebuilt server gets a fresh broker (the socket name carries a hash of
   the dex); before that, a session within an old broker's idle window got
   the old server.
+
+On the Galaxy S24 Ultra (One UI 9, Android 17, wireless debugging), with
+the phone dozing and its screen off at the start:
+- `smoke --android` passes every check; glovebox woke the phone for both
+  the hidden screen and the phone's-screen step.
+- Two sessions at once, one per fixture package (`com.glovebox.fixture`
+  and `com.glovebox.fixture2`, both built by `npm run build:android`): A
+  dragged and swiped the slider (93 and 7, three times each) and tapped and
+  long-pressed (3 and 3); B tapped six times and typed (`echo: bravO` after
+  a BackSpace and a key). Each landed only on its own hidden screen, and
+  top focus stayed on display 0.
+- Two sessions starting at the same moment share one broker, which exits
+  ten seconds after both end, leaving no socket, display or package.

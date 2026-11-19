@@ -428,6 +428,7 @@ final class Device {
     // A swipe-only lock screen guards nothing, so it is dismissed, as a
     // person would swipe it away; a real lock stops with an error.
     private void unlockScreen() throws Exception {
+        keepAwake(); // nothing comes to the front on a screen that is off
         android.app.KeyguardManager km = (android.app.KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
         if (km == null || !km.isKeyguardLocked()) return;
         if (km.isDeviceLocked()) {
@@ -747,6 +748,7 @@ final class Device {
             throw new Server.Coded("background_unavailable", "Android input goes to the app's screen (hidden or the phone's)");
         }
         int d = displayOrThrow(p);
+        if (d == DEFAULT_DISPLAY) keepAwake(); // a touch on a screen that is off only wakes it
         Input input = new Input(automation);
         input.display = d;
         switch (method) {
