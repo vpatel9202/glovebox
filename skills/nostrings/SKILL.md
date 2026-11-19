@@ -1,7 +1,7 @@
 ---
 name: nostrings
 description: >-
-  Control desktop apps (click, type, read the screen) through nostrings's
+  Control Mac apps and Android phones (click, type, read the screen) through nostrings's
   persistent JavaScript session, exposed as the MCP tool `js` (often
   `nostrings__js` or `mcp__nostrings__js`) or the `nostrings run` CLI. Use for GUI
   work that has no API, CLI, or file-based path. Prefer a programmatic path
@@ -48,6 +48,14 @@ open and save panels, and `app.paste(text)` for long text. Beyond one app:
 `ui.windows()` finds an unexpected dialog's owner, `ui.menuExtra("Control
 Center")`, `ui.notifications()`, `ui.spotlight("Name")`. `help("macOS")`
 lists them. Call `ui.quitLaunched()` when done with apps you opened.
+
+Android phones and emulators (over `adb`) use the same loop:
+`const phone = ui.device()` (or `ui.device("emulator-5554")` when several are
+connected), then `const app = await phone.getApp("Clock")` and the same read,
+click, type and scroll calls. On Android 14+ the app runs on a hidden screen,
+so the phone's own screen is untouched. If `activate()` fails with
+`open_on_phone`, the user has the app open; ask them, or pass
+`{foreground: true}` to `getApp`. `help("Android")` lists the rest.
 
 Keys use xdotool syntax: `Return`, `Tab`, `Escape`, `ctrl+a`, `shift+Tab`,
 `super+c` (Cmd on macOS). `typeText` treats `\n` as Return. Input stays in

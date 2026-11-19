@@ -1,8 +1,8 @@
 {
   "name": "nostrings",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "mcpName": "io.github.vpatel9202/nostrings",
-  "description": "Computer use for coding agents on macOS: one JavaScript call per step, accessibility diffs instead of screenshots, input in the background. MCP and CLI.",
+  "description": "Computer use for coding agents on your Mac and Android phone: one JavaScript call per step, accessibility diffs instead of screenshots, input in the background. MCP and CLI.",
   "type": "module",
   "license": "MIT",
   "author": "Vash Patel",
@@ -12,11 +12,39 @@
   },
   "homepage": "https://github.com/vpatel9202/nostrings#readme",
   "bugs": "https://github.com/vpatel9202/nostrings/issues",
-  "keywords": ["computer-use", "mcp", "mcp-server", "claude-code", "macos", "accessibility", "automation", "agents", "gui"],
+  "keywords": [
+    "computer-use",
+    "mcp",
+    "mcp-server",
+    "claude-code",
+    "macos",
+    "accessibility",
+    "automation",
+    "agents",
+    "gui",
+    "android",
+    "adb",
+    "mobile",
+    "desktop-automation",
+    "codex",
+    "computer-use-agent"
+  ],
   "bin": {
     "nostrings": "bin/nostrings.mjs"
   },
-  "files": ["bin", "src", "native", "!native/android/build/*.keystore", "skills", "docs", "README.md", "LICENSE", "NOTICE", "SECURITY.md", "CHANGELOG.md"],
+  "files": [
+    "bin",
+    "src",
+    "native",
+    "!native/android/build/*.keystore",
+    "skills",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "SECURITY.md",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "node": ">=20.10"
   },

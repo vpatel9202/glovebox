@@ -76,7 +76,7 @@ export function serveMcp({ input = process.stdin, output = process.stdout } = {}
             capabilities: { tools: {} },
             serverInfo: { name: "nostrings", version: VERSION },
             instructions:
-              "nostrings drives desktop apps through one persistent JavaScript session. Use the js tool for every GUI step and batch several actions per call.",
+              "nostrings drives Mac apps and Android phones (ui.device()) through one persistent JavaScript session. Use the js tool for every GUI step and batch several actions per call.",
           });
           return;
         }

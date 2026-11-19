@@ -7,7 +7,7 @@ same persistent JavaScript session.
 Install once, then attach to as many agents as you like:
 
 ```bash
-npm install -g github:vpatel9202/nostrings
+npm install -g nostrings
 nostrings setup     # macOS: builds Nostrings Helper.app and walks through permissions
 nostrings doctor    # everything should say ok
 nostrings smoke     # optional: a real end-to-end check on Calculator

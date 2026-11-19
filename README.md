@@ -3,10 +3,11 @@
 [![CI](https://github.com/vpatel9202/nostrings/actions/workflows/test.yml/badge.svg)](https://github.com/vpatel9202/nostrings/actions/workflows/test.yml)
 [![npm](https://img.shields.io/npm/v/nostrings.svg)](https://www.npmjs.com/package/nostrings)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](#status)
+[![Platforms: macOS, Android](https://img.shields.io/badge/platforms-macOS%20%7C%20Android-lightgrey.svg)](#status)
 
-**Computer use for coding agents on macOS: one JavaScript call per step,
-accessibility diffs instead of screenshots, and your screen stays yours.**
+**Computer use for coding agents on your Mac and your Android phone: one
+JavaScript call per step, accessibility diffs instead of screenshots, and your
+screen stays yours. No strings attached.**
 
 ![Someone browses Wikipedia in Safari while an agent works Calculator and types the result into TextEdit in the background](https://raw.githubusercontent.com/vpatel9202/nostrings/main/media/demo.gif)
 
@@ -35,16 +36,21 @@ fresh picture of the window.
 - **Background by default.** Keys, clicks, drags, and scrolls reach the app
   while you keep working in another one. Your cursor stays put, and a drawn
   cursor shows what the agent is doing.
+- **Your phone too.** `ui.device()` drives an Android phone or emulator over
+  ADB from the same session. On Android 14+ apps run on a hidden screen, so
+  the phone's own screen is left alone.
 
-In an [author-run test](#benchmark) of six setups on 12 tasks (2 runs each),
-nostrings had the lowest total cost, $0.57 against $1.41 to $5.67, and the
-fewest round trips and the most passes.
+In an [author-run test](#benchmark) of six setups on 12 macOS tasks (2 runs
+each), nostrings had the lowest total cost, $0.57 against $1.41 to $5.67, and
+the fewest round trips and the most passes.
 
-**What to know first:** macOS only, tested on macOS 27 on Apple silicon. You
-need the Xcode command line tools to build a small helper app, and you grant it
-Accessibility and Screen Recording. Background input uses two private macOS
-calls, with a foreground fallback. Only Claude Code has been tested end to end.
-nostrings was called glovebox until 0.5.0.
+**What to know first:** the Mac side is tested on macOS 27 on Apple silicon.
+You need the Xcode command line tools to build a small helper app, and you
+grant it Accessibility and Screen Recording. Background input uses two private
+macOS calls, with a foreground fallback. Android is experimental: tested on
+emulators (API 34 to 37) and one Galaxy S24, and it needs only `adb`. Only
+Claude Code has been tested end to end. nostrings was called glovebox until
+0.5.0.
 
 ## Quickstart
 
@@ -56,7 +62,16 @@ nostrings signing --create   # optional: macOS keeps the grants across helper re
 nostrings setup              # builds the helper, walks through permissions
 nostrings doctor             # every line should say ok
 nostrings smoke              # a real end-to-end test on Calculator
-                            # (Android: nostrings smoke --android; needs only adb)
+claude mcp add --scope user nostrings -- nostrings mcp
+```
+
+**Android only?** Skip the helper. With a phone (USB debugging on) or an
+emulator showing in `adb devices`:
+
+```bash
+npm install -g nostrings
+nostrings doctor             # the Android lines should say ok
+nostrings smoke --android    # installs a small test app and drives it
 claude mcp add --scope user nostrings -- nostrings mcp
 ```
 
@@ -140,12 +155,12 @@ Method, per-task numbers, and raw results: [bench/](bench/README.md) and
 
 ## How it compares
 
-Checked against each project's README and docs on 2026-11-03. "—" means I could
-not confirm it from those.
+Checked against each project's README and docs on 2026-11-03; the last three
+rows on 2026-11-19. "—" means I could not confirm it from those.
 
 | | Platforms | Actions per call | State between calls | Default read | Diffed reads | Background input | Needs |
 |---|---|---|---|---|---|---|---|
-| **nostrings** | macOS | many (one script) | persistent JS session | accessibility text | yes | yes | Xcode CLT to build the helper |
+| **nostrings** | macOS, Android (experimental) | many (one script) | persistent JS session | accessibility text | yes | yes | Xcode CLT to build the Mac helper; `adb` for Android |
 | Claude Code built-in | macOS (CLI) | — | — | screenshot | — | no, hides other apps | Pro, Max, or Ultra |
 | Codex computer use | macOS, Windows | many (one script) | persistent JS session | accessibility text | yes | yes on macOS | ChatGPT app and plugin |
 | [lcu](https://github.com/amontlabs/lcu) | macOS (Apple silicon), Linux | as Codex; it runs Codex's runtime | as Codex | as Codex | as Codex | — | ChatGPT app installed |
@@ -154,10 +169,14 @@ not confirm it from those.
 | [open-computer-use](https://github.com/iFurySt/open-computer-use) | macOS, Linux, Windows | one per MCP call; CLI has sequences | — | app state | — | — | npm |
 | [computer-use-mcp](https://github.com/minghinmatthewlam/computer-use-mcp) | macOS 14+ | one per call | element IDs | screenshot and tree per action | — | yes | notarized binary |
 | [cua-driver](https://github.com/trycua/cua) | macOS, Windows, Linux | — | — | — | — | yes | see its docs |
+| [native-devtools-mcp](https://github.com/sh3ll3x3c/native-devtools-mcp) | macOS, Windows, Android, Chrome/Electron | one per call | — | — | — | yes on macOS | see its docs |
+| [OpenComputerUse](https://github.com/IAmJSD/OpenComputerUse) | macOS, Linux, Windows, Android, iOS | one per call, plus `steps` batches | session ids | — | — | yes | see its docs |
+| [mobile-mcp](https://github.com/mobile-next/mobile-mcp) | Android, iOS (no desktop) | one per call | — | — | — | n/a | npm |
 
 **Pick something else if** you need Windows or Linux (agent-desktop, cua-driver,
-lcu), a notarized binary with no build step (computer-use-mcp), or want
-OpenAI's actual runtime and already have the ChatGPT app (lcu).
+lcu), iOS (mobile-mcp, OpenComputerUse), a notarized binary with no build step
+(computer-use-mcp), or want OpenAI's actual runtime and already have the
+ChatGPT app (lcu).
 
 ## Safety
 
@@ -184,33 +203,44 @@ keystrokes to that app, so a word you type can land in it
 
 ```
 agent ──MCP stdio──▶ nostrings mcp ──▶ kernel (persistent JS session)
-agent ──shell──▶ nostrings run ──▶ daemon ──▶ kernel        │
-                                                            ▼ Unix socket
-                                        Nostrings Helper.app (Swift: AX, CGEvent,
-                                        ScreenCaptureKit, approval dialogs)
+agent ──shell──▶ nostrings run ──▶ daemon ──▶ kernel
+                                                │
+                       ┌── Unix socket ─────────┴──────── adb ──┐
+                       ▼                                        ▼
+       Nostrings Helper.app (Swift: AX,       nostrings server on the phone
+       CGEvent, ScreenCaptureKit, dialogs)    (Java, shell user: accessibility,
+                                              input, hidden virtual displays)
 ```
 
-Background input uses two private macOS (SkyLight) functions, looked up at
-runtime with a foreground fallback; `nostrings doctor` reports which route you
-have. Everything else is public API. No OpenAI, Anthropic, or other vendor
-binaries.
+Background input on the Mac uses two private macOS (SkyLight) functions,
+looked up at runtime with a foreground fallback; `nostrings doctor` reports
+which route you have. On Android, a small server runs with shell privileges
+over ADB. It is a file pushed to the phone, not an installed app.
+Everything else is public API. No OpenAI, Anthropic, or other vendor binaries.
 
 ## Status
 
 | Platform | Status |
 |---|---|
 | macOS | Works. Built for macOS 14+; tested only on macOS 27 (Apple silicon). |
+| Android | Experimental. Hidden-screen sessions on Android 14+ (API 34); the phone's own screen below that. Tested on emulators API 34 to 37 and a Galaxy S24. |
 | Windows | Planned (UI Automation). See [roadmap](docs/roadmap.md). |
 | Linux | Planned (AT-SPI; Wayland limited). See [roadmap](docs/roadmap.md). |
 
 Run for real, not mocked: `nostrings smoke` and `smoke --full` over MCP (batched
 steps, persistent bindings, diffs, pixel clicks, and background click, drag, and
-scroll with another app frontmost), and Claude Code attached through
+scroll with another app frontmost), `smoke --macos` (51 checks on a test app),
+`smoke --android` (20 checks on a test app), and Claude Code attached through
 `nostrings mcp`. Full list: [docs/testing.md](docs/testing.md).
 
 ## The API in one screen
 
 - `ui.getApp(name)` launches or finds an app without stealing focus. `ui.listApps()`.
+- `ui.device()` is an Android phone with the same `getApp` and app methods:
+  `const clock = await ui.device().getApp("Clock")`.
+- `app.menu(["File", "Export…"])`, `app.ocr()` for screens the tree cannot
+  describe, and `ui.screenshot()`, `ui.clipboard`, `ui.notifications` for the
+  rest of the Mac.
 - `app.getAXState()` returns the accessibility tree as text; later reads are
   diffs. `{frames: true}` adds element boxes, `{disableDiffing: true}` the full tree.
 - `app.getScreenshot()` is the only way to get an image.

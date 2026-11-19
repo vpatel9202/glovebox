@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 (2026-11-19)
+
+- Docs: the README, package description, MCP Registry entry, skill and MCP
+  server instructions now say what shipped in 0.4.0: Android works
+  (experimental) alongside macOS. The roadmap no longer lists shipped work as
+  planned. `docs/agents.md` installs from npm.
+
 ## 0.5.0 (2026-11-19)
 
 glovebox is now **nostrings**. Nothing else changed in this release.

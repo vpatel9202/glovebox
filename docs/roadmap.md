@@ -1,94 +1,57 @@
 # Roadmap
 
-What works today is macOS (14+, tested on 27). Everything below is planned,
-not shipped. Nothing here has been tested unless it says so.
+What works today: macOS (14+, tested on 27) and Android (experimental, API 34+
+for hidden-screen sessions). Everything below is planned, not shipped. Nothing
+here has been tested unless it says so.
 
-## Found by the benchmark and the field run
+## Next
 
-The diff fixes and the bugs found by the 2026-10-28 baseline
-([bench/results](../bench/results/summary.md)) and the 2026-10-29 Citrix field
-run ([summary](../bench/results/field/2026-10-29-citrix/summary.md)) are
-fixed; see the [changelog](../CHANGELOG.md). One is not yet confirmed:
+Ordered by expected impact.
 
-1. **Horizontal background scroll in Citrix.** Scroll events now set the
-   point and fixed-point deltas for the horizontal axis, but this has not been
-   tried in Citrix Viewer. (gb-1iz.12)
-
-## Credibility and distribution
-
-Ordered by expected impact. These come before new platforms.
-
-1. **Benchmark harness (`bench/`).** Done 2026-10-28: harness, raw results,
-   and chart are in [bench/](../bench/README.md). The original scope follows.
-   About five fixed tasks: Calculator
-   arithmetic, editing a TextEdit document, a Finder rename, toggling a
-   setting in a non-blocked app, and filling a form in a native app. Add two
-   more: a Citrix-or-canvas task (pixel fallback, one-node tree) and a replay
-   task (run the same task again from a saved script), so the differentiators
-   below are measured against this baseline. Compare nostrings, Anthropic
-   computer use (screenshot-first), and one per-action AX MCP server
-   (open-computer-use or agent-desktop). Measure model round trips,
-   input tokens including image tokens, output tokens, wall-clock time, and
-   success over N runs per task, plus the token cost of a diff versus a full
-   tree. For the token work below, also count full re-prints caused by a
-   baseline mismatch, "no change" reads followed by another read, screenshots
-   per text task, and per-result text characters and image pixels (logged by
-   the kernel). Results must split input tokens into uncached, cache write,
-   and cache read, because with prompt caching round trips dominate cost.
-   Done when the raw results and the harness are in the repo and one chart is
-   in the README.
-2. **A prebuilt helper.** Ship a Developer ID signed, notarized helper in each
-   release. Done when `npx -y nostrings setup` works on a Mac without
-   the Xcode command line tools and grants survive an upgrade.
-3. **Demo media, then launch.** Record a GIF and a short video. Launch (Show HN, X, Codex computer-use
-   threads) only after one or two of these exist. Done when the GIF is at the
-   top of the README.
-4. **Exercise every documented client.** Run the Codex, Grok CLI, OpenCode,
-   Gemini CLI, and Cursor configs end to end, with a short clip for each.
-   Done when `docs/agents.md` and the README's "Works with" line list each
-   client as verified or say what failed.
-5. **CI on real GUI runs.** Unit tests run on every push and PR. Smoke tests
+1. **`nostrings init`.** One command that builds the helper, asks for each
+   permission one at a time, runs `doctor` and `smoke`, and registers the MCP
+   server and skill with each agent it finds (Claude Code, Codex, Cursor,
+   Gemini CLI), showing each change before it writes it.
+2. **Saved scripts and replay.** Functions saved to `~/.nostrings/lib/*.mjs`
+   load into every session, and `nostrings run task.mjs` replays a workflow
+   with no model calls. Peekaboo and open-computer-use replay JSON step lists
+   with no branching; this is a script.
+3. **Exercise every documented client.** Run the Codex, Grok CLI, OpenCode,
+   Gemini CLI, and Cursor configs end to end. Done when `docs/agents.md` marks
+   each one verified or says what failed.
+4. **A backend conformance check.** A test any new backend (Windows, Linux,
+   iOS) runs against the [backend protocol](backend-protocol.md), so a port
+   can be checked without a Mac.
+5. **A prebuilt helper.** A Developer ID signed, notarized helper in each
+   release, so the Mac side needs no Xcode tools and grants survive upgrades.
+   Waiting on a Developer ID.
+6. **Listings.** The Claude Code plugin marketplace and skills.sh. (The
+   official MCP Registry listing is live.)
+7. **CI on real GUI runs.** Unit tests run on every push and PR. Smoke tests
    still need a Mac with permissions granted, so they run by hand.
-6. **Listings.** The official MCP registry, the Claude Code plugin
-   marketplace, and skills.sh (for `skills/nostrings/SKILL.md`). Done when each
-   listing is live and links back to the repo.
-7. **Packaging and docs fixes found in review.** Done; see the changelog.
+8. **Benchmark again** once Windows and Linux exist: the published numbers
+   are from 0.3.0 (then called glovebox) and cover macOS only.
 
-After these, Windows is the highest-priority platform: cross-platform support
-is what lcu, agent-desktop, open-computer-use, and cua have over nostrings, and
-Windows-MCP has about 10.5k stars.
+Open bug found by the 2026-10-29 Citrix field run: horizontal background
+scroll has not been tried in Citrix Viewer since the fix. (gb-1iz.12)
 
 ## Token efficiency
 
-Ranked by round trips saved. Each call re-reads the cached context and adds
-reasoning and output tokens, so a round trip costs more than trimming one
-read. Savings are estimates from reading the code, to be confirmed by the
-benchmark. Effort: S is small, M is medium.
+Each call re-reads the cached context and adds reasoning and output tokens,
+so a round trip costs more than trimming one read. Shipped so far: silent
+lookups (`app.find`, `app.nodes`, `app.text`), `app.waitForChange` and
+`app.settle`, `app.expect`, outlines for large trees, field labels, window
+notices, and quieter lines. Still planned (S is small, M is medium):
 
-1. **Silent structured lookups.** Done: `app.find()`, `app.nodes()` and
-   `app.text()` return data without printing.
-2. **A read that waits for change.** Done: `app.waitForChange()` and
-   `app.settle()`.
-3. **Checks inside the script.** Done: `app.expect(query)` waits for an
-   element, and on failure prints the window and stops the call.
-4. **Outline for large trees.** Done: over 250 elements a read drops
-   offscreen elements and shows the tree level by level, with `(+N inside)`
-   on lines that hide more; `{full: true}` prints everything.
-5. **Field labels and window notices.** Resolve `AXTitleUIElement` and
-   `AXLabelUIElements` into field labels, and add a one-line notice when a
-   window, sheet, or alert opens. Helps forms and save sheets by avoiding
-   screenshots, and makes scripts that skip the read safe. S.
-6. **Line-format cleanup.** Quiet `AXShowMenu` (it is not in `QUIET_ACTIONS`),
-   drop auto-generated `_NS:` ids, show `help=` only when there is no label,
-   collapse scroll bars into `scrolled N%`, and drop single-child unlabeled
-   groups. A guess of 20-40% off a full tree, to be verified. S.
-7. **Diffs that survive context clearing.** A `read #N` header on each read,
+1. **Diffs that survive context clearing.** A `read #N` header on each read,
    and role plus label in short removed lists, so a diff still makes sense
    after the earlier tree has left the context. S.
-8. **Cheaper images.** `getScreenshot({region})` crops, and a hint when the
-   tree has two or fewer nodes. JPEG and grayscale save no tokens, because
-   images are charged by pixel size. Lowering the default scale would change
-   the click coordinate space, so it is not planned. S-M.
+2. **Line-format cleanup, the rest.** Show `help=` only when there is no
+   label, collapse scroll bars into `scrolled N%`, and drop single-child
+   unlabeled groups. S.
+3. **Cheaper images.** `app.getScreenshot({region})` crops, and a hint when
+   the tree has two or fewer nodes. JPEG and grayscale save no tokens, because
+   images are charged by pixel size. S-M.
 
 Not doing (backfires):
 
@@ -101,22 +64,6 @@ Not doing (backfires):
 - A smaller default screenshot scale: it changes the click coordinate space.
 - An outline-first read for small trees: it adds a round trip below about
   2-3k tokens.
-
-## Differentiators
-
-Two features no other tool checked has, as far as their READMEs show (eight
-competitors checked on 2026-10-27).
-
-1. **Local OCR text.** `app.getText()` runs Vision `VNRecognizeTextRequest`
-   in the helper and returns diffable `"text" @x,y` lines in click
-   space. It targets Citrix, canvases, and remote desktops, where the tree is
-   one node. None of the eight competitors checked documents this. The OCR
-   runs locally, but the recognized text still goes to the model.
-2. **Durable scripts and replay.** Selectors (token item 1) and `waitFor`
-   (token item 2) feed functions saved to `~/.nostrings/lib/*.mjs`, which load
-   automatically. `nostrings run file.mjs` replays a script with zero model
-   calls. For comparison, ghost-os recipes appear to need a small model, and
-   Peekaboo and open-computer-use replay JSON step lists with no branching.
 
 ## Windows backend
 
@@ -148,14 +95,15 @@ Plan: a Python helper.
 
 - Chromium/Electron keyboard input on macOS 15+ may need an
   `SLSEventAuthenticationMessage` attached to each key event; not done yet.
-- Menu shortcuts (⌘S and friends) in background apps: press the menu item
-  through accessibility instead of sending the key.
 - Detect apps that ignore background input and fall back automatically,
   instead of relying on `foregroundApps` in the config.
-- Test matrix beyond AppKit: Safari/WebKit, Electron apps, SwiftUI-only apps,
-  Citrix Viewer.
 - MCP elicitation as an alternative to the native approval dialog when the
   client supports it.
-- `app.menu(["File", "Export…"])` through the menu bar tree.
-- Optional settle detection (wait until the tree stops changing) instead of
-  a fixed delay after actions.
+
+## Android improvements
+
+- Physical phones beyond one Galaxy S24, and a parity check against macOS.
+- Tree quality and speed on large apps, and an Android round of the
+  benchmark.
+- iOS: not planned yet. Its automation needs Xcode and a signed runner, a
+  different shape from ADB.
