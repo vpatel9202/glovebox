@@ -55,6 +55,35 @@ own state are not gated: `hello`, `ping`, `permissions`, `listApps`,
 | `makeKey` | `pid`, `windowId` | `{keyed}` |
 | `screenshot` | `pid`, `windowId`, `width`, `height`, `format`, `quality` | `{data (base64), width, height, mimeType}` |
 | `forget` | `pid` | |
+| `menus` | `pid`, `path?`, `depth?` | `{items: [{index, title, shortcut?, disabled?, checked?, submenu?}]}` |
+| `menuPress` | `pid`, `path` | `{title, route}` |
+| `menuShortcut` | `pid`, `key`, `mods`, `dryRun?` | `{found, pressed, title?}` |
+| `selectMenuItem` | `pid`, `index`, `path`, `context?` | `{title, route}` |
+| `windowAction` | `pid`, `window`, `op` (move, resize, minimize, restore, raise, close, zoom, fullScreen), `x`, `y`, `width`, `height`, `on` | `{index}` |
+| `appAction` | `pid`, `op` (quit, forceQuit, hide, unhide) | `{terminated?}` |
+| `hover` | `pid`, `x`, `y`, input options | input result |
+| `gesture` | `pid`, `x`, `y`, `kind` (magnify, rotate), `amount`, `ms`, input options | input result |
+| `pasteStash` | `pid`, `op` (stash, restore), `text` | |
+| `dropFiles` | `pid`, `x`, `y`, `paths` | `{route, ended}` |
+| `open` | `target` (path or URL), `bundleId?`, `activate?` | the app that opened it |
+| `displays` | | `[{index, displayId, frame, scale, main, name}]` |
+| `allWindows` | `all?` | `[{windowId, pid, app, bundleId?, title?, frame, layer, onScreen}]` |
+| `screenCapture` | `display`, `width`, `height`, `format`, `quality`, `region?` | like `screenshot` |
+| `elementAtPoint` | `x`, `y` | `{pid, app, role, title, index, frame, value?}` |
+| `menuExtras` | | `[{pid, app, index, title?, help?, id?, frame}]` |
+| `systemKeys` | `chords` or `text` | |
+| `clipboard` | `op` (read, write), `text?`, `files?` | `{text?, files?, image?, types}` |
+| `approveSurface` | `key` (`macos:...`), `name`, `reason` | |
+
+The macOS-only methods without a `pid` ask under a `macos:` key instead:
+`screenCapture`, `allWindows` and `elementAtPoint` (`macos:screen`),
+`menuExtras` and `systemKeys` (`macos:system`; `systemKeys` also asks for the
+app in front), `clipboard` (`macos:clipboard`), `open` (the app that handles
+the target, plus `macos:files` for files), `dropFiles` (`macos:files` and the
+target app). `click` takes `holdMs` to keep the button down. A `hitTest` on an
+element of another app returns `{foreign, pid, app, bundleId, role}` only.
+`axTree` of an app with no windows reads its other children and reports
+window index `-1`.
 
 `cursor` draws the agent cursor (a decoration; clients ignore its failures).
 `move` moves the real pointer. `makeKey` makes a window key inside its app
@@ -95,7 +124,7 @@ Replies carry `{message, code}`. Codes the macOS helper uses:
 
 | Code | Meaning |
 |---|---|
-| `denied` | On the `deny` list, or the user chose Deny. |
+| `denied` | On the `deny` list, the user chose Deny, nobody answered within two minutes, or the target is the helper's own dialogs. |
 | `not_allowed` | `approval` is `allowlist` and the app is not on `allow`. |
 | `background_unavailable` | The private functions background input needs are missing. |
 | `background_unconfirmed` | The window could not be made key in the background. |

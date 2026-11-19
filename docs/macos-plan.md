@@ -157,11 +157,11 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | # | A human can... | glovebox call | Phase |
 |---|---|---|---|
 | 1 | Read and act in AppKit apps | `getAXState`, `click`, `typeText` | done |
-| 2 | ... in SwiftUI apps | same | done 2026-11-19 |
+| 2 | ... in SwiftUI apps | same | partial: AppKit fixture and System Settings reads; no SwiftUI-only app driven yet |
 | 3 | ... in Safari web pages | same | done |
 | 4 | ... in Chrome web pages | same | done 2026-11-19 |
-| 5 | ... in Electron apps | same | done 2026-11-19 |
-| 6 | Use any app, terminals and System Settings included | approval asks | done 2026-11-19 |
+| 5 | ... in Electron apps | same | partial: VS Code reads in full; background shortcuts go as keys (gb-c3n.12) |
+| 6 | Use any app, terminals and System Settings included | approval asks | partial: nothing is blocked; a dialog appears for an unlisted app (Chess); ask-first under allow-all not yet run |
 | 7 | Use the menu bar, in the background | `app.menu` | done 2026-11-19 |
 | 8 | Use menu shortcuts in the background | `pressKey("super+s")` | done 2026-11-19 |
 | 9 | Pick from a pop-up without stealing keys | `app.select` | done 2026-11-19 |
@@ -172,7 +172,7 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | 14 | Pick a file in open/save panels | `app.choosePath` | done 2026-11-19 |
 | 15 | Hover for tooltips and hover menus | `app.hover` | done 2026-11-19 |
 | 16 | Press and hold, middle click | `app.press`, `button: "middle"` | done 2026-11-19 |
-| 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | done 2026-11-19 |
+| 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | done for pinch and rotate; two-finger swipe not built |
 | 18 | See the whole screen | `gb.screenshot`, `gb.ocr`, `gb.windows` | done 2026-11-19 |
 | 19 | Use menu bar extras and Control Center | `gb.menuExtras` | done 2026-11-19 |
 | 20 | Read notifications | `gb.notifications` | done 2026-11-19 |

@@ -408,7 +408,7 @@ JSON.stringify({ screen: fp.screen, route, counts });`);
 // checks run first with the frontmost app checked; the last few use the
 // foreground route on purpose. The fixture is quit at the end and the
 // clipboard is put back.
-export async function runMacSmoke({ keep = false } = {}) {
+export async function runMacSmoke({ keep = false, foreground = true } = {}) {
   const fixture = await import("./macos-fixture.mjs");
   const { MacBackend } = await import("./backends/macos.mjs");
   const results = [];
@@ -477,7 +477,15 @@ export async function runMacSmoke({ keep = false } = {}) {
     const frontAfter = frontmostApp();
     if (frontBefore) step("everything above stayed in the background", frontBefore === frontAfter, `${frontBefore} -> ${frontAfter}`);
 
-    // Foreground on purpose: these move the real pointer or need the app in front.
+    // Foreground on purpose: these move the real pointer or need the app in
+    // front, so they are skipped with --background-only (someone is at the Mac).
+    if (!foreground) {
+      process.stdout.write("      (foreground checks skipped: --background-only)\n");
+      if (!keep) await check("quit the app", `await fx.quit()`, "quit");
+      const ok = results.every(Boolean);
+      process.stdout.write(ok ? `\nAll ${results.length} background macOS checks passed.\n` : `\n${results.filter((r) => !r).length} of ${results.length} macOS checks failed.\n`);
+      return ok;
+    }
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "glovebox-smoke-"));
     const file = path.join(dir, "pick-me.txt");
     fs.writeFileSync(file, "glovebox smoke\n");
