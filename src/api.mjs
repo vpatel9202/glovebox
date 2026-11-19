@@ -201,7 +201,10 @@ export class App {
       text = `${header}\n${lines.join("\n")}`;
     }
     if (tree.truncated) text += `\n(truncated at ${tree.nodes.length} elements; pass {maxNodes} to see more)`;
-    if (tree.nodes.length <= 2) text += "\n(few elements: this screen may be drawn, not described; app.ocr() reads its text with positions, or take a screenshot)";
+    // Once, on a full read: a diff of a near-empty tree needs no reminder.
+    if (tree.nodes.length <= 2 && !text.includes(" — changes since last read") && !text.endsWith(" — no change.")) {
+      text += "\n(few elements: this screen may be drawn, not described; app.ocr() reads its text with positions, or take a screenshot)";
+    }
     if (outline.offscreen || outline.deeper) {
       const left = [outline.offscreen && `${outline.offscreen} outside the window`, outline.deeper && `${outline.deeper} in folded levels`].filter(Boolean).join(", ");
       text += `\n(outline: ${outline.nodes.length} of ${tree.nodes.length} elements; not shown: ${left}. find() and nodes() reach all of them; {full: true} prints everything)`;
