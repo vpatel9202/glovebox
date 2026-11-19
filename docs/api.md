@@ -181,6 +181,8 @@ await clock.getAXState();
   JDK). The server runs over ADB with shell privileges and stops with the
   session. Only one automation tool can read the screen at a time; stop
   uiautomator, Appium or Maestro first.
+- `glovebox doctor` lists connected devices and checks each one;
+  `glovebox smoke --android` runs an end-to-end check with a test app.
 
 ## Known limits
 

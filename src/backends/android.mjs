@@ -14,6 +14,8 @@ import { authorize, authorizeLocked, isAskFirst } from "../approval.mjs";
 const execFileAsync = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const SERVER_DEX = path.join(here, "..", "..", "native", "android", "build", "glovebox-server.dex");
+export const FIXTURE_APK = path.join(here, "..", "..", "native", "android", "build", "glovebox-fixture.apk");
+export const FIXTURE_PACKAGE = "com.glovebox.fixture";
 const REMOTE_DEX = "/data/local/tmp/glovebox-server.dex";
 const SERVER_CLASS = "com.glovebox.server.Server";
 
@@ -35,7 +37,7 @@ function codedError(message, code) {
   return error;
 }
 
-async function adb(args, options = {}) {
+export async function adb(args, options = {}) {
   try {
     const { stdout } = await execFileAsync(adbPath(), args, { timeout: options.timeout ?? 20_000, maxBuffer: 8 << 20 });
     return stdout.replace(/\r/g, "");
@@ -78,6 +80,75 @@ export async function resolveSerial(wanted) {
 
 async function hardwareSerial(transport) {
   return (await adb(["-s", transport, "shell", "getprop", "ro.serialno"]).catch(() => transport)).trim() || transport;
+}
+
+// Processes that hold the one shell automation connection a phone allows.
+const COMPETING = [
+  [/^uiautomator$|com\.android\.commands\.uiautomator/, "uiautomator"],
+  [/io\.appium\.uiautomator2/, "Appium"],
+  [/dev\.mobile\.maestro/, "Maestro"],
+  [/com\.github\.uiautomator/, "uiautomator2 (Python)"],
+];
+
+// `glovebox doctor` checks: [{level: "ok"|"fail"|"warn"|"info", label, fix}].
+// A phone with a glovebox server already running is reported, not
+// connected to: connecting would stop that session's server.
+export async function doctorChecks({ client = "glovebox doctor" } = {}) {
+  const out = [];
+  const add = (level, label, fix) => out.push({ level, label, fix });
+  let version;
+  try {
+    version = (await adb(["version"])).split("\n")[0].trim();
+  } catch (error) {
+    add("info", "Android: adb not found (optional)", "Install Android platform-tools, or set GLOVEBOX_ADB");
+    return out;
+  }
+  add("ok", `${version} (${adbPath()})`);
+  const built = fs.existsSync(SERVER_DEX);
+  add(built ? "ok" : "fail", built ? "Android server built" : "Android server not built", "Run: npm run build:android");
+  const devices = await listDevices();
+  if (devices.length === 0) add("info", "No Android device connected (adb devices is empty)");
+  const seen = new Set();
+  for (const { serial, state } of devices) {
+    if (state === "unauthorized") {
+      add("fail", `${serial}: not authorized`, "Unlock the phone and accept the USB debugging prompt");
+      continue;
+    }
+    if (state !== "device") {
+      add("fail", `${serial}: ${state}`, "Reconnect the cable, or for wireless debugging run: adb connect <ip:port>");
+      continue;
+    }
+    const hardware = await hardwareSerial(serial);
+    if (seen.has(hardware)) {
+      add("ok", `${serial}: same phone as above`);
+      continue;
+    }
+    seen.add(hardware);
+    const ps = await adb(["-s", serial, "shell", "ps", "-A", "-o", "ARGS"]).catch(() => "");
+    const lines = ps.split("\n");
+    if (lines.some((l) => l.includes(SERVER_CLASS))) {
+      add("ok", `${serial}: a glovebox server is already running (another session); not checked further`);
+      continue;
+    }
+    const competing = COMPETING.filter(([re]) => lines.some((l) => re.test(l.trim()))).map(([, name]) => name);
+    if (competing.length) {
+      add("fail", `${serial}: ${competing.join(", ")} is running and holds the screen reader`, "Stop it first; only one automation tool can read the screen at a time");
+      continue;
+    }
+    if (!built) continue;
+    const backend = new AndroidBackend({ serial, client });
+    try {
+      await backend.connect();
+      const info = backend.info;
+      add("ok", `${serial}: ${info.manufacturer} ${info.model}, Android ${info.release} (API ${info.sdk}), screen ${info.display.join("x")}`);
+      add(info.accessibility ? "ok" : "fail", `${serial}: accessibility connection${info.accessibility ? "" : `: ${info.error ?? "failed"}`}`, "Turn off other automation tools, or reboot the phone");
+    } catch (error) {
+      add("fail", `${serial}: glovebox server did not start`, error.message);
+    } finally {
+      backend.close();
+    }
+  }
+  return out;
 }
 
 export class AndroidBackend extends EventEmitter {

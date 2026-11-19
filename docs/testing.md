@@ -77,3 +77,29 @@ background:
 The frontmost-app check then covers these steps too. The two documents stay
 open in TextEdit; close them without saving (the temp directory is printed).
 For a meaningful result, keep some other app frontmost while it runs.
+
+## Android smoke test
+
+```bash
+npm run build:android                 # builds the server and the fixture app
+glovebox smoke --android [--serial s] # --keep leaves the fixture installed
+```
+
+Installs a small test app (`com.glovebox.fixture`, built from
+`native/android/fixture` without Gradle) for the run and removes it after.
+Each control reports what it received in a label next to it. Over MCP, with
+the fixture's approval skipped (ask-first apps and a locked phone still ask):
+
+1. The device connects and the fixture's tree reads.
+2. An index click and a pixel tap on the button both count.
+3. A long press counts.
+4. `typeText` fills the field; `pressKey("BackSpace")` deletes a character.
+5. A `drag` moves the slider up; a `swipe` moves it back down.
+6. `scroll` moves the list past its first row.
+7. The screenshot is in the same pixel space as clicks.
+8. `Back` leaves the app, and the next read fails with `not_visible`.
+9. `js_reset` drops the binding.
+
+Failure details print only the fixture's labels and error codes, never other
+screen content. Passed on the API 36 emulator (three runs in a row) and on a
+Galaxy S24 Ultra (One UI 9, Android 17) over wireless debugging.

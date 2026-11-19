@@ -59,6 +59,7 @@ glovebox signing --create   # optional: macOS keeps the grants across helper reb
 glovebox setup              # builds the helper, walks through permissions
 glovebox doctor             # every line should say ok
 glovebox smoke              # a real end-to-end test on Calculator
+                            # (Android: npm run build:android, then glovebox smoke --android)
 claude mcp add --scope user glovebox -- glovebox mcp
 ```
 

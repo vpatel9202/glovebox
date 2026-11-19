@@ -222,8 +222,16 @@ final class Device {
                 .redirectErrorStream(true).start();
         proc.getInputStream().readAllBytes();
         proc.waitFor();
+        // The task is on top before its window reaches the accessibility
+        // window list; wait for both, so the next read finds the app.
         for (int i = 0; i < 50; i++) {
-            if (pkg.equals(topPackage())) return;
+            if (pkg.equals(topPackage())) {
+                try {
+                    if (!appWindows(pkg).isEmpty()) return;
+                } catch (Server.Coded notYet) {
+                    // not_visible until the window shows up
+                }
+            }
             Thread.sleep(100);
         }
         throw new Server.Coded("activate_failed", pkg + " did not come to the front");

@@ -10,8 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "glovebox.mjs");
 
-function client() {
-  const child = spawn(process.execPath, [cli, "mcp"], { stdio: ["pipe", "pipe", "inherit"] });
+function client(env = process.env) {
+  const child = spawn(process.execPath, [cli, "mcp"], { stdio: ["pipe", "pipe", "inherit"], env });
   const pending = new Map();
   let nextId = 1;
   let buffer = "";
@@ -156,5 +156,114 @@ JSON.stringify({ afterClick, afterDrag, before, afterScroll, route: te.lastRoute
   }
   const passed = results.every(Boolean);
   process.stdout.write(passed ? "\nAll smoke checks passed.\n" : "\nSome smoke checks failed.\n");
+  return passed;
+}
+
+// `glovebox smoke --android`: the same loop on a phone or emulator, against
+// the fixture app (native/android/fixture), which reports every tap, key,
+// long press, drag and scroll in a label. The fixture is installed for the
+// run and removed after it unless `keep`. Failure details print only the
+// fixture's own labels and error codes, never other screen content.
+export async function runAndroidSmoke({ serial, keep = false } = {}) {
+  const { FIXTURE_APK, FIXTURE_PACKAGE, resolveSerial, adb } = await import("./backends/android.mjs");
+  const results = [];
+  const step = (name, pass, detail) => {
+    results.push(pass);
+    process.stdout.write(`${pass ? "PASS" : "FAIL"}  ${name}${!pass && detail ? `\n      ${String(detail).split("\n")[0]}` : ""}\n`);
+  };
+  if (!fs.existsSync(FIXTURE_APK)) {
+    step("fixture app built", false, "Run: npm run build:android");
+    return false;
+  }
+  const transport = await resolveSerial(serial ?? process.env.ANDROID_SERIAL);
+  await adb(["-s", transport, "install", "-r", FIXTURE_APK], { timeout: 120_000 });
+  await adb(["-s", transport, "shell", "am", "force-stop", FIXTURE_PACKAGE]);
+  // The fixture is ours: skip its dialog. Ask-first apps and a locked phone still ask.
+  const mcp = client({ ...process.env, GLOVEBOX_APPROVAL: "allow-all" });
+  // Runs `code` and parses the JSON its last line prints.
+  const run = async (code) => {
+    const reply = await mcp.js(code);
+    if (reply.isError) return { error: reply.text.trim().split("\n").at(-1) };
+    try {
+      return { ...JSON.parse(reply.text.trim().split("\n").at(-1)), images: reply.images.length };
+    } catch {
+      return { error: "unexpected output" };
+    }
+  };
+  try {
+    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "glovebox smoke", version: "1" } });
+    const hello = await run(`
+const phone = gb.device(${JSON.stringify(transport)});
+const fx = await phone.getApp(${JSON.stringify(FIXTURE_PACKAGE)});
+await fx.activate();
+const tree = () => fx.getAXState({ emit: false, disableDiffing: true, frames: true });
+const idx = async (re) => Number((await tree()).match(re)?.[1]);
+const label = async (prefix) => (await tree()).match(new RegExp('text "(' + prefix + '[^"]*)"'))?.[1];
+JSON.stringify({ ok: /text field/.test(await tree()), device: String(phone) });`);
+    step("device connects and reads the fixture", hello.ok === true, hello.error);
+    if (!hello.ok) return false;
+
+    const tap = await run(`
+await fx.click(await idx(/^\\s*(\\d+) button "Tap me"/im));
+const r1 = fx.lastRoute;
+await fx.click(await fx.center(await idx(/^\\s*(\\d+) button "Tap me"/im)));
+JSON.stringify({ counts: await label("taps"), r1, r2: fx.lastRoute });`);
+    step("index click and pixel tap both land", tap.counts?.startsWith("taps: 2"), tap.error ?? tap.counts);
+
+    const long = await run(`
+await fx.longPress(await idx(/^\\s*(\\d+) button "Tap me"/im));
+JSON.stringify({ counts: await label("taps") });`);
+    step("long press lands", /long presses: 1$/.test(long.counts ?? ""), long.error ?? long.counts);
+
+    const typed = await run(`
+await fx.click(await idx(/^\\s*(\\d+) text field/m));
+await fx.typeText("hello glovebox");
+const route = fx.lastRoute;
+const echo1 = await label("echo");
+await fx.pressKey("BackSpace");
+JSON.stringify({ echo1, echo2: await label("echo"), route });`);
+    step("typeText fills the field", typed.echo1 === "echo: hello glovebox", typed.error ?? typed.echo1);
+    step("pressKey BackSpace deletes a character", typed.echo2 === "echo: hello glovebo", typed.error ?? typed.echo2);
+
+    const slid = await run(`
+await fx.pressKey("Back"); // hide the keyboard
+const s = (await tree()).match(/^\\s*\\d+ slider "Slider".*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);
+const y = s[1] + s[3] / 2;
+await fx.drag([s[0] + s[2] * 0.1, y], [s[0] + s[2] * 0.9, y]);
+const v1 = Number((await label("slider")).split(" ")[1]);
+await fx.swipe([s[0] + s[2] * 0.9, y], [s[0] + s[2] * 0.3, y]);
+JSON.stringify({ v1, v2: Number((await label("slider")).split(" ")[1]) });`);
+    step("drag moves the slider", slid.v1 >= 70, slid.error ?? `slider ${slid.v1}`);
+    step("swipe moves it back", slid.v2 <= 45 && slid.v2 < slid.v1, slid.error ?? `slider ${slid.v2}`);
+
+    const scrolled = await run(`
+const listAt = (await tree()).match(/^\\s*\\d+ list.*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);
+await fx.scroll([listAt[0] + listAt[2] / 2, listAt[1] + listAt[3] / 2], 15);
+const t = await tree();
+JSON.stringify({ row0: /button "Row 0"/.test(t), first: t.match(/button "(Row \\d+)"/)?.[1] });`);
+    step("scroll moves the list", scrolled.row0 === false, scrolled.error ?? `first row ${scrolled.first}`);
+
+    const shot = await run(`
+const img = await fx.getScreenshot();
+JSON.stringify({ same: img.width === fx.view.width && img.height === fx.view.height });`);
+    step("screenshot is in the same pixel space as clicks", shot.same === true && shot.images === 1, shot.error);
+
+    const gone = await run(`
+await fx.pressKey("Back");
+await sleep(500);
+let code = null;
+try { await fx.getAXState({ emit: false }); } catch (e) { code = e.code; }
+JSON.stringify({ code });`);
+    step("Back leaves the app, and a read says not_visible", gone.code === "not_visible", gone.error ?? `code ${gone.code}`);
+
+    await mcp.request("tools/call", { name: "js_reset", arguments: {} });
+    const after = await mcp.js("typeof fx");
+    step("js_reset drops the binding", !after.isError && after.text.trim() === "undefined", after.text);
+  } finally {
+    mcp.close();
+    if (!keep) await adb(["-s", transport, "uninstall", FIXTURE_PACKAGE]).catch(() => {});
+  }
+  const passed = results.every(Boolean);
+  process.stdout.write(passed ? "\nAll Android smoke checks passed.\n" : "\nSome Android smoke checks failed.\n");
   return passed;
 }
