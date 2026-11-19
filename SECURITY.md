@@ -86,6 +86,10 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   that can move money, read messages or one-time codes, or change the phone's
   settings, even under `allow-all`, and it asks again when one of them shows
   inside an app you already approved. It does not block an action you approve.
+- **Notifications.** `phone.notifications()` reads the whole shade, which
+  can show messages and one-time codes from any app, so it asks first even
+  under `allow-all` (approval key `android:notifications`), and each read
+  is logged.
 - **Locked phones.** The server can reach apps behind the lock screen (a
   hidden screen runs even while the phone is locked), so acting on, or
   reading a hidden screen of, a phone locked with a PIN, pattern, password or

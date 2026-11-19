@@ -799,6 +799,20 @@ export function createApi(ctx) {
           if (info.alternatives?.length) ctx.out.text(`(opened in ${info.name}; also handled by ${info.alternatives.join(", ")})`);
           return app;
         },
+        // The notifications in the shade now, newest first:
+        // [{app, package, title, text, subtext, when, ongoing, actions}].
+        // Always asks first (they can hold messages and codes). Prints them
+        // unless {emit: false}.
+        async notifications(options = {}) {
+          ctx.checkAbort();
+          const list = (await backend.request("notifications", { max: options.max ?? 50 })).map(({ key, ...n }) => n);
+          ctx.log({ app: "android:notifications", action: "read notifications", device: backend.label, count: list.length });
+          if (options.emit !== false) {
+            const lines = list.map((n) => `${n.app}: ${[n.title, n.text].filter(Boolean).join(" — ")}${n.actions?.length ? ` [${n.actions.join(", ")}]` : ""}`);
+            ctx.out.text(`Notifications on ${backend.label}:\n${lines.join("\n") || "(none)"}`);
+          }
+          return list;
+        },
         platform: backend.platform,
         serial: serial ?? null,
         toString: () => `Device(${backend.label})`,

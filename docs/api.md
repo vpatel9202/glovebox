@@ -238,6 +238,12 @@ await clock.getAXState();
   locked with a PIN, pattern or biometric fails with `locked` (the hidden
   screen works while locked, after the one-time approval).
 - `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
+- `phone.notifications({max, emit})` lists the notifications in the shade,
+  newest first, as `[{app, package, title, text, subtext, when, ongoing}]`,
+  and prints them unless `{emit: false}`: one-time codes, for one. It
+  always asks first (approval key `android:notifications`; `glovebox allow
+  android:notifications` skips the dialog, `glovebox revoke` restores it),
+  and each read is logged.
 - `phone.open(url)` opens a link in the app that handles it (the user's
   default, else the first; a note lists the others) on that app's hidden
   screen and returns its handle; `{foreground: true}` uses the phone's own

@@ -155,6 +155,7 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
 }
 
 const BROKER_LOG = path.join(paths.home, "android-broker.log");
+const NOTIFICATIONS = "android:notifications"; // the approval key for reading the shade
 const CLI = path.join(here, "..", "..", "bin", "glovebox.mjs");
 
 // A short hash of the server dex, so a rebuilt server gets its own broker.
@@ -280,7 +281,18 @@ export class AndroidBackend extends EventEmitter {
 
   async request(method, params = {}, { timeout = 30_000 } = {}) {
     if (!this.child) await this.connect();
-    if (!UNGATED.has(method)) await this.#gate(method, params);
+    if (method === "notifications") {
+      // Not one app's: the whole shade, which can hold messages and codes.
+      await authorize({
+        client: this.client,
+        device: this.label,
+        approved: this.approved,
+        pkg: NOTIFICATIONS,
+        name: "the phone's notifications",
+        reason: "Notifications can show messages and one-time codes from any app.",
+        ...(this.prompt ? { prompt: this.prompt } : {}),
+      });
+    } else if (!UNGATED.has(method)) await this.#gate(method, params);
     // A cold start on a hidden screen can take tens of seconds on a slow device.
     const result = await this.#send(method, params, method === "activate" ? Math.max(timeout, 60_000) : timeout);
     if (method === "listApps") for (const a of result) this.names.set(a.bundleId, a.name);

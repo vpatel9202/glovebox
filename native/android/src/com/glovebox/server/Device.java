@@ -102,6 +102,71 @@ final class Device {
         }
     }
 
+    // ---- notifications
+
+    // The notifications in the shade now, newest first: what a person sees
+    // when they pull it down. Shell may not call the notification service
+    // for them (ACCESS_NOTIFICATIONS), but may dump it, so this reads
+    // `dumpsys notification --noredact`: the active list's records, each
+    // with its package, flags, post time and first extras (the public copy
+    // of a private notification comes after and is skipped).
+    private JSONArray notifications(int max) throws Exception {
+        Process proc = new ProcessBuilder("dumpsys", "notification", "--noredact").redirectErrorStream(true).start();
+        String dump = new String(proc.getInputStream().readAllBytes(), "UTF-8");
+        proc.waitFor();
+        java.util.regex.Pattern field = java.util.regex.Pattern.compile("^\\s*android\\.(title|text|bigText|subText)=\\w*String \\((.*)\\)\\s*$");
+        List<JSONObject> list = new ArrayList<>();
+        JSONObject cur = null;
+        boolean inList = false, inExtras = false, extrasDone = false;
+        for (String line : dump.split("\n")) {
+            if (line.trim().equals("Notification List:")) { inList = true; continue; }
+            if (!inList) continue;
+            if (line.matches("^  \\S.*") && !line.trim().startsWith("NotificationRecord")) break; // next section
+            String t = line.trim();
+            if (t.startsWith("NotificationRecord(")) {
+                cur = new JSONObject();
+                list.add(cur);
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("pkg=(\\S+)").matcher(t);
+                if (m.find()) cur.put("package", m.group(1));
+                inExtras = false;
+                extrasDone = false;
+                continue;
+            }
+            if (cur == null) continue;
+            if (t.startsWith("key=") && !cur.has("key")) cur.put("key", t.substring(4));
+            if (t.startsWith("flags=") && !cur.has("flags")) {
+                try { cur.put("flags", Integer.decode(t.substring(6).split("\\s")[0])); } catch (NumberFormatException ignored) {}
+            }
+            if (t.startsWith("when=") && !cur.has("when")) {
+                try { cur.put("when", Long.parseLong(t.substring(5).split("/")[0])); } catch (NumberFormatException ignored) {}
+            }
+            if (t.equals("extras={") && !extrasDone) { inExtras = true; continue; }
+            if (inExtras && t.equals("}")) { inExtras = false; extrasDone = true; continue; }
+            if (inExtras) {
+                java.util.regex.Matcher m = field.matcher(line);
+                if (m.matches()) cur.put(m.group(1), m.group(2));
+            }
+        }
+        list.sort((x, y) -> Long.compare(y.optLong("when"), x.optLong("when")));
+        JSONArray out = new JSONArray();
+        for (JSONObject r : list) {
+            if (out.length() >= max) break;
+            String text = r.optString("bigText", null);
+            if (text == null) text = r.optString("text", null);
+            String title = r.optString("title", null);
+            if (title == null && text == null) continue; // group summaries and wordless chrome
+            String pkg = r.optString("package");
+            JSONObject o = new JSONObject().put("app", label(pkg) == null ? pkg : label(pkg)).put("package", pkg)
+                    .put("when", r.optLong("when")).putOpt("key", r.optString("key", null));
+            if (title != null) o.put("title", title);
+            if (text != null) o.put("text", text);
+            if (r.has("subText")) o.put("subtext", r.getString("subText"));
+            if ((r.optInt("flags") & android.app.Notification.FLAG_ONGOING_EVENT) != 0) o.put("ongoing", true);
+            out.put(o);
+        }
+        return out;
+    }
+
     // ---- change events, for waitForChange
 
     private final List<Object[]> waiters = new ArrayList<>(); // {package, latch}
@@ -279,6 +344,8 @@ final class Device {
             case "_events":
                 return new JSONObject().put("count", eventCount).put("last", lastEvent)
                         .put("types", automation.getServiceInfo().eventTypes).put("flags", automation.getServiceInfo().flags);
+            case "notifications":
+                return notifications(p.optInt("max", 50));
             case "_tapDisplay": {
                 // Test-only: a tap on any display, as if from outside the session.
                 Input input = new Input(automation);

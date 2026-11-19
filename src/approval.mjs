@@ -35,6 +35,8 @@ export const ASK_FIRST = [
   "com.google.android.apps.authenticator2",
   "com.azure.authenticator",
   "com.authy.authy",
+  // Reading the notification shade (messages and one-time codes show there)
+  "android:notifications",
   // Wallets and password managers
   "com.google.android.apps.walletnfcrel",
   "com.samsung.android.spay",
