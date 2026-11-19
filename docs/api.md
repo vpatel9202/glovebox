@@ -75,6 +75,14 @@ await calc.getAXState();
 - `app.nodes(options)` returns every element in that form, and
   `app.text(index)` the full text of one; reads cut text at 160 characters.
   Neither prints nor changes what the next read diffs against.
+- `app.ocr({window, languages, emit})` reads text from the window's
+  screenshot on the host (macOS Vision) for screens the tree cannot describe
+  (canvases, games, remote desktops; a read with two or fewer elements
+  suggests it). Returns `[{text, confidence, frame}]` with the frame in
+  image pixels, ready to click, and prints one line per text unless
+  `{emit: false}`. The first call builds the OCR tool with `swiftc` (about a
+  minute); later calls take well under a second. OCR text can be wrong
+  (`0` read as `O`).
 - `app.windows()` lists windows with their frames and image size.
 - `app.frame(index)` and `app.center(index)` give an element's rectangle or
   center in image pixels.

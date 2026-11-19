@@ -201,6 +201,7 @@ export class App {
       text = `${header}\n${lines.join("\n")}`;
     }
     if (tree.truncated) text += `\n(truncated at ${tree.nodes.length} elements; pass {maxNodes} to see more)`;
+    if (tree.nodes.length <= 2) text += "\n(few elements: this screen may be drawn, not described; app.ocr() reads its text with positions, or take a screenshot)";
     if (outline.offscreen || outline.deeper) {
       const left = [outline.offscreen && `${outline.offscreen} outside the window`, outline.deeper && `${outline.deeper} in folded levels`].filter(Boolean).join(", ");
       text += `\n(outline: ${outline.nodes.length} of ${tree.nodes.length} elements; not shown: ${left}. find() and nodes() reach all of them; {full: true} prints everything)`;
@@ -352,6 +353,25 @@ export class App {
     const node = (await this.nodes({ ...options, maxText: options.maxText ?? 100_000 })).find((n) => n.index === index);
     if (!node) throw new RangeError(`No element ${index} in ${this.name}'s window; read again`);
     return node.value ?? node.label ?? "";
+  }
+
+  // Text in the window's screenshot, by OCR on the host (macOS Vision), for
+  // screens the tree cannot describe: canvases, games, remote desktops.
+  // Returns [{text, confidence, frame: [x, y, w, h]}] in image pixels (the
+  // click space) and prints one line per text unless {emit: false}.
+  // `languages` (e.g. ["de-DE"]) helps text that is not English.
+  async ocr(options = {}) {
+    const { recognizeText } = await import("./ocr.mjs");
+    const shot = await this.getScreenshot({ window: options.window, format: "png", emit: false });
+    const found = await recognizeText(Buffer.from(shot.data, "base64"), { languages: options.languages });
+    // A screenshot can come back larger than the view; map to the view's pixels.
+    const sx = this.#view.width / shot.width, sy = this.#view.height / shot.height;
+    const items = found.map((t) => ({ text: t.text, confidence: Math.round(t.confidence * 100) / 100, frame: [t.frame[0] * sx, t.frame[1] * sy, t.frame[2] * sx, t.frame[3] * sy].map(Math.round) }));
+    if (options.emit !== false) {
+      const lines = items.map((t) => `${JSON.stringify(t.text)} @${t.frame[0]},${t.frame[1]} ${t.frame[2]}x${t.frame[3]}`);
+      this.#ctx.out.text(`${this.name} — text in the screenshot (OCR) — image ${this.#view.width}x${this.#view.height}\n${lines.join("\n") || "(no text found)"}`);
+    }
+    return items;
   }
 
   async getAXStateAndScreenshot(options = {}) {
