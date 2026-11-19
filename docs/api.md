@@ -176,11 +176,15 @@ await clock.getAXState();
 - Hidden-screen apps stay out of the phone's recent apps.
 - Several glovebox sessions (agents, CLI sessions) can use one phone at the
   same time, each with its own hidden screens and element indices. One app
-  can be open in only one session at a time; a second fails with
-  `open_in_other_session`. Ending a session closes its hidden screens.
+  can be open in only one session at a time, on a hidden screen or the
+  phone's (opening it on the phone's screen would pull the other session's
+  copy over); a second fails with `open_in_other_session`. A session that
+  switches its own handle to `{foreground: true}` brings its hidden copy to
+  the phone's screen. Ending a session closes its hidden screens.
 - If an app on a hidden screen moves itself to the phone's own screen (some
-  sign-in and system screens do), glovebox stops with `moved_to_phone_screen`
-  rather than follow it.
+  sign-in and system screens might), glovebox stops with
+  `moved_to_phone_screen` rather than follow it. (No app has been seen to do
+  this in testing yet, so this check is untested.)
 - `HomeScreen`, `Recents`, `Notifications` and `QuickSettings` act on the
   phone's own screen, so on a hidden screen they fail with
   `phone_screen_only`; `Back` works on both.

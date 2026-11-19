@@ -16,8 +16,10 @@ import { paths } from "../config.mjs";
 
 const IDLE_EXIT_MS = 10_000;
 
-export function brokerSocket(hardwareSerial) {
-  return path.join(paths.home, `android-${String(hardwareSerial).replace(/[^A-Za-z0-9._-]/g, "_")}.sock`);
+// One socket per phone and server build: after a rebuild or an upgrade the
+// next session starts a fresh broker, whose server replaces the old one.
+export function brokerSocket(hardwareSerial, build) {
+  return path.join(paths.home, `android-${String(hardwareSerial).replace(/[^A-Za-z0-9._-]/g, "_")}-${build}.sock`);
 }
 
 // Resolves true if a broker answers on `socket`.
@@ -52,8 +54,8 @@ async function listen(socket) {
   return null;
 }
 
-export async function runBroker({ transport, hardware, adb, adbBin, dex, remoteDex, serverClass }) {
-  const socket = brokerSocket(hardware);
+export async function runBroker({ transport, hardware, build, adb, adbBin, dex, remoteDex, serverClass }) {
+  const socket = brokerSocket(hardware, build);
   const listener = await listen(socket);
   if (!listener) process.exit(0);
   const log = (message) => process.stderr.write(`${new Date().toISOString()} ${hardware}: ${message}\n`);

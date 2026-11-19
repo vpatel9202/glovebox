@@ -140,3 +140,23 @@ second session failed with `open_in_other_session`. Resetting one session
 closed only its display; the other kept reading. After `glovebox stop` the
 broker exited within its ten-second idle window, and no display, socket or
 server was left.
+
+Also on API 36:
+- Both sessions injecting at once (A: drags with a hold, swipes, taps and
+  long presses on the fixture; B: taps, swipes and keys in Clock for 15 s).
+  Every drag and swipe landed (slider 94 and 6, four times each), A's
+  counters held exactly its own taps (4) and long presses (4), B saw no
+  errors, and top focus stayed on display 0. B ran at about 4.1 s a round
+  next to A, against 3.1 s alone.
+- A refused launch (`open_on_phone`) leaves no display behind, and another
+  session can open the app once the user has closed it.
+- Session A opening an app on the phone's screen while session B has it on
+  a hidden screen is refused (`open_in_other_session`); before that guard,
+  the launch moved B's task onto the phone's screen. B switching its own
+  handle to `{foreground: true}` brings its copy over.
+- `kill -9` of the broker mid-session: the server exits on end of input and
+  its displays go; the session's next request starts a fresh broker (past
+  the stale socket), a read says `not_visible`, and `activate()` reopens.
+- A rebuilt server gets a fresh broker (the socket name carries a hash of
+  the dex); before that, a session within an old broker's idle window got
+  the old server.

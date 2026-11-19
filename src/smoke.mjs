@@ -282,9 +282,13 @@ JSON.stringify({ row0: /button "Row 0"/.test(t), first: t.match(/button "(Row \\
     step("scroll moves the list", scrolled.row0 === false, scrolled.error ?? `first row ${scrolled.first}`);
 
     const shot = await run(`
-const img = await fx.getScreenshot();
-JSON.stringify({ same: img.width === fx.view.width && img.height === fx.view.height });`);
+const img = await fx.getScreenshot({ format: "png" });
+// A blank or one-color frame would mean nothing was captured: count distinct
+// byte values in the compressed image as a cheap proxy for content.
+const bytes = new Set(Buffer.from(img.data, "base64").subarray(64, 4096)).size;
+JSON.stringify({ same: img.width === fx.view.width && img.height === fx.view.height, bytes, size: img.data.length });`);
     step("screenshot is in the same pixel space as clicks", shot.same === true && shot.images === 1, shot.error);
+    step("screenshot has content", shot.bytes > 100 && shot.size > 20_000, shot.error ?? `${shot.bytes} distinct bytes, ${shot.size} base64 chars`);
 
     const gone = await run(`
 await fx.pressKey("Back");

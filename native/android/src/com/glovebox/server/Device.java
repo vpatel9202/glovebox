@@ -242,13 +242,8 @@ final class Device {
             Hidden h = hidden.get(hiddenKey(pkg));
             if (h != null) return h.id;
             if (!create) return -1;
-            // Another session's hidden copy of the same app: a second copy
-            // could close or take over that one, as with the user's.
-            for (Map.Entry<String, Hidden> e : hidden.entrySet()) {
-                if (e.getValue().owner.equals(pkg)) {
-                    throw new Server.Coded("open_in_other_session", pkg + " is open in another glovebox session on this phone. Finish there first.");
-                }
-            }
+            // Checked before a display exists, so a refusal leaves nothing behind.
+            refuseSecondCopy(pkg);
             if (frames == null) {
                 frames = new HandlerThread("glovebox-frames");
                 frames.start();
@@ -355,20 +350,23 @@ final class Device {
         if (d != DEFAULT_DISPLAY) {
             // Already open there: nothing to do (a second launch would add a task).
             if (onHidden(pkg, d)) return screenInfo(d);
-            // If the user has the app running, a second copy can take theirs:
-            // single-copy apps move their task over, and others (Chrome) close
-            // the older one. So a hidden screen opens only apps the user is
-            // not running; the phone's own screen is the other choice.
-            Map<Integer, Integer> mine = userTasks(pkg);
-            if (mine == null || !mine.isEmpty()) {
-                throw new Server.Coded("open_on_phone", pkg + " is running on the phone, and opening a second copy on glovebox's hidden screen"
-                        + " could close or take over the user's. Ask the user to close it (swipe it away in recent apps), or use"
-                        + " getApp(name, {foreground: true}) to work on the phone's screen.");
-            }
+            refuseSecondCopy(pkg);
             Hidden h = hiddenById(d);
             if (h != null) h.onPhoneAtStart = onPhone(pkg);
         }
-        if (d == DEFAULT_DISPLAY) unlockScreen();
+        if (d == DEFAULT_DISPLAY) {
+            // A launch on the phone's screen pulls a hidden copy over with it;
+            // fine for this session's own copy, not for another session's.
+            String mineKey = hiddenKey(pkg);
+            synchronized (hidden) {
+                for (Map.Entry<String, Hidden> e : hidden.entrySet()) {
+                    if (!e.getKey().equals(mineKey) && e.getValue().owner.equals(pkg) && onHidden(pkg, e.getValue().id)) {
+                        throw new Server.Coded("open_in_other_session", pkg + " is open in another glovebox session on this phone. Finish there first.");
+                    }
+                }
+            }
+            unlockScreen();
+        }
         // -W waits for the launch to finish, which a cold start needs. Not on a
         // hidden screen: while the phone sleeps -W never returns, though the
         // launch itself goes ahead; the window wait below covers it.
@@ -403,6 +401,27 @@ final class Device {
             Thread.sleep(100);
         }
         throw new Server.Coded("activate_failed", pkg + " did not come to the front");
+    }
+
+    // A second copy of an app can close or take over the first: single-copy
+    // apps move their task over, and others (Chrome) close the older one. So
+    // a hidden screen opens only apps that are not running elsewhere: not by
+    // the user, and not on another session's hidden screen.
+    private void refuseSecondCopy(String pkg) {
+        Map<Integer, Integer> mine = userTasks(pkg);
+        if (mine == null || !mine.isEmpty()) {
+            throw new Server.Coded("open_on_phone", pkg + " is running on the phone, and opening a second copy on glovebox's hidden screen"
+                    + " could close or take over the user's. Ask the user to close it (swipe it away in recent apps), or use"
+                    + " getApp(name, {foreground: true}) to work on the phone's screen.");
+        }
+        String mineKey = hiddenKey(pkg);
+        synchronized (hidden) {
+            for (Map.Entry<String, Hidden> e : hidden.entrySet()) {
+                if (!e.getKey().equals(mineKey) && e.getValue().owner.equals(pkg) && onHidden(pkg, e.getValue().id)) {
+                    throw new Server.Coded("open_in_other_session", pkg + " is open in another glovebox session on this phone. Finish there first.");
+                }
+            }
+        }
     }
 
     // The phone's screen behind a lock screen shows nothing launched there.

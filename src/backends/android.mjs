@@ -1,14 +1,16 @@
-// Client for the glovebox server on an Android device. The host pushes the
-// server dex over ADB and runs it with shell privileges (app_process); it
-// speaks the backend protocol as JSON lines on the adb shell's stdin and
-// stdout. Nothing listens on a socket, so only this process can reach it, and
-// the server dies with the adb connection.
+// Client for the glovebox server on an Android device. The server is a dex
+// run over ADB with shell privileges (app_process) that speaks the backend
+// protocol as JSON lines on the adb shell's stdin and stdout. One server per
+// phone is shared by every session through the phone's broker
+// (android-broker.mjs), which owns that adb shell and listens on a Unix
+// socket only this user can open; nothing listens on the phone.
 import { EventEmitter } from "node:events";
 import { execFile, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import net from "node:net";
 import { authorize, authorizeLocked, isAskFirst } from "../approval.mjs";
 import { paths } from "../config.mjs";
@@ -155,6 +157,11 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
 const BROKER_LOG = path.join(paths.home, "android-broker.log");
 const CLI = path.join(here, "..", "..", "bin", "glovebox.mjs");
 
+// A short hash of the server dex, so a rebuilt server gets its own broker.
+function serverBuild() {
+  return createHash("sha1").update(fs.readFileSync(SERVER_DEX)).digest("hex").slice(0, 8);
+}
+
 function openSocket(socket) {
   return new Promise((resolve, reject) => {
     const conn = net.connect(socket);
@@ -173,7 +180,7 @@ function startBroker(transport, hardware) {
 
 // `glovebox android-broker <transport> <hardware serial>` (started by the first session).
 export function runDeviceBroker(transport, hardware) {
-  return runBroker({ transport, hardware, adb, adbBin: adbPath(), dex: SERVER_DEX, remoteDex: REMOTE_DEX, serverClass: SERVER_CLASS });
+  return runBroker({ transport, hardware, build: serverBuild(), adb, adbBin: adbPath(), dex: SERVER_DEX, remoteDex: REMOTE_DEX, serverClass: SERVER_CLASS });
 }
 
 export class AndroidBackend extends EventEmitter {
@@ -212,7 +219,7 @@ export class AndroidBackend extends EventEmitter {
     }
     const transport = await resolveSerial(this.serial);
     this.transport = transport;
-    const socket = brokerSocket(await hardwareSerial(transport));
+    const socket = brokerSocket(await hardwareSerial(transport), serverBuild());
     // The phone's broker (android-broker.mjs) owns its one server; start it
     // if no session has.
     let conn = await openSocket(socket).catch(() => null);
