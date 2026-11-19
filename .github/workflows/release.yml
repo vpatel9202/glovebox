@@ -2,7 +2,8 @@ name: release
 
 # Push a tag vX.Y.Z (after `npm run version:bump X.Y.Z` and a commit) and this
 # publishes that version everywhere it is listed:
-#   1. npm: @vashp2029/glovebox, through npm trusted publishing (OIDC, with
+#   1. npm: @vashp2029/glovebox, with the Android server and test apps built
+#      here from the tagged source (pinned SDK), through npm trusted publishing (OIDC, with
 #      provenance), or the NPM_TOKEN secret if trusted publishing is not set up
 #   2. the official MCP Registry: io.github.vpatel9202/glovebox from server.json,
 #      signed in with this workflow's GitHub OIDC token (no secret needed)
@@ -69,6 +70,30 @@ jobs:
       # Trusted publishing needs npm 11.5.1 or later.
       - run: npm install -g npm@11
       - run: npm ci
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build the Android server and test apps (pinned SDK)
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: 36.0.0
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null || true
+          "$sdkmanager" "platforms;$ANDROID_PLATFORM" "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
+          sh native/android/build.sh
+      - name: The package carries the Android builds and no signing key
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const files = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0].files.map((f) => f.path);
+            const want = ["glovebox-server.dex", "glovebox-fixture.apk", "glovebox-fixture2.apk"].map((f) => "native/android/build/" + f);
+            const missing = want.filter((f) => !files.includes(f));
+            const keys = files.filter((f) => /keystore/.test(f));
+            if (missing.length || keys.length) { console.error("missing:", missing, "keys:", keys); process.exit(1); }
+            console.log("package has", want.join(", "));
+          '
       - name: Publish to npm (skipped if this version is already there)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

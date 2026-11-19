@@ -416,8 +416,9 @@ await clock.getAXState();
   `getAXState({keyboard: true})` to list its keys.
 - Coordinates are image pixels as on macOS; the image is the screen scaled so
   its long side is at most 1568.
-- Needs `adb` and a built server: `npm run build:android` (Android SDK and a
-  JDK). The server runs over ADB with shell privileges and stops with the
+- Needs `adb`. The npm package includes the server, built in the release
+  workflow from the tagged source; a git checkout builds it with
+  `npm run build:android` (Android SDK and a JDK). The server runs over ADB with shell privileges and stops with the
   session. Only one automation tool can read the screen at a time; stop
   uiautomator, Appium or Maestro first.
 - `glovebox doctor` lists connected devices and checks each one;

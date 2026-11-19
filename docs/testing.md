@@ -91,7 +91,7 @@ For a meaningful result, keep some other app frontmost while it runs.
 ## Android smoke test
 
 ```bash
-npm run build:android                 # builds the server and the fixture app
+npm run build:android                 # a git checkout only: the npm package includes both
 glovebox smoke --android [--serial s] # --keep leaves the fixture installed
 ```
 

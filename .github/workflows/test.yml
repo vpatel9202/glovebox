@@ -19,3 +19,35 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm ci
       - run: npm test
+  android-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Build the Android server and test apps (pinned SDK)
+        env:
+          ANDROID_PLATFORM: android-37.0
+          ANDROID_BUILD_TOOLS: 36.0.0
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses >/dev/null || true
+          "$sdkmanager" "platforms;$ANDROID_PLATFORM" "build-tools;$ANDROID_BUILD_TOOLS" >/dev/null
+          sh native/android/build.sh
+      - run: npm ci
+      - name: The package carries the Android builds and no signing key
+        run: |
+          npm pack --dry-run --json > pack.json
+          node -e '
+            const files = JSON.parse(require("fs").readFileSync("pack.json", "utf8"))[0].files.map((f) => f.path);
+            const want = ["glovebox-server.dex", "glovebox-fixture.apk", "glovebox-fixture2.apk"].map((f) => "native/android/build/" + f);
+            const missing = want.filter((f) => !files.includes(f));
+            const keys = files.filter((f) => /keystore/.test(f));
+            if (missing.length || keys.length) { console.error("missing:", missing, "keys:", keys); process.exit(1); }
+            console.log("package has", want.join(", "));
+          '

@@ -4,6 +4,8 @@
 # Needs an Android SDK (platforms/android-N and build-tools) and a JDK 17+.
 #   ANDROID_HOME   SDK root (default ~/Library/Android/sdk)
 #   JAVA_HOME      JDK (default: Android Studio's bundled JBR, else java on PATH)
+#   ANDROID_PLATFORM     platforms/ directory to compile against (default: newest)
+#   ANDROID_BUILD_TOOLS  build-tools/ version (default: newest); releases pin both
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 sdk=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}
@@ -14,10 +16,10 @@ if [ -z "${JAVA_HOME:-}" ]; then
 fi
 javac=${JAVA_HOME:+$JAVA_HOME/bin/}javac
 keytool=${JAVA_HOME:+$JAVA_HOME/bin/}keytool
-platform=$(ls -d "$sdk"/platforms/android-* 2>/dev/null | sort -V | tail -1)
-buildtools=$(ls -d "$sdk"/build-tools/* 2>/dev/null | sort -V | tail -1)
-[ -n "$platform" ] || { echo "No Android platform in $sdk/platforms. Install one with the SDK Manager." >&2; exit 1; }
-[ -n "$buildtools" ] || { echo "No build-tools in $sdk/build-tools. Install them with the SDK Manager." >&2; exit 1; }
+if [ -n "${ANDROID_PLATFORM:-}" ]; then platform=$sdk/platforms/$ANDROID_PLATFORM; else platform=$(ls -d "$sdk"/platforms/android-* 2>/dev/null | sort -V | tail -1); fi
+if [ -n "${ANDROID_BUILD_TOOLS:-}" ]; then buildtools=$sdk/build-tools/$ANDROID_BUILD_TOOLS; else buildtools=$(ls -d "$sdk"/build-tools/* 2>/dev/null | sort -V | tail -1); fi
+[ -n "$platform" ] && [ -d "$platform" ] || { echo "No Android platform in $sdk/platforms. Install one with the SDK Manager." >&2; exit 1; }
+[ -n "$buildtools" ] && [ -d "$buildtools" ] || { echo "No build-tools in $sdk/build-tools. Install them with the SDK Manager." >&2; exit 1; }
 jar=$platform/android.jar
 out=$here/build
 rm -rf "$out/classes" && mkdir -p "$out/classes"

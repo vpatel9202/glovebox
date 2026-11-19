@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Android: the npm package now includes the Android server and the two test
+  apps, built in the release workflow from the tagged source with a pinned
+  SDK. Android needs only `adb`; `npm run build:android` is for git checkouts.
+
 ## 0.4.0 (2026-11-19)
 
 - macOS: nothing is blocked any more. Terminals, System Settings, password
