@@ -222,6 +222,9 @@ await clock.getAXState();
   field holds goes as keys, so a one-time-code row of one-digit boxes that
   moves focus on its own fills box by box: click the first box, then
   `typeText("123456")`.
+- A button or checkbox with no name of its own is named by the text inside
+  it (Compose apps put a control's text on child nodes), so
+  `find({role: "button", label: "All contacts"})` works there too.
 - Lists reuse row views as they scroll, so a row's index is tied to its
   position in the list: after a scroll, an index read before it that now
   shows another row fails with `stale_index` instead of acting on the wrong

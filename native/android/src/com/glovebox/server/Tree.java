@@ -136,9 +136,9 @@ final class Tree {
         if (n == null || !n.isVisibleToUser()) return;
         // A plain text that only repeats its parent's label (the text inside
         // a link or button) adds nothing.
-        if (parentLabel != null && n.getChildCount() == 0 && !n.isClickable() && !n.isEditable()
-                && n.getText() != null && parentLabel.contentEquals(n.getText())) {
-            return;
+        if (parentLabel != null && n.getChildCount() == 0 && !n.isClickable() && !n.isEditable()) {
+            CharSequence own = n.getText() != null && n.getText().length() > 0 ? n.getText() : n.getContentDescription();
+            if (own != null && parentLabel.contentEquals(own)) return;
         }
         if (walk.nodes.length() >= maxNodes) {
             walk.truncated = true;
@@ -154,12 +154,35 @@ final class Tree {
         }
         if (depth >= maxDepth) return;
         String label = n.getText() != null && n.getText().length() > 0 ? n.getText().toString()
-                : n.getContentDescription() != null && n.getContentDescription().length() > 0 ? n.getContentDescription().toString() : null;
+                : n.getContentDescription() != null && n.getContentDescription().length() > 0 ? n.getContentDescription().toString() : innerLabel(n);
         for (int i = 0; i < n.getChildCount(); i++) visit(n.getChild(i), childDepth, walk, maxNodes, maxDepth, maxText, emit ? label : parentLabel);
     }
 
     // Web content (WebView, Chrome) names each node's HTML role in an extra;
     // its class names are generic.
+    // A control with no name of its own, named by the text inside it: Compose
+    // puts a button's or checkbox's text on child nodes ("All contacts"
+    // inside a clickable chip). Up to three plain texts, three levels down;
+    // nested controls keep their own names.
+    static String innerLabel(AccessibilityNodeInfo n) {
+        if (!(n.isClickable() || n.isCheckable() || n.isLongClickable()) || n.isEditable()) return null;
+        List<String> parts = new java.util.ArrayList<>();
+        collectLabels(n, 0, parts);
+        return parts.isEmpty() ? null : String.join(", ", parts);
+    }
+
+    private static void collectLabels(AccessibilityNodeInfo n, int level, List<String> parts) {
+        if (level >= 3 || parts.size() >= 3) return;
+        for (int i = 0; i < n.getChildCount() && parts.size() < 3; i++) {
+            AccessibilityNodeInfo c = n.getChild(i);
+            if (c == null || !c.isVisibleToUser() || c.isEditable()) continue;
+            if (c.isClickable() || c.isCheckable()) continue; // a nested control names itself
+            CharSequence t = c.getText() != null && c.getText().length() > 0 ? c.getText() : c.getContentDescription();
+            if (t != null && t.length() > 0) parts.add(t.toString());
+            else collectLabels(c, level + 1, parts);
+        }
+    }
+
     static boolean isWeb(AccessibilityNodeInfo n) {
         android.os.Bundle extras = n.getExtras();
         return extras != null && extras.getString("AccessibilityNodeInfo.chromeRole") != null;
@@ -212,6 +235,8 @@ final class Tree {
         } else {
             if (text != null && text.length() > 0) o.put("title", clip(text, maxText));
             if (desc != null && desc.length() > 0) o.put("desc", clip(desc, maxText));
+            String inner = !o.has("title") && !o.has("desc") ? innerLabel(n) : null;
+            if (inner != null) o.put("title", clip(inner, maxText));
         }
         if (n.isCheckable()) o.put("value", n.isChecked() ? "1" : "0");
         String id = n.getViewIdResourceName();
