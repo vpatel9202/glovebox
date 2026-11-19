@@ -2374,14 +2374,18 @@ func gate(_ connection: Connection, _ method: String, _ params: [String: Any]) t
 
 // MARK: - Dispatch
 
+// `ask` names the one permission to prompt for: "accessibility",
+// "screenRecording" or "inputMonitoring". macOS shows one privacy prompt at a
+// time and drops a second one fired while the first is up, so a request never
+// prompts for more than one.
 func permissions(_ params: [String: Any]) -> [String: Any] {
-    let prompt = params.bool("prompt") ?? false
-    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: prompt] as CFDictionary
+    let ask = params.string("ask")
+    let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: ask == "accessibility"] as CFDictionary
     let ax = AXIsProcessTrustedWithOptions(options)
     var input = CGPreflightListenEventAccess()
-    if prompt && params.bool("inputMonitoring") == true && !input { input = CGRequestListenEventAccess() }
+    if ask == "inputMonitoring" && !input { input = CGRequestListenEventAccess() }
     var screen = screenCaptureAllowed()
-    if prompt && !screen { screen = CGRequestScreenCaptureAccess() }
+    if ask == "screenRecording" && !screen { screen = CGRequestScreenCaptureAccess() }
     return ["accessibility": ax, "screenRecording": screen, "escapeWatcher": escapeWatcherActive(), "inputMonitoring": input]
 }
 

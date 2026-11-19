@@ -308,3 +308,28 @@ test("large trees read as an outline; find still sees every element", async () =
   assert.equal(big.folded.get(2 + 11 * 21), 6); // section 11 shows 14 of 20
   assert.equal(big.folded.get(2 + 14 * 21), 20);
 });
+
+test("init connects agents once, keeps backups, and leaves unparseable configs alone", async () => {
+  const { planAgents } = await import("../src/agents.mjs");
+  const fsm = await import("node:fs");
+  const osm = await import("node:os");
+  const pathm = await import("node:path");
+  const home = fsm.mkdtempSync(pathm.join(osm.tmpdir(), "nostrings-agents-"));
+  const only = ["codex", "cursor", "gemini", "opencode"];
+  fsm.mkdirSync(pathm.join(home, ".gemini"));
+  fsm.writeFileSync(pathm.join(home, ".gemini", "settings.json"), JSON.stringify({ theme: "dark" }));
+  const first = planAgents({ home, only });
+  assert.deepEqual(first.map((a) => a.status), ["todo", "todo", "todo", "todo"]);
+  for (const a of first) a.apply();
+  assert.deepEqual(planAgents({ home, only }).map((a) => a.status), ["done", "done", "done", "done"]);
+  const gemini = JSON.parse(fsm.readFileSync(pathm.join(home, ".gemini", "settings.json"), "utf8"));
+  assert.equal(gemini.theme, "dark");
+  assert.ok(gemini.mcpServers.nostrings.args.includes("mcp"));
+  assert.ok(fsm.existsSync(pathm.join(home, ".gemini", "settings.json.before-nostrings")));
+  const opencode = JSON.parse(fsm.readFileSync(pathm.join(home, ".config", "opencode", "opencode.json"), "utf8"));
+  assert.equal(opencode.mcp.nostrings.type, "local");
+  assert.match(fsm.readFileSync(pathm.join(home, ".codex", "config.toml"), "utf8"), /^\[mcp_servers\.nostrings\]$/m);
+  fsm.writeFileSync(pathm.join(home, ".cursor", "mcp.json"), "{ // a comment\n}");
+  assert.equal(planAgents({ home, only: ["cursor"] })[0].status, "manual");
+  fsm.rmSync(home, { recursive: true, force: true });
+});
