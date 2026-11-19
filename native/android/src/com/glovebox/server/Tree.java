@@ -42,8 +42,14 @@ final class Tree {
         byIndex.clear();
     }
 
+    // What must stay the same for an index to still mean the same element. A
+    // list row's position is part of it: lists reuse row views for other
+    // rows as they scroll, so an index read before a scroll would otherwise
+    // land on whatever row the view shows now.
     private static String fingerprint(AccessibilityNodeInfo n) {
-        return n.getClassName() + "|" + n.getViewIdResourceName();
+        AccessibilityNodeInfo.CollectionItemInfo item = n.getCollectionItemInfo();
+        String row = item == null ? "" : "|" + item.getRowIndex() + ":" + item.getColumnIndex();
+        return n.getClassName() + "|" + n.getViewIdResourceName() + row;
     }
 
     int indexOf(AccessibilityNodeInfo n) {

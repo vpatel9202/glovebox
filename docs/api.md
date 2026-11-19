@@ -222,6 +222,10 @@ await clock.getAXState();
   field holds goes as keys, so a one-time-code row of one-digit boxes that
   moves focus on its own fills box by box: click the first box, then
   `typeText("123456")`.
+- Lists reuse row views as they scroll, so a row's index is tied to its
+  position in the list: after a scroll, an index read before it that now
+  shows another row fails with `stale_index` instead of acting on the wrong
+  row. Read (or `find`) again after scrolling.
 - Web content inside apps (WebView) reads with its HTML roles: heading,
   link, button, text field. `click(index)` on web content taps the
   element's center, since web content ignores accessibility clicks, and
