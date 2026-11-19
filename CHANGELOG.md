@@ -24,7 +24,14 @@
   first under its own `macos:` key.
 - macOS: a background click on a window that is not key makes it key first,
   so the click lands.
-- `glovebox smoke --macos`: 37 checks on a new test app, Glovebox Fixture.
+- `glovebox smoke --macos`: 51 checks on a new test app, Glovebox Fixture,
+  including a SwiftUI window, full screen and Spaces.
+- macOS: system-level keys press and release their modifiers, so a shortcut
+  can no longer leave Ctrl or Cmd held down system-wide; typed text never
+  inherits held modifiers. Ctrl+arrow (Spaces) works.
+- macOS: a window on a Space that is not showing fails reads with
+  `other_space`; `app.activate()` goes there. `app.swipe` sends a two-finger
+  trackpad scroll.
 - `glovebox signing --trust`: asks for the keychain password once, so helper
   rebuilds stop asking.
 - Android (experimental): `gb.device()` drives Android phones and emulators

@@ -18,7 +18,7 @@ Nothing in the smoke test is mocked.
   selected a line, a scroll moved the view; the frontmost app never changed.
 - The approval dialog and Escape to stop a script. (Terminal used to be
   refused outright; since 2026-11-19 it is ask first.)
-- `glovebox smoke --macos`, 2026-11-19: all 37 checks pass on the fixture
+- `glovebox smoke --macos`, 2026-11-19: all 51 checks pass (37 earlier that day) on the fixture
   app (below). By hand the same day: Control Center read through
   `gb.menuExtra("Control Center")`, Notification Center through
   `gb.notifications()`, Chrome page content after the first read, VS Code
@@ -216,8 +216,10 @@ submenu items; a menu shortcut in the background; `select` on a pop-up;
 is kept in the helper and put back); typing into and clicking web content;
 press and hold; double, right and middle click; scroll; pinch and rotate;
 window move, resize, minimize and restore; a new window and the read's notice;
-a sheet; an alert; hide and unhide; then a check that the frontmost app never
-changed. The last checks use the foreground route on purpose: drop a file,
+a sheet; an alert; hide and unhide; each SwiftUI control in the fixture's
+SwiftUI window; then a check that the frontmost app never changed. The last checks use the foreground route on purpose: drop a file,
 hover, an open panel, a save panel, then a whole-screen screenshot, the
-window list, menu bar extras, and quitting the app. `--keep` leaves the
+window list, menu bar extras, full screen and Spaces (`other_space`, then
+`activate` and `restore`), a check that no modifier key is left held down,
+and quitting the app. `--keep` leaves the
 fixture running. The fixture never writes files.
