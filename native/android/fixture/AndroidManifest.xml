@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test app for the Android smoke test (glovebox smoke, android flag): a field, a button, a slider and a
+     long list, built without Gradle (native/android/build.sh). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.glovebox.fixture"
+    android:versionCode="1"
+    android:versionName="1">
+    <application android:label="glovebox fixture" android:allowBackup="false">
+        <activity android:name=".Main" android:exported="true"
+            android:windowSoftInputMode="stateHidden|adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".Code" android:exported="false" />
+        <activity android:name=".Web" android:exported="false" />
+        <activity android:name=".Gesture" android:exported="false" />
+    </application>
+</manifest>

@@ -3,7 +3,7 @@
 // Every action goes through ctx, which owns output, the abort flag, and the
 // audit log. Reads (getAXState, getScreenshot) emit into the result by
 // default; pass {emit: false} to only get the return value.
-import { diffTrees, formatTree } from "./axformat.mjs";
+import { diffTrees, formatTree, nodeRecord, outlineTree } from "./axformat.mjs";
 import { center, toImage, toScreen, viewFor } from "./geometry.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -68,6 +68,7 @@ function hashImage(data) {
 
 export class App {
   #ctx;
+  #backend;
   #view = null;
   #explicitWindow = false;
   #lastTrees = new Map(); // window id -> {lines, base, frames}: what the model last saw
@@ -75,9 +76,14 @@ export class App {
   // previous wait settled on), as {pixels, value, format, quality}.
   #waitBase = null;
   #activatedCell = -1;
+  #opened = false; // Android: opened on its screen at least once this session
 
-  constructor(ctx, info) {
+  // `backend` is the host's (ctx.backend) or a device's; `pid` is whatever
+  // handle that backend gave the app (a number on macOS, a package on Android).
+  constructor(ctx, info, backend = ctx.backend) {
     this.#ctx = ctx;
+    this.#backend = backend;
+    this.platform = backend.platform ?? null;
     this.name = info.name;
     this.bundleId = info.bundleId;
     this.pid = info.pid;
@@ -99,16 +105,49 @@ export class App {
     return this.#view;
   }
 
+  // Android: which screen this handle works on. "hidden" is a private
+  // display only glovebox sees (Android 14+); "phone" is the phone's own
+  // screen, chosen with getApp(name, {foreground: true}) or the
+  // `androidScreen: "phone"` setting.
+  get screen() {
+    if (this.platform !== "android") return null;
+    if (this.foreground || this.#ctx.config.androidScreen === "phone" || !this.#backend.info?.hiddenScreen) return "phone";
+    return "hidden";
+  }
+
   async #call(method, params = {}) {
     this.#ctx.checkAbort();
-    return this.#ctx.backend.request(method, { pid: this.pid, ...params });
+    const screen = this.platform === "android" ? { screen: this.screen } : {};
+    try {
+      const result = await this.#backend.request(method, { pid: this.pid, ...screen, ...params });
+      if (method === "activate") this.#opened = true;
+      return result;
+    } catch (error) {
+      // A hidden screen is the agent's own: the first read or action of a
+      // handle opens the app there, rather than failing with not_visible.
+      // An app that closed after that still fails, so the change is noticed.
+      if (error.code !== "not_visible" || method === "activate" || this.#opened || this.screen !== "hidden") throw error;
+      this.#opened = true;
+      this.#ctx.log({ app: this.bundleId ?? this.name, action: "open", screen: "hidden" });
+      await this.#backend.request("activate", { pid: this.pid, ...screen });
+      return this.#backend.request(method, { pid: this.pid, ...screen, ...params });
+    }
   }
 
   async #act(action, detail, fn) {
     this.#ctx.checkAbort();
-    this.#ctx.log({ app: this.bundleId ?? this.name, action, ...detail });
+    const device = this.platform === "android" ? { device: this.#backend.label } : {};
+    this.#ctx.log({ app: this.bundleId ?? this.name, action, ...device, ...detail });
     const result = await fn();
     await this.#ctx.settle();
+    // Android UI animates most changes; a read right after an action would
+    // catch it halfway. Wait until the app has been quiet (no accessibility
+    // events) for a moment, up to 1.5 s; a fixed androidSettleMs overrides.
+    if (this.platform === "android") {
+      const fixed = this.#ctx.config.androidSettleMs;
+      if (fixed != null) await new Promise((r) => setTimeout(r, fixed));
+      else await this.#call("waitQuiet", { quiet: 150, max: 1500 }).catch(() => new Promise((r) => setTimeout(r, 300)));
+    }
     return result;
   }
 
@@ -123,7 +162,7 @@ export class App {
     const windows = await this.#call("windows");
     if (windows.length === 0) {
       // Without Accessibility every app looks windowless; say which it is.
-      const { accessibility } = await this.#ctx.backend.request("permissions", {});
+      const { accessibility } = await this.#backend.request("permissions", {});
       if (!accessibility) throw new Error("Accessibility permission is missing for the glovebox helper. Run: glovebox doctor");
       throw new Error(`${this.name} has no open windows`);
     }
@@ -158,12 +197,17 @@ export class App {
       maxDepth: options.maxDepth ?? ax.maxDepth,
       maxText: ax.maxTextLength,
       menus,
+      keyboard: options.keyboard === true,
     });
     // `base` has no frames, so a plain read after a {frames: true} read still
     // diffs. Element indices are stable ids, so the baseline is kept per window
     // (not per list position or title) and diffs across title changes.
-    const base = formatTree(tree.nodes);
-    const lines = frames ? formatTree(tree.nodes, { toImage: (f) => toImage(view, f) }) : base;
+    // Large trees print as an outline (offscreen elements dropped, deep
+    // levels folded); find() and nodes() still see everything.
+    const outline = options.full ? { nodes: tree.nodes, folded: new Map(), offscreen: 0, deeper: 0 } : outlineTree(tree.nodes, { limit: ax.outlineAbove ?? 250, bounds: [...view.origin, ...view.size] });
+    const fold = (list) => list.map((line, k) => (outline.folded.has(outline.nodes[k].i) ? `${line} (+${outline.folded.get(outline.nodes[k].i)} inside)` : line));
+    const base = fold(formatTree(outline.nodes));
+    const lines = frames ? fold(formatTree(outline.nodes, { toImage: (f) => toImage(view, f) })) : base;
     const key = tree.window.windowId ?? view.windowId ?? `#${view.window}`;
     const header = `${this.name} — window ${view.window} "${tree.window.title}" — image ${view.width}x${view.height}${view.note ?? ""}`;
     const last = disableDiffing ? undefined : this.#lastTrees.get(key);
@@ -175,7 +219,15 @@ export class App {
     } else {
       text = `${header}\n${lines.join("\n")}`;
     }
-    if (tree.truncated) text += `\n(truncated at ${lines.length} elements; pass {maxNodes} to see more)`;
+    if (tree.truncated) text += `\n(truncated at ${tree.nodes.length} elements; pass {maxNodes} to see more)`;
+    // Once, on a full read: a diff of a near-empty tree needs no reminder.
+    if (tree.nodes.length <= 2 && !text.includes(" — changes since last read") && !text.endsWith(" — no change.")) {
+      text += "\n(few elements: this screen may be drawn, not described; app.ocr() reads its text with positions, or take a screenshot)";
+    }
+    if (outline.offscreen || outline.deeper) {
+      const left = [outline.offscreen && `${outline.offscreen} outside the window`, outline.deeper && `${outline.deeper} in folded levels`].filter(Boolean).join(", ");
+      text += `\n(outline: ${outline.nodes.length} of ${tree.nodes.length} elements; not shown: ${left}. find() and nodes() reach all of them; {full: true} prints everything)`;
+    }
     // The baseline is what the model last saw, so silent reads leave it alone.
     if (emit) {
       this.#lastTrees.set(key, { lines, base, frames });
@@ -251,7 +303,12 @@ export class App {
         this.#waitBase = { ...base, value: base.pixels ? settled.hash : await current() };
         return { changed: true, ms: Date.now() - started, stable: settled.stable };
       }
-      await new Promise((r) => setTimeout(r, interval));
+      // Android: sleep until the app reports a change, not a fixed interval.
+      if (this.platform === "android" && !base.pixels) {
+        await this.#call("waitEvent", { timeout: Math.min(2_000, Math.max(1, timeout - (Date.now() - started))) });
+      } else {
+        await new Promise((r) => setTimeout(r, interval));
+      }
     }
     return { changed: false, ms: Date.now() - started };
   }
@@ -267,6 +324,119 @@ export class App {
     const ax = this.#ctx.config.ax;
     const tree = await this.#call("axTree", { window: view.window, maxNodes: ax.maxNodes, maxDepth: ax.maxDepth, maxText: ax.maxTextLength });
     return formatTree(tree.nodes);
+  }
+
+  // The tree as data, without printing it or touching the diff baseline:
+  // [{index, role, label, value, id, placeholder, focused, ..., actions,
+  // frame: [x, y, w, h] in image pixels}]. `maxText` (default 10000) bounds
+  // each text; reads cut text much shorter.
+  async nodes(options = {}) {
+    const ax = this.#ctx.config.ax;
+    const view = await this.#refreshView(options.window);
+    const tree = await this.#call("axTree", {
+      window: view.window,
+      maxNodes: options.maxNodes ?? ax.maxNodes,
+      maxDepth: options.maxDepth ?? ax.maxDepth,
+      maxText: options.maxText ?? 10_000,
+      menus: options.menus ?? false,
+      keyboard: options.keyboard === true,
+    });
+    return tree.nodes.map((node) => nodeRecord(node, { toImage: (f) => toImage(view, f) }));
+  }
+
+  // The first element matching `query`, or null; `{all: true}` returns every
+  // match. `query` fields: role ("button"), label, id, value, text (label,
+  // value, placeholder or id), each a string (case-insensitive substring) or a
+  // RegExp, and any flag (focused, selected, disabled, settable) as a boolean.
+  // A string query matches `text`. Prints nothing.
+  async find(query, options = {}) {
+    const all = (await this.nodes(options)).filter(matcher(query));
+    return options.all ? all : (all[0] ?? null);
+  }
+
+  // A check inside a script: waits up to `timeout` ms (default 3000) for an
+  // element matching `query` (as find), or with {gone: true} for none to
+  // match, and returns it (true for gone). If the check fails it prints a
+  // read of the window and throws, so the call stops at the first failed
+  // step with the state in front of the agent.
+  async expect(query, options = {}) {
+    const { timeout = 3000, gone = false, message, window } = options;
+    const match = matcher(query);
+    const started = Date.now();
+    while (true) {
+      const hit = (await this.nodes({ window })).find(match);
+      if (gone ? !hit : hit) return gone ? true : hit;
+      const left = timeout - (Date.now() - started);
+      if (left <= 0) break;
+      if (this.platform === "android") await this.#call("waitEvent", { timeout: Math.min(left, 1000) });
+      else await new Promise((r) => setTimeout(r, Math.min(left, 250)));
+    }
+    const what = message ?? `${gone ? "no element" : "an element"} matching ${describeQuery(query)}`;
+    await this.getAXState({ window });
+    throw new Error(`expect failed in ${this.name}: ${what} ${gone ? "still there" : "not found"} after ${timeout} ms (the read above is the window now)`);
+  }
+
+  // Scrolls until an element matching `query` (as find) is fully in view and
+  // returns it, or null at the end of the content. Scrolls the largest list
+  // or scroll area unless `container` (an index) names one. Each step moves
+  // about a page on Android, or `dy` lines elsewhere (default 5); a negative
+  // `dy` scrolls back. At most `max` steps (30).
+  async scrollTo(query, options = {}) {
+    const { container, dy = 5, max = 30, window } = options;
+    const match = matcher(query);
+    const visible = (n) => n.frame && n.frame[3] > 0 && n.frame[1] >= 0 && n.frame[1] + n.frame[3] <= this.#view.height && n.frame[0] >= 0 && n.frame[0] < this.#view.width;
+    let last = null;
+    for (let step = 0; step <= max; step++) {
+      const all = await this.nodes({ window });
+      const hit = all.find(match);
+      if (hit && visible(hit)) return hit;
+      const area = (n) => (n.frame ? n.frame[2] * n.frame[3] : 0);
+      const box = container != null ? all.find((n) => n.index === container) : all.filter((n) => /^(list|scroll area|table|outline|web area)$/.test(n.role)).sort((a, b) => area(b) - area(a))[0];
+      if (!box?.frame) throw new Error(`scrollTo: nothing to scroll in ${this.name}'s window; pass {container: index}`);
+      // The same elements as last time: the content stopped moving.
+      const now = all.map((n) => `${n.index}:${n.label ?? ""}:${n.frame?.[1] ?? ""}`).join("|");
+      if (now === last) return null;
+      last = now;
+      // An element found but cut off by the edge needs a nudge toward it.
+      const back = hit ? hit.frame[1] < 0 : dy < 0;
+      const [bx, by, bw, bh] = box.frame;
+      if (this.platform === "android") {
+        // A finger swipe over most of the list: a page per step, no fling.
+        const share = hit ? 0.25 : 0.6;
+        const [from, to] = [by + bh * (0.5 + share / 2), by + bh * (0.5 - share / 2)];
+        await this.swipe([bx + bw / 2, back ? to : from], [bx + bw / 2, back ? from : to], { ms: 300 });
+      } else {
+        await this.scroll([bx + bw / 2, by + bh / 2], hit ? (back ? -2 : 2) : dy);
+      }
+    }
+    return null;
+  }
+
+  // The full text of element `index` (its value, else its label): reads cut
+  // long text short.
+  async text(index, options = {}) {
+    const node = (await this.nodes({ ...options, maxText: options.maxText ?? 100_000 })).find((n) => n.index === index);
+    if (!node) throw new RangeError(`No element ${index} in ${this.name}'s window; read again`);
+    return node.value ?? node.label ?? "";
+  }
+
+  // Text in the window's screenshot, by OCR on the host (macOS Vision), for
+  // screens the tree cannot describe: canvases, games, remote desktops.
+  // Returns [{text, confidence, frame: [x, y, w, h]}] in image pixels (the
+  // click space) and prints one line per text unless {emit: false}.
+  // `languages` (e.g. ["de-DE"]) helps text that is not English.
+  async ocr(options = {}) {
+    const { recognizeText } = await import("./ocr.mjs");
+    const shot = await this.getScreenshot({ window: options.window, format: "png", emit: false });
+    const found = await recognizeText(Buffer.from(shot.data, "base64"), { languages: options.languages });
+    // A screenshot can come back larger than the view; map to the view's pixels.
+    const sx = this.#view.width / shot.width, sy = this.#view.height / shot.height;
+    const items = found.map((t) => ({ text: t.text, confidence: Math.round(t.confidence * 100) / 100, frame: [t.frame[0] * sx, t.frame[1] * sy, t.frame[2] * sx, t.frame[3] * sy].map(Math.round) }));
+    if (options.emit !== false) {
+      const lines = items.map((t) => `${JSON.stringify(t.text)} @${t.frame[0]},${t.frame[1]} ${t.frame[2]}x${t.frame[3]}`);
+      this.#ctx.out.text(`${this.name} — text in the screenshot (OCR) — image ${this.#view.width}x${this.#view.height}\n${lines.join("\n") || "(no text found)"}`);
+    }
+    return items;
   }
 
   async getAXStateAndScreenshot(options = {}) {
@@ -290,6 +460,17 @@ export class App {
     await this.#activate();
   }
 
+  // Android: opens a link or a specific screen of this app, on its screen
+  // (hidden by default): {action ("android.intent.action.VIEW"), data (a
+  // URL or URI), type, component ("pkg/.Activity"), categories, extras}.
+  async open(intent) {
+    if (this.platform !== "android") throw new Error("app.open() is for Android apps; use activate() on macOS");
+    const spec = typeof intent === "string" ? { data: intent } : intent;
+    return this.#act("open", { intent: spec.data ?? spec.component ?? spec.action }, async () => {
+      await this.#call("activate", { intent: spec });
+    });
+  }
+
   // Brings the app forward at most once per call. If it is no longer in front
   // later in the same call, the user switched away: stop rather than take
   // focus back from them.
@@ -310,7 +491,7 @@ export class App {
       await this.#call("activate");
       return;
     } catch (error) {
-      if (error.code !== "activate_failed" || !this.bundleId || process.platform !== "darwin") throw error;
+      if (error.code !== "activate_failed" || !this.bundleId || this.platform !== "macos" || process.platform !== "darwin") throw error;
     }
     await execFileAsync("open", ["-b", this.bundleId]);
     for (let i = 0; i < 40; i++) {
@@ -360,8 +541,9 @@ export class App {
       }
       await this.#pointCursor([x, y]);
       if (press?.index != null && press.actions?.includes("AXPress") && (press.role == null || PRESSABLE.has(press.role))) {
-        await this.#call("performAction", { index: press.index, action: "AXPress" });
-        this.lastRoute = "accessibility";
+        const result = await this.#call("performAction", { index: press.index, action: "AXPress" });
+        // Android taps web content instead, and says so.
+        this.lastRoute = result?.route === "touch" ? `${this.screen === "hidden" ? "hidden screen" : "foreground"} (touch)` : "accessibility";
       } else {
         await this.#deliver("click", { x, y, button, count, mods }, options);
       }
@@ -392,6 +574,8 @@ export class App {
   // this handle, the config, or the app's entry in foregroundApps says so.
   #useBackground(options) {
     if (options.foreground === true || options.background === false || this.foreground) return false;
+    // Android input goes to the phone's screen until the virtual-display route lands.
+    if (this.platform === "android") return false;
     const config = this.#ctx.config;
     if (config.input === "foreground") return false;
     const names = [this.bundleId, this.name].filter(Boolean).map((n) => n.toLowerCase());
@@ -417,15 +601,17 @@ export class App {
       }
     }
     await this.#activate();
-    await this.#call(method, params);
-    this.lastRoute = "foreground";
+    const result = await this.#call(method, params);
+    // Android says how it got there (touch, keys, set-text).
+    const where = this.screen === "hidden" ? "hidden screen" : "foreground";
+    this.lastRoute = result?.route ? `${where} (${result.route})` : where;
   }
 
   // Moves the drawn agent cursor to a screen point above the app's window.
   async #pointCursor([x, y]) {
     if (this.#ctx.config.cursor === false) return;
     try {
-      await this.#ctx.backend.request("cursor", { x, y, windowId: this.#view?.windowId });
+      await this.#backend.request("cursor", { x, y, windowId: this.#view?.windowId });
     } catch {
       // The cursor is decoration; never fail an action over it.
     }
@@ -455,14 +641,75 @@ export class App {
     });
   }
 
+  // Two fingers around `target` (index or [x, y]) moving apart (`scale` > 1
+  // zooms in) or together (< 1), over `ms`. `distance` is the fingers'
+  // starting gap in image pixels (default a third of the window's short
+  // side), `angle` their direction in degrees. Android only.
+  async pinch(target, options = {}) {
+    const { scale = 2, ms = 500, angle = 0 } = options;
+    return this.#twoFingers("pinch", target, options, (r0, view, room) => {
+      const r1 = Math.min(r0 * scale, room);
+      const steps = 8;
+      return Array.from({ length: steps + 1 }, (_, k) => r0 + ((r1 - r0) * k) / steps).map((r) => [r, angle]);
+    }, ms, { scale });
+  }
+
+  // Two fingers around `target` turning by `degrees` (clockwise on screen
+  // for positive) over `ms`, as to rotate a map or photo. Android only.
+  async rotate(target, options = {}) {
+    const { degrees = 45, ms = 600, angle = 0 } = options;
+    return this.#twoFingers("rotate", target, options, (r0) => {
+      const steps = 12;
+      return Array.from({ length: steps + 1 }, (_, k) => [r0, angle + (degrees * k) / steps]);
+    }, ms, { degrees });
+  }
+
+  // Builds two finger paths from [radius, angle] samples (radius in screen
+  // points from the center) and sends them as one multi-touch gesture.
+  async #twoFingers(action, target, options, samples, ms, detail) {
+    if (this.platform !== "android") throw new Error(`app.${action}() needs a touch screen (Android)`);
+    return this.#act(action, { target: describeTarget(target), ...detail }, async () => {
+      const view = await this.#ensureView();
+      const [cx, cy] = await this.#screenPoint(target);
+      const [ox, oy] = view.origin, [w, h] = view.size;
+      // How far a finger can go from the center and stay on the window.
+      const room = Math.max(1, Math.min(cx - ox, ox + w - cx, cy - oy, oy + h - cy) - 2);
+      const r0 = Math.min(room, (options.distance ?? Math.min(view.width, view.height) / 3) / view.scale / 2);
+      const pts = samples(r0, view, room);
+      const finger = (sign) => pts.map(([r, deg]) => {
+        const t = (deg * Math.PI) / 180;
+        return [cx + sign * r * Math.cos(t), cy + sign * r * Math.sin(t)];
+      });
+      await this.#deliver("touches", { paths: [finger(1), finger(-1)], ms }, options);
+    });
+  }
+
   async drag(from, to, options = {}) {
     const points = to === undefined && Array.isArray(from) && Array.isArray(from[0]) ? from : [from, to];
     return this.#act("drag", { path: points.map(describeTarget).join(" -> ") }, async () => {
       const path = [];
       for (const point of points) path.push(await this.#screenPoint(point));
       await this.#pointCursor(path[0]);
-      await this.#deliver("drag", { path, button: options.button ?? "left" }, options);
+      const touch = this.platform === "android" ? { hold: options.hold ?? true, ms: options.ms } : {};
+      await this.#deliver("drag", { path, button: options.button ?? "left", ...touch }, options);
       await this.#pointCursor(path.at(-1));
+    });
+  }
+
+  // Touch screens (Android): a finger swipe with no long press first, for
+  // pagers, sheets and lists. `ms` is how long the finger moves.
+  async swipe(from, to, options = {}) {
+    return this.#act("swipe", { path: `${describeTarget(from)} -> ${describeTarget(to)}` }, async () => {
+      const path = [await this.#screenPoint(from), await this.#screenPoint(to)];
+      await this.#deliver("drag", { path, hold: false, ms: options.ms ?? 300 }, options);
+    });
+  }
+
+  // Touch screens (Android): press and hold. rightClick does the same.
+  async longPress(target, options = {}) {
+    return this.#act("longPress", { target: describeTarget(target) }, async () => {
+      const [x, y] = await this.#screenPoint(target);
+      await this.#deliver("longPress", { x, y, ms: options.ms ?? 0 }, options);
     });
   }
 
@@ -496,13 +743,15 @@ export class App {
   }
 }
 
-export function createApi(ctx) {
-  const apps = new Map();
-
-  const gb = {
+// listApps / getApp / permissions bound to one backend: the host's for `gb`,
+// a device's for gb.device(). Handles are cached per backend, so a Mac pid and
+// a phone's package can never collide.
+function appSurface(ctx, backend) {
+  const apps = (backend.apps ??= new Map());
+  return {
     async listApps(options = {}) {
       ctx.checkAbort();
-      const all = await ctx.backend.request("listApps");
+      const all = await backend.request("listApps");
       const running = all.filter((a) => a.running);
       const list = options.installed ? all : running;
       if (options.emit !== false) {
@@ -515,10 +764,10 @@ export function createApi(ctx) {
     // Launches the app if needed and returns a handle. Does not take focus.
     async getApp(query, options = {}) {
       ctx.checkAbort();
-      let info = await ctx.backend.request("resolveApp", { query: String(query) });
+      let info = await backend.request("resolveApp", { query: String(query) });
       if (!info.running) {
         ctx.log({ app: info.bundleId, action: "launch" });
-        info = await ctx.backend.request("launch", {
+        info = await backend.request("launch", {
           bundleId: info.bundleId,
           path: info.path,
           name: info.name,
@@ -526,20 +775,105 @@ export function createApi(ctx) {
         });
       }
       const existing = apps.get(info.pid);
-      if (existing) return existing;
-      const app = new App(ctx, info);
+      if (existing) {
+        // On Android `foreground` picks the screen, so it can change later.
+        if (backend.platform === "android" && typeof options.foreground === "boolean") existing.foreground = options.foreground;
+        return existing;
+      }
+      const app = new App(ctx, info, backend);
       apps.set(info.pid, app);
       if (options.foreground) app.foreground = true;
       if (options.activate) await app.activate();
       return app;
     },
 
-    sleep(ms) {
-      return new Promise((resolve) => setTimeout(resolve, ms));
+    async permissions() {
+      return backend.request("permissions", {});
+    },
+  };
+}
+
+function describeQuery(query) {
+  const show = (v) => (Object.prototype.toString.call(v) === "[object RegExp]" ? String(v) : JSON.stringify(v));
+  if (typeof query !== "object" || query === null || Object.prototype.toString.call(query) === "[object RegExp]") return show(query);
+  return `{${Object.entries(query).map(([k, v]) => `${k}: ${show(v)}`).join(", ")}}`;
+}
+
+// A find() query as a predicate over nodes() records. Scripts run in their
+// own realm, so their RegExps fail `instanceof`.
+function matcher(query) {
+  const isRegExp = (v) => Object.prototype.toString.call(v) === "[object RegExp]";
+  const q = typeof query === "string" || isRegExp(query) ? { text: query } : (query ?? {});
+  const test = (want, have) => {
+    if (want == null) return true;
+    if (have == null) return false;
+    return isRegExp(want) ? want.test(String(have)) : String(have).toLowerCase().includes(String(want).toLowerCase());
+  };
+  return (n) =>
+    (q.role == null || (isRegExp(q.role) ? q.role.test(n.role) : n.role === String(q.role).toLowerCase())) &&
+    test(q.label, n.label) &&
+    test(q.id, n.id) &&
+    test(q.value, n.value) &&
+    (q.text == null || [n.label, n.value, n.placeholder, n.id, n.desc].some((v) => test(q.text, v))) &&
+    ["focused", "selected", "disabled", "settable"].every((f) => q[f] == null || Boolean(n[f]) === q[f]);
+}
+
+export function createApi(ctx) {
+  const gb = {
+    ...appSurface(ctx, ctx.backend),
+
+    // An Android device by ADB serial (USB or wireless; either names the same
+    // phone), or the only connected one. Same listApps/getApp/permissions.
+    device(serial) {
+      if (!ctx.device) throw new Error("This glovebox session has no device support");
+      const backend = ctx.device(serial == null ? null : String(serial));
+      const surface = appSurface(ctx, backend);
+      return Object.assign(surface, {
+        // Opens a link (a URL string) or an intent spec in the app that
+        // handles it (the user's default, else the first), on that app's
+        // screen, and returns its handle. {foreground: true} uses the
+        // phone's own screen.
+        async open(target, options = {}) {
+          ctx.checkAbort();
+          const spec = typeof target === "string" ? { data: target } : target;
+          const info = await backend.request("resolveIntent", { intent: spec });
+          const app = await surface.getApp(info.bundleId, { foreground: options.foreground });
+          await app.open(spec);
+          if (info.alternatives?.length) ctx.out.text(`(opened in ${info.name}; also handled by ${info.alternatives.join(", ")})`);
+          return app;
+        },
+        // The notifications in the shade now, newest first:
+        // [{app, package, title, text, subtext, when, ongoing, actions}].
+        // Always asks first (they can hold messages and codes). Prints them
+        // unless {emit: false}.
+        async notifications(options = {}) {
+          ctx.checkAbort();
+          const list = (await backend.request("notifications", { max: options.max ?? 50 })).map(({ key, ...n }) => n);
+          ctx.log({ app: "android:notifications", action: "read notifications", device: backend.label, count: list.length });
+          if (options.emit !== false) {
+            const lines = list.map((n) => `${n.app}: ${[n.title, n.text].filter(Boolean).join(" — ")}${n.actions?.length ? ` [${n.actions.join(", ")}]` : ""}`);
+            ctx.out.text(`Notifications on ${backend.label}:\n${lines.join("\n") || "(none)"}`);
+          }
+          return list;
+        },
+        // Copies a file from this computer to the phone (default the
+        // Download folder) where apps can pick it, and returns {path, bytes}.
+        // Each file asks first.
+        async push(localPath, options = {}) {
+          ctx.checkAbort();
+          const result = await backend.push(localPath, options);
+          ctx.log({ app: "android:files", action: "push", device: backend.label, path: result.path, bytes: result.bytes });
+          return result;
+        },
+        platform: backend.platform,
+        serial: serial ?? null,
+        toString: () => `Device(${backend.label})`,
+        [Symbol.for("nodejs.util.inspect.custom")]: () => `Device(${backend.label})`,
+      });
     },
 
-    async permissions() {
-      return ctx.backend.request("permissions", {});
+    sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
     },
 
     help(topic) {

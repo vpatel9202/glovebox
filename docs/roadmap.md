@@ -65,21 +65,15 @@ reasoning and output tokens, so a round trip costs more than trimming one
 read. Savings are estimates from reading the code, to be confirmed by the
 benchmark. Effort: S is small, M is medium.
 
-1. **Silent structured lookups.** Add `app.find({role, label, id})`,
-   `app.text(i)`, and `app.nodes()`, which return data without printing, plus
-   one instruction line in the tool description and `skills/glovebox/SKILL.md`.
-   `app.text` also gives the full value of a field, which a read truncates at
-   160 characters. Saves 1-2 round trips on text and web tasks. S.
+1. **Silent structured lookups.** Done: `app.find()`, `app.nodes()` and
+   `app.text()` return data without printing.
 2. **A read that waits for change.** Done: `app.waitForChange()` and
    `app.settle()`.
-3. **Checks inside the script.** An `expect` helper lets one call chain
-   several steps, stop at the first failed check, and print state on failure
-   or error. Per-action tools cannot do this. Saves 0.5-1 round trip per task
-   and per error. S.
-4. **Outline for large trees.** Above about 250 nodes, show an outline
-   instead of the full tree, and prune offscreen nodes with a summary line.
-   Helps Electron and web apps and saves 5-8k tokens per full read. Adds no
-   round trip, because the script can call `find` in the same call. M.
+3. **Checks inside the script.** Done: `app.expect(query)` waits for an
+   element, and on failure prints the window and stops the call.
+4. **Outline for large trees.** Done: over 250 elements a read drops
+   offscreen elements and shows the tree level by level, with `(+N inside)`
+   on lines that hide more; `{full: true}` prints everything.
 5. **Field labels and window notices.** Resolve `AXTitleUIElement` and
    `AXLabelUIElements` into field labels, and add a one-line notice when a
    window, sheet, or alert opens. Helps forms and save sheets by avoiding

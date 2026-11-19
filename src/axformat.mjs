@@ -79,6 +79,9 @@ function quote(text) {
 // Actions that are implied by the role or covered by click()/scroll().
 const QUIET_ACTIONS = new Set([
   "AXPress",
+  // Nearly every element has it (on Android, every long-clickable view);
+  // rightClick() and longPress() still reach it.
+  "AXShowMenu",
   "AXRaise",
   "AXCancel",
   "AXConfirm",
@@ -92,6 +95,29 @@ function actionName(action) {
   return action.replace(/^AX/, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 }
 
+// Ids that name nothing: macOS's auto-generated "_NS:123" ids. (The Android
+// server leaves out framework ids such as android:id/text1.)
+function genericId(id) {
+  return /^_NS:/.test(id);
+}
+
+// One node as data for scripts (app.nodes, app.find): the same role name,
+// label and flags a read prints, and the frame in image pixels.
+export function nodeRecord(node, { toImage } = {}) {
+  const role = roleName(node);
+  const record = { index: node.i, role, label: node.title ?? node.desc ?? null, depth: node.d };
+  if (node.title && node.desc && node.desc !== node.title) record.desc = node.desc;
+  if (node.value != null) record.value = node.value;
+  if (node.placeholder) record.placeholder = node.placeholder;
+  if (node.id) record.id = node.id;
+  if (node.help) record.help = node.help;
+  for (const flag of ["focused", "selected", "disabled"]) if (node[flag]) record[flag] = true;
+  if (node.settable && /text|combo|slider|search/.test(role)) record.settable = true;
+  record.actions = (node.actions ?? []).filter((a) => !a.startsWith("Name:")).map(actionName);
+  if (node.frame) record.frame = (toImage ? toImage(node.frame) : node.frame).map((v) => Math.round(v));
+  return record;
+}
+
 // One node as one line, without indentation. `toImage` maps a screen-point
 // frame to image pixels when frames are requested.
 export function nodeLine(node, { toImage } = {}) {
@@ -101,7 +127,7 @@ export function nodeLine(node, { toImage } = {}) {
   if (node.title && node.desc && node.desc !== node.title) parts.push(`desc=${quote(node.desc)}`);
   if (node.value != null && node.value !== label) parts.push(`value=${quote(node.value)}`);
   if (node.placeholder) parts.push(`placeholder=${quote(node.placeholder)}`);
-  if (node.id) parts.push(`id=${node.id}`);
+  if (node.id && !genericId(node.id)) parts.push(`id=${node.id}`);
   if (node.help && node.help !== label) parts.push(`help=${quote(node.help)}`);
   const flags = [];
   if (node.focused) flags.push("focused");
@@ -155,4 +181,50 @@ function ranges(numbers) {
     start = prev = n;
   }
   return parts.join(", ");
+}
+
+// A large tree as an outline, so a read stays a few thousand tokens: first
+// elements outside the window go (bounds [x, y, w, h] in the same space as
+// the frames), then, while it is still over `limit`, the tree is shown level
+// by level: whole levels while they fit, then the first elements of the next
+// level that still fit. Everything left out counts on its nearest shown
+// ancestor's line as "(+N inside)". Lines keep their indices, so diffs
+// between two outlines still work.
+export function outlineTree(nodes, { limit = 250, bounds } = {}) {
+  if (nodes.length <= limit) return { nodes, folded: new Map(), offscreen: 0, deeper: 0 };
+  let kept = nodes;
+  let offscreen = 0;
+  if (bounds) {
+    const [bx, by, bw, bh] = bounds;
+    const inside = (f) => !f || (f[0] < bx + bw && f[0] + f[2] > bx && f[1] < by + bh && f[1] + f[3] > by && f[2] > 0 && f[3] > 0);
+    kept = nodes.filter((n) => inside(n.frame));
+    offscreen = nodes.length - kept.length;
+  }
+  const folded = new Map();
+  if (kept.length <= limit) return { nodes: kept, folded, offscreen, deeper: 0 };
+  // Parent of each node, from depth and document order.
+  const parent = new Map();
+  const stack = [];
+  for (const n of kept) {
+    while (stack.length && stack.at(-1).d >= n.d) stack.pop();
+    parent.set(n, stack.at(-1) ?? null);
+    stack.push(n);
+  }
+  const shown = new Set();
+  let budget = limit;
+  const maxDepth = Math.max(...kept.map((n) => n.d));
+  for (let level = Math.min(...kept.map((n) => n.d)); level <= maxDepth && budget > 0; level++) {
+    const candidates = kept.filter((n) => n.d === level && (parent.get(n) === null || shown.has(parent.get(n))));
+    for (const n of candidates.slice(0, budget)) shown.add(n);
+    budget -= Math.min(budget, candidates.length);
+  }
+  let deeper = 0;
+  for (const n of kept) {
+    if (shown.has(n)) continue;
+    deeper++;
+    let up = parent.get(n);
+    while (up && !shown.has(up)) up = parent.get(up);
+    if (up) folded.set(up.i, (folded.get(up.i) ?? 0) + 1);
+  }
+  return { nodes: kept.filter((n) => shown.has(n)), folded, offscreen, deeper };
 }

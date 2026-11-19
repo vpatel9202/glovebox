@@ -19,6 +19,9 @@ Usage:
   glovebox stop                     Stop the CLI daemon and its sessions
   glovebox smoke [--full]           Batched, persistent smoke test on Calculator
                                     (--full adds background click/drag/scroll in TextEdit)
+  glovebox smoke --android [--serial s] [--keep]
+                                    The same on a phone or emulator, with a test app
+                                    that is installed for the run (--keep leaves it)
   glovebox allow <app>...           Always allow an app (name or bundle id)
   glovebox deny <app>...            Never allow an app
   glovebox revoke <app>...          Remove an app from both lists
@@ -107,7 +110,12 @@ async function doctor() {
       }
     }
   } else {
-    check(false, `Platform ${process.platform}`, "Only macOS has a backend today. See docs/roadmap.md.");
+    lines.push(`info  No desktop backend for ${process.platform}; Android devices only. See docs/roadmap.md.`);
+  }
+  const { doctorChecks } = await import("../src/backends/android.mjs");
+  for (const { level, label, fix } of await doctorChecks()) {
+    if (level === "fail") check(false, label, fix);
+    else lines.push(`${level === "ok" ? "ok  " : level}  ${label}${level !== "ok" && fix ? `\n      ${fix}` : ""}`);
   }
   process.stdout.write(`${lines.join("\n")}\n`);
   if (!ok) process.exitCode = 1;
@@ -196,6 +204,9 @@ async function main() {
       restart: { type: "boolean" },
       create: { type: "boolean" },
       full: { type: "boolean" },
+      android: { type: "boolean" },
+      serial: { type: "string" },
+      keep: { type: "boolean" },
       n: { type: "string", short: "n" },
       help: { type: "boolean", short: "h" },
     },
@@ -250,8 +261,9 @@ async function main() {
       return;
     }
     case "smoke": {
-      const { runSmoke } = await import("../src/smoke.mjs");
-      process.exitCode = (await runSmoke({ full: flags.full })) ? 0 : 1;
+      const { runSmoke, runAndroidSmoke } = await import("../src/smoke.mjs");
+      const passed = flags.android ? await runAndroidSmoke({ serial: flags.serial, keep: flags.keep }) : await runSmoke({ full: flags.full });
+      process.exitCode = passed ? 0 : 1;
       return;
     }
     case "setup":
@@ -283,6 +295,12 @@ async function main() {
     case "doctor":
       await doctor();
       return;
+    case "android-broker": {
+      // Internal: started by the first session that uses a phone.
+      const { runDeviceBroker } = await import("../src/backends/android.mjs");
+      await runDeviceBroker(positionals[0], positionals[1]);
+      return;
+    }
     case "allow":
     case "deny":
     case "revoke": {

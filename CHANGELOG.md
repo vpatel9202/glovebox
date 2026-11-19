@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+- Android (experimental): `gb.device()` drives Android phones and emulators
+  over ADB with a shell-privileged server. Apps run on a hidden screen, so
+  the user's screen is not touched (API 34+); the phone's own screen is the
+  fallback. Reads, taps, keys, typing any characters (no clipboard), scroll,
+  swipe, long press, pinch and rotate, web content inside apps, one-time-code
+  fields, `phone.open`, `app.open`, `phone.notifications`, and `phone.push`.
+  Several sessions can share one phone. Ask-first approval covers Android
+  apps, notifications, and pushed files. `glovebox doctor` and
+  `glovebox smoke --android` check a device. Tested on emulators API 34 to 37
+  and a Galaxy S24.
+- `app.find`, `app.nodes`, and `app.text`: silent lookups that print nothing.
+- `app.scrollTo(query)` and `app.expect(query)` for checks inside a script.
+- `app.ocr()` reads text from a screen the tree cannot describe (macOS Vision).
+- Large trees print as an outline that folds deep branches.
+- Reads hide "show menu" actions and ids that name nothing.
+
 ## 0.3.2 (2026-11-03)
 
 - List glovebox in the official MCP Registry. No change to behavior.

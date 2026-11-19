@@ -76,6 +76,45 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   keychain and signs only the helper you build. Without it, macOS ties
   privacy grants to an ad-hoc signature and a rebuild means granting again.
 
+## Android devices
+
+- **ADB is the grant.** The glovebox server on a phone runs with shell
+  privileges over ADB. Anything else on the Mac that can run `adb` (an agent
+  with a terminal, for one) can do the same without glovebox, so approve
+  terminal access with that in mind.
+- **Ask first, never forbid.** glovebox asks before acting in apps and screens
+  that can move money, read messages or one-time codes, or change the phone's
+  settings, even under `allow-all`, and it asks again when one of them shows
+  inside an app you already approved. It does not block an action you approve.
+- **Notifications.** `phone.notifications()` reads the whole shade, which
+  can show messages and one-time codes from any app, so it asks first even
+  under `allow-all` (approval key `android:notifications`), and each read
+  is logged.
+- **Files.** Scripts cannot read files, but `phone.push(path)` copies a file
+  from this computer to the phone, so each file asks first, naming the path
+  and size, and each copy is logged.
+- **Locked phones.** The server can reach apps behind the lock screen (a
+  hidden screen runs even while the phone is locked), so acting on, or
+  reading a hidden screen of, a phone locked with a PIN, pattern, password or
+  biometric asks once per session. A swipe-only lock screen guards nothing
+  and does not ask.
+- **Hidden screens.** On Android 14 and later the agent's apps run on private
+  displays that never take focus from the phone's screen and show no
+  keyboard; input and typing are addressed to that display only and fail
+  rather than fall back to the user's screen. glovebox will not open an app
+  there that the user is running, since a second copy can close or take over
+  theirs. The displays and their apps are destroyed when the session ends or
+  the server dies, and never appear in the phone's recent apps. Hidden-screen work
+  wakes the phone and keeps it awake until a minute after the last action.
+- **No network socket.** The server on the phone talks only over the `adb
+  shell` that started it. On the computer, a per-phone broker process owns
+  that shell and relays for every glovebox session through a Unix socket in
+  `~/.glovebox` that only your user can open; it exits, and the server with
+  it, ten seconds after the last session ends.
+- **Personal phones.** Developer options and USB debugging are themselves a
+  weaker security setting. Use the emulator, or a phone set aside for agents,
+  when you can.
+
 ## Reporting a vulnerability
 
 Please open a private security advisory at

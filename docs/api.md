@@ -23,6 +23,10 @@ await calc.getAXState();
 - `gb.listApps({installed, emit})` lists running apps (or installed ones too)
   and returns `[{name, bundleId, pid, running, active}]`. It prints the list
   unless `emit: false`.
+- `gb.device(serial)` returns an Android device with the same `listApps`,
+  `getApp` and `permissions`. `serial` is the ADB serial (`adb devices`);
+  either the USB or the wireless serial names the same phone, and it may be
+  left out when one device is connected. See [Android](#android).
 - `gb.sleep(ms)` waits. Also available as `sleep(ms)`.
 - `gb.permissions()` reports Accessibility and Screen Recording status.
 - `help(topic)` prints this document, or the sections mentioning `topic`.
@@ -45,7 +49,12 @@ await calc.getAXState();
   and rename fields never take over. Diffs compare against the last printed
   read of the same window; `{emit: false}` reads don't change that.
   `maxNodes` (default 800) and `maxDepth` (default 40) bound the tree; a
-  truncated tree says so.
+  truncated tree says so. A tree over 250 elements (`ax.outlineAbove` in the
+  config) prints as an outline: elements outside the window are left out,
+  then the tree is shown level by level up to 250 lines, and each shown
+  line that hides more ends in `(+N inside)`. A note under the read says
+  what was left out. `find()` and `nodes()` still see every element;
+  `getAXState({full: true})` prints all of them.
 - Line format: `<index> <role> "<label>" value="..." id=... help="..."
   (focused, selected, disabled, settable) actions: ...`. Indentation is depth.
   Indices are stable for the life of the session, so a diff means what it says.
@@ -53,6 +62,40 @@ await calc.getAXState();
   `{width, height, mimeType, data}` and adds the image to the result. Over the
   CLI the image is saved to a file and the path is printed.
 - `app.getAXStateAndScreenshot(options)` does both.
+- `app.find(query, {all, window})` looks elements up without printing
+  anything. `query` is `{role, label, id, value, text}`, each a string
+  (case-insensitive substring; `role` exact, as reads print it) or a RegExp,
+  plus flags such as `{focused: true}`; a bare string matches `text` (label,
+  value, placeholder or id). Returns the first match or `null`, or every
+  match with `{all: true}`. Each element is `{index, role, label, value, id,
+  placeholder, focused, selected, disabled, settable, actions, depth,
+  frame}`, with `frame` as `[x, y, w, h]` in image pixels. Use it to act in
+  the same call: `await app.click((await app.find({role: "button", label:
+  "Save"})).index)`.
+- `app.expect(query, {timeout, gone, message})` checks a step inside a
+  script: it waits up to `timeout` ms (default 3000) for an element matching
+  `query` (or, with `{gone: true}`, for none) and returns it. If the check
+  fails it prints a read of the window and throws, so one call can chain
+  several steps and stop at the first that did not work:
+  `await app.click(save.index); await app.expect({label: "Saved"});`.
+- `app.scrollTo(query, {container, dy, max})` scrolls until an element
+  matching `query` is fully in view and returns it, or `null` at the end of
+  the content: one call instead of a read-scroll-read loop. It scrolls the
+  largest list or scroll area unless `container` names one by index; on
+  Android each step is about a page, elsewhere `dy` lines (default 5). A
+  negative `dy` scrolls back. Labels match as substrings, so use a RegExp
+  such as `/^Row 3$/` for an exact label.
+- `app.nodes(options)` returns every element in that form, and
+  `app.text(index)` the full text of one; reads cut text at 160 characters.
+  Neither prints nor changes what the next read diffs against.
+- `app.ocr({window, languages, emit})` reads text from the window's
+  screenshot on the host (macOS Vision) for screens the tree cannot describe
+  (canvases, games, remote desktops; a read with two or fewer elements
+  suggests it). Returns `[{text, confidence, frame}]` with the frame in
+  image pixels, ready to click, and prints one line per text unless
+  `{emit: false}`. The first call builds the OCR tool with `swiftc` (about a
+  minute); later calls take well under a second. OCR text can be wrong
+  (`0` read as `O`).
 - `app.windows()` lists windows with their frames and image size.
 - `app.frame(index)` and `app.center(index)` give an element's rectangle or
   center in image pixels.
@@ -127,6 +170,142 @@ Monitoring. Do not continue GUI work until the user asks.
 On the foreground route a script brings an app forward at most once per call.
 Every action is appended to `~/.glovebox/actions.log` (typed text is logged
 as a length only).
+
+## Android
+
+Reads, screenshots, clicks, keys, typing, scrolling, swipes and long presses
+work. On Android 14 (API 34) and later each app runs on its own **hidden
+screen**: a private display only glovebox sees. The phone's own screen keeps
+focus and shows what the user had open, the keyboard stays hidden, and the
+hidden screen and everything on it close when the session ends. `lastRoute`
+starts with `hidden screen`. `gb.device(...).getApp(name, {foreground: true})`
+(or `"androidScreen": "phone"` in the config) works on the phone's own screen
+instead, as on older Android versions.
+
+Approval uses the same `approval`, `allow` and `deny` settings as macOS, with
+a dialog on the Mac (zenity on Linux). Nothing is blocked outright: apps and
+screens that can move money, read messages or codes, or change the phone's
+settings (Play Store, Messages, Phone, Settings, wallets, password managers,
+authenticators, Google sign-in, permission prompts) ask first even under
+`allow-all`. A screen from one of them inside an approved app asks again, and
+acting on a locked phone asks once per session. `glovebox allow <package>`
+skips the dialog. Without a dialog, the error code is `needs_approval`.
+
+```js
+const phone = gb.device();               // or gb.device("emulator-5554")
+const clock = await phone.getApp("Clock");
+await clock.activate();                  // brings it to the phone's screen
+await clock.getAXState();
+```
+
+- The phone's whole screen is the app's one window (`window 0`). A read shows
+  the app and anything on top of it: dialogs, sheets, the keyboard, system
+  prompts. The status and navigation bars are left out.
+- On a hidden screen, the first read or action of a handle opens the app
+  there; no `activate()` is needed. If the app later closes (Back on its
+  first screen, a crash), reads fail with `not_visible` until
+  `app.activate()` opens it again. On the phone's own screen, `getApp`
+  never launches or brings an app forward; call `app.activate()` first.
+- A hidden screen opens only apps the user is not running. A second copy can
+  take the user's: single-copy apps (Clock) move their task over, and others
+  (Chrome) close the older one. So if the user has the app running,
+  `activate()` fails with `open_on_phone` and changes nothing; ask the user
+  to close it, or pass `{foreground: true}` to `getApp`, which also switches
+  an existing handle. While glovebox has a single-copy app on a hidden
+  screen, the user opening it on the phone shows nothing until the session
+  ends.
+- Hidden-screen apps stay out of the phone's recent apps.
+- Several glovebox sessions (agents, CLI sessions) can use one phone at the
+  same time, each with its own hidden screens and element indices. One app
+  can be open in only one session at a time, on a hidden screen or the
+  phone's (opening it on the phone's screen would pull the other session's
+  copy over); a second fails with `open_in_other_session`. A session that
+  switches its own handle to `{foreground: true}` brings its hidden copy to
+  the phone's screen. Ending a session closes its hidden screens.
+- If an app on a hidden screen moves itself to the phone's own screen (some
+  sign-in and system screens might), glovebox stops with
+  `moved_to_phone_screen` rather than follow it. (No app has been seen to do
+  this in testing yet, so this check is untested.)
+- `HomeScreen`, `Recents`, `Notifications` and `QuickSettings` act on the
+  phone's own screen, so on a hidden screen they fail with
+  `phone_screen_only`; `Back` works on both.
+- While the agent works on a hidden screen, the phone stays awake (screen
+  dimmed) until a minute after the last action: an asleep phone runs nothing
+  on a hidden screen. A sleeping phone is woken.
+- Opening an app on a hidden screen counts as using it: the phone's launcher
+  may list it in its suggested apps.
+- On the phone's own screen, a swipe-only lock screen is dismissed; a phone
+  locked with a PIN, pattern or biometric fails with `locked` (the hidden
+  screen works while locked, after the one-time approval).
+- `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
+- `phone.notifications({max, emit})` lists the notifications in the shade,
+  newest first, as `[{app, package, title, text, subtext, when, ongoing}]`,
+  and prints them unless `{emit: false}`: one-time codes, for one. It
+  always asks first (approval key `android:notifications`; `glovebox allow
+  android:notifications` skips the dialog, `glovebox revoke` restores it),
+  and each read is logged.
+- `phone.push(localPath, {to})` copies a file from this computer to the
+  phone (default `/sdcard/Download/`; a `to` ending in `/` keeps the name)
+  and returns `{path, bytes}`; apps' file and photo pickers list it right
+  away. Scripts cannot read files otherwise, so each file asks first (once
+  per session), and each copy is logged.
+- `phone.open(url)` opens a link in the app that handles it (the user's
+  default, else the first; a note lists the others) on that app's hidden
+  screen and returns its handle; `{foreground: true}` uses the phone's own
+  screen. `phone.open({action, data, type, component, categories,
+  extras})` takes an intent instead, and `app.open(...)` sends one to a
+  given app, to jump straight to a screen. Approval is the same as opening
+  the app.
+- `click(index)` presses the element through accessibility; `click([x, y])`
+  taps. `rightClick` and `app.longPress(target, {ms})` press and hold.
+  `app.swipe(from, to, {ms})` moves a finger without a long press first (pagers,
+  sheets, pull to refresh); `drag` holds first, to pick up an item.
+  `scroll(target, dy)` swipes about 48 dp per line.
+  `app.pinch(target, {scale, ms, distance, angle})` moves two fingers apart
+  (`scale` > 1 zooms in) or together, and `app.rotate(target, {degrees,
+  ms})` twists them, around an element or point, for maps and photos.
+- `typeText` puts text straight into the focused field (no keyboard, any
+  characters), then falls back to key events for fields that refuse it.
+  `lastRoute` says which: `set-text` or `keys`, after the screen
+  (`hidden screen (set-text)`, `foreground (keys)`). Text longer than the
+  field holds goes as keys, so a one-time-code row of one-digit boxes that
+  moves focus on its own fills box by box: click the first box, then
+  `typeText("123456")`. Any characters (accents, emoji, CJK) work in
+  fields that take text directly, web page fields included; a field that
+  refuses it takes only what the key map has, and other text fails with
+  `bad_key`. The clipboard is never used: Android shows clipboard changes
+  on the phone's screen.
+- A button or checkbox with no name of its own is named by the text inside
+  it (Compose apps put a control's text on child nodes), so
+  `find({role: "button", label: "All contacts"})` works there too.
+- Lists reuse row views as they scroll, so a row's index is tied to its
+  position in the list: after a scroll, an index read before it that now
+  shows another row fails with `stale_index` instead of acting on the wrong
+  row. Read (or `find`) again after scrolling.
+- Web content inside apps (WebView) reads with its HTML roles: heading,
+  link, button, text field. `click(index)` on web content taps the
+  element's center, since web content ignores accessibility clicks, and
+  `lastRoute` says `touch`. Every read fetches fresh nodes; the system's
+  cache misses web page updates.
+- System keys for `pressKey`: `Back`, `HomeScreen`, `Recents`,
+  `Notifications`, `QuickSettings`, `VolumeUp`, `VolumeDown`, `Menu`. `Home`
+  and `End` move the text cursor.
+- After each action glovebox waits until the app has sent no change events
+  for 150 ms (at most 1.5 s), instead of a fixed pause: about 150-300 ms
+  on the fixture, longer for screens that keep changing. A number in
+  `androidSettleMs` (config) restores a fixed pause.
+- `waitForChange()` after a tree read waits on the app's own change events
+  instead of polling, so it notices a change within about 100 ms.
+- The keyboard shows as one `window "keyboard"` line; pass
+  `getAXState({keyboard: true})` to list its keys.
+- Coordinates are image pixels as on macOS; the image is the screen scaled so
+  its long side is at most 1568.
+- Needs `adb` and a built server: `npm run build:android` (Android SDK and a
+  JDK). The server runs over ADB with shell privileges and stops with the
+  session. Only one automation tool can read the screen at a time; stop
+  uiautomator, Appium or Maestro first.
+- `glovebox doctor` lists connected devices and checks each one;
+  `glovebox smoke --android` runs an end-to-end check with a test app.
 
 ## Known limits
 

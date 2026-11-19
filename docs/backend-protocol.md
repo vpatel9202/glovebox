@@ -6,6 +6,13 @@ JSON lines: one request `{"id", "method", "params"}` per line, one reply
 events `{"event": "escape"}`. On macOS the transport is the helper's Unix
 socket; a new backend may use a socket, a named pipe, or stdio.
 
+Per backend: the macOS helper uses global screen points and numeric pids. The
+Android server (`native/android`, over `adb shell` stdio) uses pixels of the
+phone's display, and its app handle in `pid` is the package name, an opaque
+string to the scripting layer. It reports one window per app (the display,
+`windowId` 0) and answers reads of an app that is not on screen with
+`not_visible`. Everything below holds for both.
+
 All coordinates are global screen points with a top-left origin. The
 scripting layer owns the image-pixel mapping: it picks each window's image
 size and converts targets to screen points before calling the backend. The

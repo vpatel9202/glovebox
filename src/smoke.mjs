@@ -10,8 +10,8 @@ import { fileURLToPath } from "node:url";
 
 const cli = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "bin", "glovebox.mjs");
 
-function client() {
-  const child = spawn(process.execPath, [cli, "mcp"], { stdio: ["pipe", "pipe", "inherit"] });
+function client(env = process.env) {
+  const child = spawn(process.execPath, [cli, "mcp"], { stdio: ["pipe", "pipe", "inherit"], env });
   const pending = new Map();
   let nextId = 1;
   let buffer = "";
@@ -156,5 +156,248 @@ JSON.stringify({ afterClick, afterDrag, before, afterScroll, route: te.lastRoute
   }
   const passed = results.every(Boolean);
   process.stdout.write(passed ? "\nAll smoke checks passed.\n" : "\nSome smoke checks failed.\n");
+  return passed;
+}
+
+// `glovebox smoke --android`: the same loop on a phone or emulator, against
+// the fixture app (native/android/fixture), which reports every tap, key,
+// long press, drag and scroll in a label. The fixture is installed for the
+// run and removed after it unless `keep`. Failure details print only the
+// fixture's own labels and error codes, never other screen content.
+// Where two display-0 captures differ, as "in [x0,y0]-[x1,y1] (n px)".
+function changedBox(a, b) {
+  if (!a.body || !b.body || a.body.length !== b.body.length) return "";
+  let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1, n = 0;
+  for (let i = 0; i < a.body.length; i += 4) {
+    if (a.body[i] === b.body[i] && a.body[i + 1] === b.body[i + 1] && a.body[i + 2] === b.body[i + 2]) continue;
+    const p = i / 4, x = p % a.w, y = Math.floor(p / a.w) + a.top;
+    n++;
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+  }
+  return n ? `in [${x0},${y0}]-[${x1},${y1}] (${n} px)` : "";
+}
+
+export async function runAndroidSmoke({ serial, keep = false } = {}) {
+  const { FIXTURE_APK, FIXTURE_PACKAGE, resolveSerial, adb } = await import("./backends/android.mjs");
+  const results = [];
+  const step = (name, pass, detail) => {
+    results.push(pass);
+    process.stdout.write(`${pass ? "PASS" : "FAIL"}  ${name}${!pass && detail ? `\n      ${String(detail).split("\n")[0]}` : ""}\n`);
+  };
+  if (!fs.existsSync(FIXTURE_APK)) {
+    step("fixture app built", false, "Run: npm run build:android");
+    return false;
+  }
+  let transport;
+  try {
+    transport = await resolveSerial(serial ?? process.env.ANDROID_SERIAL);
+    const install = () => adb(["-s", transport, "install", "-r", "--user", "0", FIXTURE_APK], { timeout: 120_000 });
+    await install().catch(async (error) => {
+      // A fixture signed by an older build key: replace it.
+      if (!/INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match/i.test(error.message)) throw error;
+      await adb(["-s", transport, "uninstall", FIXTURE_PACKAGE]);
+      await install();
+    });
+    await adb(["-s", transport, "shell", "am", "force-stop", FIXTURE_PACKAGE]);
+  } catch (error) {
+    step("fixture app installs", false, error.message);
+    return false;
+  }
+  // The user's screen, watched from outside glovebox: which display has top
+  // focus, and a hash of display 0 without its status and navigation bars.
+  // Only the hash is kept, never the image.
+  const emulator = transport.startsWith("emulator-");
+  const watch = async () => {
+    const focus = (await adb(["-s", transport, "shell", "dumpsys", "window"]).catch(() => "")).match(/mTopFocusedDisplayId=(-?\d+)/)?.[1] ?? null;
+    let hash = null;
+    try {
+      const raw = execFileSync(process.env.GLOVEBOX_ADB || "adb", ["-s", transport, "exec-out", "screencap"], { maxBuffer: 128 << 20 });
+      const w = raw.readUInt32LE(0), h = raw.readUInt32LE(4);
+      const header = raw.length - w * h * 4;
+      const crypto = await import("node:crypto");
+      const body = raw.subarray(header + Math.floor(h * 0.08) * w * 4, header + Math.floor(h * 0.92) * w * 4);
+      hash = crypto.createHash("sha1").update(body).digest("hex");
+      return { focus, hash, body, w, top: Math.floor(h * 0.08) };
+    } catch {}
+    return { focus, hash };
+  };
+  // An emulator's home screen updates its app suggestions after any launch,
+  // hidden or not; a static Files screen shows only what glovebox changes.
+  if (emulator) {
+    await adb(["-s", transport, "shell", "input", "keyevent", "KEYCODE_WAKEUP"]).catch(() => {});
+    await adb(["-s", transport, "shell", "wm", "dismiss-keyguard"]).catch(() => {});
+    // (Not Settings: it is an ask-first app, and a stray inspect of it would
+    // raise an approval dialog on the Mac.)
+    const files = (await adb(["-s", transport, "shell", "cmd", "package", "resolve-activity", "--brief", "-c", "android.intent.category.LAUNCHER", "-a", "android.intent.action.MAIN", "com.google.android.documentsui"]).catch(() => "")).trim().split("\n").at(-1);
+    if (files && files.includes("/")) await adb(["-s", transport, "shell", "am", "start", "-W", "-n", files]).catch(() => {});
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  const before = await watch();
+  // The fixture is ours: skip its dialog. Ask-first apps and a locked phone still ask.
+  const mcp = client({ ...process.env, GLOVEBOX_APPROVAL: "allow-all" });
+  // Runs `code` and parses the JSON its last line prints.
+  const run = async (code) => {
+    const reply = await mcp.js(code);
+    if (reply.isError) return { error: reply.text.trim().split("\n").at(-1) };
+    try {
+      return { ...JSON.parse(reply.text.trim().split("\n").at(-1)), images: reply.images.length };
+    } catch {
+      return { error: "unexpected output" };
+    }
+  };
+  try {
+    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "glovebox smoke", version: "1" } });
+    const hello = await run(`
+const phone = gb.device(${JSON.stringify(transport)});
+const fx = await phone.getApp(${JSON.stringify(FIXTURE_PACKAGE)});
+await fx.activate();
+const tree = () => fx.getAXState({ emit: false, disableDiffing: true, frames: true });
+const idx = async (re) => Number((await tree()).match(re)?.[1]);
+const label = async (prefix) => (await tree()).match(new RegExp('text "(' + prefix + '[^"]*)"'))?.[1];
+JSON.stringify({ ok: /text field/.test(await tree()), device: String(phone), screen: fx.screen });`);
+    step(`device connects and reads the fixture (${hello.screen ?? "?"} screen)`, hello.ok === true, hello.error);
+    if (!hello.ok) return false;
+
+    const tap = await run(`
+await fx.click(await idx(/^\\s*(\\d+) button "Tap me"/im));
+const r1 = fx.lastRoute;
+await fx.click(await fx.center(await idx(/^\\s*(\\d+) button "Tap me"/im)));
+JSON.stringify({ counts: await label("taps"), r1, r2: fx.lastRoute });`);
+    step("index click and pixel tap both land", tap.counts?.startsWith("taps: 2"), tap.error ?? tap.counts);
+
+    const long = await run(`
+await fx.longPress(await idx(/^\\s*(\\d+) button "Tap me"/im));
+JSON.stringify({ counts: await label("taps") });`);
+    step("long press lands", /long presses: 1$/.test(long.counts ?? ""), long.error ?? long.counts);
+
+    const typed = await run(`
+await fx.click(await idx(/^\\s*(\\d+) text field/m));
+await fx.typeText("hello glovebox");
+const route = fx.lastRoute;
+const echo1 = await label("echo");
+await fx.pressKey("BackSpace");
+JSON.stringify({ echo1, echo2: await label("echo"), route });`);
+    step("typeText fills the field", typed.echo1 === "echo: hello glovebox", typed.error ?? typed.echo1);
+    step("pressKey BackSpace deletes a character", typed.echo2 === "echo: hello glovebo", typed.error ?? typed.echo2);
+    if (hello.screen === "hidden") step("input went to the hidden screen", /^hidden screen/.test(typed.route ?? ""), typed.route);
+
+    const code = await run(`
+await fx.click((await fx.find({ role: "button", label: "Code screen" })).index);
+await sleep(600);
+await fx.click((await fx.find({ label: "Digit 1" })).index);
+await fx.typeText("123456");
+const got = (await fx.find("code:"))?.label;
+await fx.pressKey("Back");
+await sleep(400);
+if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
+JSON.stringify({ got, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
+    step("typeText fills a six-box code field", code.got === "code: 123456" && code.back === true, code.error ?? `${code.got}, back on main: ${code.back}`);
+
+    const web = await run(`
+await fx.click((await fx.find({ role: "button", label: "Web screen" })).index);
+let heading, link, greet;
+try {
+await sleep(1000);
+heading = (await fx.find({ role: "heading" }))?.label;
+await fx.click((await fx.find({ role: "link" })).index);
+// The output line, by its text: older WebViews expose no HTML ids.
+const out = async () => (await fx.find({ role: "text", label: /^(nothing yet|link tapped|hello)/ }))?.label;
+link = await out();
+await fx.click((await fx.find({ role: "text field" })).index);
+await fx.typeText("glovebox é 😀 日本");
+await fx.click((await fx.find({ role: "button", label: "Greet" })).index);
+greet = await out();
+} catch (e) {
+  greet = "error: " + e.message.split("\\n")[0];
+} finally {
+  // Back to the main screen even after a failure, so later steps still run.
+  await fx.pressKey("Back");
+  await sleep(400);
+  if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
+}
+JSON.stringify({ heading, link, greet, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
+    step("web content reads (heading, link)", web.heading === "Web fixture", web.error ?? `heading ${web.heading}`);
+    step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox é 😀 日本" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
+
+    const gest = await run(`
+await fx.click((await fx.find({ role: "button", label: "Gesture screen" })).index);
+const pad = await fx.expect({ label: "Gesture pad" });
+await fx.pinch(pad.index, { scale: 2 });
+await fx.rotate(pad.index, { degrees: 45 });
+const got = (await fx.find(/^scale:/))?.label;
+await fx.pressKey("Back");
+JSON.stringify({ got, back: Boolean(await fx.expect({ role: "button", label: "Tap me" })) });`);
+    step("pinch and rotate with two fingers", /^scale: 2\.0\d, angle: 4[45]$/.test(gest.got ?? "") && gest.back === true, gest.error ?? gest.got);
+
+    const slid = await run(`
+if (/window "keyboard/.test(await tree())) await fx.pressKey("Back"); // hide the keyboard
+const s = (await tree()).match(/^\\s*\\d+ slider "Slider".*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);
+const y = s[1] + s[3] / 2;
+await fx.drag([s[0] + s[2] * 0.1, y], [s[0] + s[2] * 0.9, y]);
+const v1 = Number((await label("slider")).split(" ")[1]);
+await fx.swipe([s[0] + s[2] * 0.9, y], [s[0] + s[2] * 0.3, y]);
+JSON.stringify({ v1, v2: Number((await label("slider")).split(" ")[1]) });`);
+    step("drag moves the slider", slid.v1 >= 70, slid.error ?? `slider ${slid.v1}`);
+    step("swipe moves it back", slid.v2 <= 45 && slid.v2 < slid.v1, slid.error ?? `slider ${slid.v2}`);
+
+    const scrolled = await run(`
+const listAt = (await tree()).match(/^\\s*\\d+ list.*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);
+await fx.scroll([listAt[0] + listAt[2] / 2, listAt[1] + listAt[3] / 2], 15);
+const t = await tree();
+JSON.stringify({ row0: /button "Row 0"/.test(t), first: t.match(/button "(Row \\d+)"/)?.[1] });`);
+    step("scroll moves the list", scrolled.row0 === false, scrolled.error ?? `first row ${scrolled.first}`);
+
+    const shot = await run(`
+const img = await fx.getScreenshot({ format: "png" });
+// A blank or one-color frame would mean nothing was captured: count distinct
+// byte values in the compressed image as a cheap proxy for content.
+const bytes = new Set(Buffer.from(img.data, "base64").subarray(64, 4096)).size;
+JSON.stringify({ same: img.width === fx.view.width && img.height === fx.view.height, bytes, size: img.data.length });`);
+    step("screenshot is in the same pixel space as clicks", shot.same === true && shot.images === 1, shot.error);
+    step("screenshot has content", shot.bytes > 100 && shot.size > 20_000, shot.error ?? `${shot.bytes} distinct bytes, ${shot.size} base64 chars`);
+
+    const gone = await run(`
+await fx.pressKey("Back");
+let code = null;
+for (let i = 0; i < 12 && !code; i++) {
+  await sleep(250);
+  try { await fx.getAXState({ emit: false }); } catch (e) { code = e.code; }
+}
+JSON.stringify({ code });`);
+    step("Back leaves the app, and a read says not_visible", gone.code === "not_visible", gone.error ?? `code ${gone.code}`);
+
+    if (hello.screen === "hidden") {
+      const after = await watch();
+      step("the phone's screen kept focus", after.focus === before.focus, `top focused display ${before.focus} -> ${after.focus}`);
+      // An emulator's screen holds still; a phone's can change under the user.
+      if (emulator) step("the phone's screen did not change", after.hash != null && after.hash === before.hash, `display 0 changed ${changedBox(before, after)}`);
+      else process.stdout.write(`info  the phone's screen ${after.hash === before.hash ? "did not change" : "changed (the user, a notification, or glovebox)"}\n`);
+    }
+
+    await mcp.request("tools/call", { name: "js_reset", arguments: {} });
+    const after = await mcp.js("typeof fx");
+    step("js_reset drops the binding", !after.isError && after.text.trim() === "undefined", after.text);
+
+    // The phone's own screen, as getApp(name, {foreground: true}) asks.
+    const phoneRoute = await run(`
+const fp = await gb.device(${JSON.stringify(transport)}).getApp(${JSON.stringify(FIXTURE_PACKAGE)}, { foreground: true });
+await fp.activate();
+const t1 = await fp.getAXState({ emit: false, disableDiffing: true });
+await fp.click(await fp.center(Number(t1.match(/^\\s*(\\d+) button "Tap me"/im)[1])), { raw: true });
+const route = fp.lastRoute;
+const counts = (await fp.getAXState({ emit: false, disableDiffing: true })).match(/text "(taps[^"]*)"/)?.[1];
+await fp.pressKey("Back");
+JSON.stringify({ screen: fp.screen, route, counts });`);
+    step("{foreground: true} works on the phone's own screen", phoneRoute.screen === "phone" && /^taps: 1/.test(phoneRoute.counts ?? "") && /^foreground/.test(phoneRoute.route ?? ""), phoneRoute.error ?? `${phoneRoute.screen} ${phoneRoute.route} ${phoneRoute.counts}`);
+  } finally {
+    mcp.close();
+    if (!keep) {
+      await adb(["-s", transport, "uninstall", FIXTURE_PACKAGE]).catch((error) => {
+        process.stdout.write(`      (Could not remove the fixture app; run: adb -s ${transport} uninstall ${FIXTURE_PACKAGE})\n      ${error.message.split("\n")[0]}\n`);
+      });
+    }
+  }
+  const passed = results.every(Boolean);
+  process.stdout.write(passed ? "\nAll Android smoke checks passed.\n" : "\nSome Android smoke checks failed.\n");
   return passed;
 }

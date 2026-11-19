@@ -149,3 +149,162 @@ test("image space round-trips to screen points", () => {
   const [sx, sy] = toScreen(big, [big.width / 2, big.height / 2]);
   assert.ok(Math.abs(sx - 1280) < 1 && Math.abs(sy - (25 + 1415 / 2)) < 1);
 });
+
+test("gb.device binds getApp to that device and keeps handles apart", async () => {
+  const { createApi } = await import("../src/api.mjs");
+  const calls = [];
+  const fake = (platform, pid) => ({
+    platform,
+    label: platform,
+    async request(method, params) {
+      calls.push([platform, method, params]);
+      if (method === "resolveApp") return { name: "Clock", bundleId: "com.clock", pid, running: true };
+      throw new Error(`unexpected ${method}`);
+    },
+  });
+  const host = fake("macos", 42);
+  const devices = new Map();
+  const ctx = {
+    backend: host,
+    device: (serial) => devices.get(serial) ?? devices.set(serial, fake("android", "com.clock")).get(serial),
+    checkAbort() {},
+    log() {},
+    out: { text() {} },
+  };
+  const gb = createApi(ctx);
+  const mac = await gb.getApp("Clock");
+  const phone = gb.device("emulator-5554");
+  const droid = await phone.getApp("Clock");
+  assert.equal(mac.platform, "macos");
+  assert.equal(droid.platform, "android");
+  assert.equal(droid.pid, "com.clock");
+  assert.notEqual(mac, droid);
+  // The same device hands back the same handle.
+  assert.equal(await gb.device("emulator-5554").getApp("Clock"), droid);
+  assert.deepEqual(calls.map(([p, m]) => `${p}:${m}`), ["macos:resolveApp", "android:resolveApp", "android:resolveApp"]);
+});
+
+test("Android handles use the hidden screen unless told otherwise", async () => {
+  const { createApi } = await import("../src/api.mjs");
+  const sent = [];
+  const device = (hiddenScreen) => ({
+    platform: "android",
+    label: "Phone",
+    info: { hiddenScreen },
+    async request(method, params) {
+      sent.push(params);
+      return { name: params.query, bundleId: params.query, pid: params.query, running: true };
+    },
+  });
+  const make = (dev, config = {}) => createApi({ backend: {}, device: () => dev, config, checkAbort() {}, log() {}, out: { text() {} } });
+  const modern = device(true);
+  assert.equal((await make(modern).device().getApp("com.a")).screen, "hidden");
+  assert.equal((await make(modern).device().getApp("com.b", { foreground: true })).screen, "phone");
+  assert.equal((await make(modern, { androidScreen: "phone" }).device().getApp("com.c")).screen, "phone");
+  // On Android, foreground also switches a handle that already exists.
+  const api = make(modern);
+  const first = await api.device().getApp("com.e");
+  assert.equal(await api.device().getApp("com.e", { foreground: true }), first);
+  assert.equal(first.screen, "phone");
+  // Before Android 14 there is no hidden screen.
+  assert.equal((await make(device(false)).device().getApp("com.d")).screen, "phone");
+});
+
+test("device approval asks first for sensitive apps and never blocks outright", async () => {
+  const { authorize, authorizeLocked, isAskFirst } = await import("../src/approval.mjs");
+  const asked = [];
+  const answer = (value) => async (q) => (asked.push(q.detail), value);
+  const base = { client: "Agent", device: "Phone", approved: new Set() };
+  const cfg = (approval, extra = {}) => ({ approval, allow: [], deny: [], ...extra });
+
+  // allow-all: ordinary apps pass silently; ask-first apps still ask.
+  await authorize({ ...base, pkg: "com.example.notes", config: cfg("allow-all"), prompt: answer("deny") });
+  assert.equal(asked.length, 0);
+  await assert.rejects(authorize({ ...base, pkg: "com.android.vending", config: cfg("allow-all"), prompt: answer("deny") }), { code: "denied" });
+  assert.equal(asked.length, 1);
+  assert.ok(isAskFirst("com.google.android.apps.messaging"));
+
+  // ask: one prompt per app per session.
+  const approved = new Set();
+  await authorize({ ...base, approved, pkg: "com.example.maps", config: cfg("ask"), prompt: answer("session") });
+  await authorize({ ...base, approved, pkg: "com.example.maps", config: cfg("ask"), prompt: answer("deny") });
+  assert.equal(asked.length, 2);
+
+  // allowlist: ordinary apps need `allow`; ask-first apps can still be approved.
+  await assert.rejects(authorize({ ...base, pkg: "com.example.x", config: cfg("allowlist"), prompt: answer("session") }), { code: "not_allowed" });
+  await authorize({ ...base, pkg: "com.android.settings", config: cfg("allowlist"), prompt: answer("session") });
+
+  // deny wins; allow skips the prompt even for ask-first apps.
+  await assert.rejects(authorize({ ...base, pkg: "com.example.y", config: cfg("allow-all", { deny: ["com.example.y"] }) }), { code: "denied" });
+  const before = asked.length;
+  await authorize({ ...base, pkg: "com.android.vending", config: cfg("ask", { allow: ["com.android.vending"] }), prompt: answer("deny") });
+  assert.equal(asked.length, before);
+
+  // No dialog on this host: a coded error that says how to approve.
+  await assert.rejects(authorize({ ...base, pkg: "com.example.z", config: cfg("ask"), prompt: async () => null }), { code: "needs_approval" });
+
+  // A locked phone asks once per session.
+  const lockApproved = new Set();
+  await authorizeLocked({ ...base, approved: lockApproved, prompt: answer("session") });
+  await authorizeLocked({ ...base, approved: lockApproved, prompt: answer("deny") });
+});
+
+test("app.find, app.nodes and app.text return data and print nothing", async () => {
+  const { createApi } = await import("../src/api.mjs");
+  const printed = [];
+  const nodes = [
+    { i: 1, d: 0, role: "AXWindow", title: "Form", frame: [0, 0, 100, 100] },
+    { i: 2, d: 1, role: "AXButton", title: "Save", actions: ["AXPress"], frame: [10, 10, 20, 10] },
+    { i: 3, d: 1, role: "AXTextField", value: "x".repeat(300), placeholder: "Notes", settable: true, frame: [10, 30, 80, 10] },
+    { i: 4, d: 1, role: "AXButton", title: "Cancel", disabled: true, frame: [40, 10, 20, 10] },
+  ];
+  const backend = {
+    platform: "macos",
+    async request(method, params) {
+      if (method === "resolveApp") return { name: "Form", bundleId: "com.form", pid: 7, running: true };
+      if (method === "windows") return [{ index: 0, windowId: 9, title: "Form", frame: [0, 0, 100, 100], scale: 2, focused: true, main: true }];
+      if (method === "axTree") return { window: { windowId: 9, title: "Form" }, nodes: nodes.map((n) => (n.value ? { ...n, value: n.value.slice(0, params.maxText) } : n)) };
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const config = { ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 }, screenshot: {} };
+  const gb = createApi({ backend, config, checkAbort() {}, log() {}, out: { text: (t) => printed.push(t) } });
+  const app = await gb.getApp("Form");
+  assert.equal((await app.find({ role: "button", label: "save" })).index, 2);
+  assert.equal((await app.find("notes")).index, 3); // a bare string matches placeholder too
+  assert.equal((await app.find({ role: "button", disabled: false }, { all: true })).length, 1);
+  assert.equal(await app.find({ label: /^Nope$/ }), null);
+  const save = (await app.nodes()).find((n) => n.index === 2);
+  assert.deepEqual(save.actions, ["press"]);
+  assert.equal(save.frame.length, 4);
+  assert.equal((await app.text(3)).length, 300);
+  assert.deepEqual(printed, []);
+  // expect: returns the match, or prints the window and throws.
+  assert.equal((await app.expect({ label: "Save" }, { timeout: 0 })).index, 2);
+  assert.equal(await app.expect({ label: "Nope" }, { gone: true, timeout: 0 }), true);
+  await assert.rejects(app.expect({ role: "button", label: "Delete" }, { timeout: 0 }), /expect failed in Form: an element matching \{role: "button", label: "Delete"\} not found/);
+  assert.equal(printed.length, 1); // the read printed on failure
+});
+
+test("large trees read as an outline; find still sees every element", async () => {
+  const { outlineTree } = await import("../src/axformat.mjs");
+  // A window, 30 sections, each with 20 rows; half the sections are below the window.
+  const nodes = [{ i: 1, d: 0, role: "AXWindow", frame: [0, 0, 100, 100] }];
+  let i = 2;
+  for (let s = 0; s < 30; s++) {
+    const y = s < 15 ? s * 6 : 200 + s;
+    nodes.push({ i: i++, d: 1, role: "AXGroup", title: `Section ${s}`, frame: [0, y, 100, 5] });
+    for (let r = 0; r < 20; r++) nodes.push({ i: i++, d: 2, role: "AXStaticText", title: `row ${r}`, frame: [0, y, 100, 5] });
+  }
+  const small = outlineTree(nodes.slice(0, 100), { limit: 250 });
+  assert.equal(small.nodes.length, 100); // under the limit: unchanged
+  const big = outlineTree(nodes, { limit: 250, bounds: [0, 0, 100, 100] });
+  assert.equal(big.offscreen, 15 * 21);
+  // Level by level: the window, the 15 on-screen sections, then rows in
+  // order until 250; the rest count on their section.
+  assert.equal(big.nodes.length, 250);
+  assert.equal(big.deeper, 1 + 15 * 21 - 250);
+  assert.equal(big.folded.get(2), undefined); // section 0 shows all its rows
+  assert.equal(big.folded.get(2 + 11 * 21), 6); // section 11 shows 14 of 20
+  assert.equal(big.folded.get(2 + 14 * 21), 20);
+});
