@@ -76,6 +76,7 @@ export class App {
   // previous wait settled on), as {pixels, value, format, quality}.
   #waitBase = null;
   #activatedCell = -1;
+  #opened = false; // Android: opened on its screen at least once this session
 
   // `backend` is the host's (ctx.backend) or a device's; `pid` is whatever
   // handle that backend gave the app (a number on macOS, a package on Android).
@@ -117,7 +118,20 @@ export class App {
   async #call(method, params = {}) {
     this.#ctx.checkAbort();
     const screen = this.platform === "android" ? { screen: this.screen } : {};
-    return this.#backend.request(method, { pid: this.pid, ...screen, ...params });
+    try {
+      const result = await this.#backend.request(method, { pid: this.pid, ...screen, ...params });
+      if (method === "activate") this.#opened = true;
+      return result;
+    } catch (error) {
+      // A hidden screen is the agent's own: the first read or action of a
+      // handle opens the app there, rather than failing with not_visible.
+      // An app that closed after that still fails, so the change is noticed.
+      if (error.code !== "not_visible" || method === "activate" || this.#opened || this.screen !== "hidden") throw error;
+      this.#opened = true;
+      this.#ctx.log({ app: this.bundleId ?? this.name, action: "open", screen: "hidden" });
+      await this.#backend.request("activate", { pid: this.pid, ...screen });
+      return this.#backend.request(method, { pid: this.pid, ...screen, ...params });
+    }
   }
 
   async #act(action, detail, fn) {

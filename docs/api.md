@@ -188,9 +188,11 @@ await clock.getAXState();
 - The phone's whole screen is the app's one window (`window 0`). A read shows
   the app and anything on top of it: dialogs, sheets, the keyboard, system
   prompts. The status and navigation bars are left out.
-- `getApp` never launches an app. Call `app.activate()` first: it opens the
-  app on its hidden screen (or, on the phone's screen route, brings it
-  forward there). Until then a read fails with `not_visible`.
+- On a hidden screen, the first read or action of a handle opens the app
+  there; no `activate()` is needed. If the app later closes (Back on its
+  first screen, a crash), reads fail with `not_visible` until
+  `app.activate()` opens it again. On the phone's own screen, `getApp`
+  never launches or brings an app forward; call `app.activate()` first.
 - A hidden screen opens only apps the user is not running. A second copy can
   take the user's: single-copy apps (Clock) move their task over, and others
   (Chrome) close the older one. So if the user has the app running,
