@@ -4,7 +4,7 @@
 // attributes Accessibility and Screen Recording to it. One grant then covers
 // every agent and terminal on the machine.
 import { createHash, randomBytes } from "node:crypto";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -79,6 +79,24 @@ export async function signingIdentity() {
   } catch {
     return null;
   }
+}
+
+// Lets codesign use the signing key without asking for the keychain password
+// on every build. macOS asks for the password once, here: `security` prompts
+// in the terminal, or reads GLOVEBOX_KEYCHAIN_PASSWORD if it is set. glovebox
+// never stores the password.
+export async function trustSigningKey({ log = () => {} } = {}) {
+  const keychain = path.join(os.homedir(), "Library", "Keychains", "login.keychain-db");
+  const args = ["set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-s", "-l", SIGNING_NAME];
+  if (process.env.GLOVEBOX_KEYCHAIN_PASSWORD) args.push("-k", process.env.GLOVEBOX_KEYCHAIN_PASSWORD);
+  args.push(keychain);
+  log("macOS needs your login keychain password once so codesign can use the glovebox key without asking again.");
+  await new Promise((resolve, reject) => {
+    const child = spawn("security", args, { stdio: ["inherit", "ignore", "inherit"] });
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`security set-key-partition-list exited ${code}`))));
+  });
+  log("Done: rebuilding the helper no longer asks for the keychain password.");
 }
 
 // Creates the signing identity in the login keychain. Run only on the user's

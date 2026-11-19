@@ -1050,6 +1050,7 @@ function appSurface(ctx, backend) {
           name: info.name,
           activate: options.activate ?? false,
         });
+        (backend.launched ??= new Set()).add(info.pid);
       }
       const existing = apps.get(info.pid);
       if (existing) {
@@ -1066,6 +1067,25 @@ function appSurface(ctx, backend) {
 
     async permissions() {
       return backend.request("permissions", {});
+    },
+
+    // Quits the apps this session launched (not ones the user had open).
+    // An app that asks to save first stays open; its name is in `left`.
+    async quitLaunched(options = {}) {
+      ctx.checkAbort();
+      const quit = [], left = [];
+      for (const pid of [...(backend.launched ?? [])]) {
+        const app = apps.get(pid);
+        if (!app || typeof app.quit !== "function" || backend.platform !== "macos") continue;
+        const result = await app.quit({ force: options.force === true }).catch(() => ({ terminated: false }));
+        (result?.terminated ? quit : left).push(app.name);
+        if (result?.terminated) {
+          backend.launched.delete(pid);
+          apps.delete(pid);
+        }
+      }
+      if (options.emit !== false) ctx.out.text(`Quit: ${quit.join(", ") || "none"}${left.length ? `; still open (may be asking to save): ${left.join(", ")}` : ""}`);
+      return { quit, left };
     },
   };
 }
@@ -1162,10 +1182,59 @@ function macSystem(ctx, gbRef) {
       const test = matcher(typeof query === "object" && Object.prototype.toString.call(query) !== "[object RegExp]" ? query : { text: query });
       const hit = list.find((e) => test({ label: e.title, value: e.help, id: e.id, desc: e.app, role: "menu extra" }));
       if (!hit) throw new Error(`No menu bar extra matches ${describeQuery(query)}. There are: ${list.map((e) => e.title ?? e.help ?? e.app).join(", ")}`);
-      const app = await gbRef().getApp(`pid:${hit.pid}`);
-      await app.performSecondaryAction(hit.index, "AXPress");
-      await new Promise((r) => setTimeout(r, 300));
-      return app;
+      const before = new Set((await backend.request("allWindows", {})).map((w) => w.windowId));
+      const owner = await gbRef().getApp(`pid:${hit.pid}`);
+      await owner.performSecondaryAction(hit.index, "AXPress");
+      // The menu or panel it opens is often another process's window
+      // (Control Center's, Notification Center's): return that app.
+      for (let i = 0; i < 15; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        const fresh = (await backend.request("allWindows", {})).find((w) => !before.has(w.windowId) && w.layer < 1000 && w.frame[3] > 40 && w.bundleId && w.pid !== hit.pid);
+        if (fresh) return gbRef().getApp(`pid:${fresh.pid}`);
+      }
+      return owner;
+    },
+
+    // The notifications in Notification Center, newest first:
+    // [{app, title, body, when, stacked, index}]. Opens Notification Center
+    // (the clock in the menu bar), reads it, and closes it again unless
+    // {keepOpen: true}; the returned `center` handle acts on it. Asks first
+    // (macos:notifications): they can hold messages and codes.
+    async notifications(options = {}) {
+      mac();
+      ctx.checkAbort();
+      await backend.request("approveSurface", { key: "macos:notifications", name: "your notifications", reason: "Notifications can show messages and one-time codes." });
+      let center = await gbRef().getApp("com.apple.notificationcenterui");
+      let open = (await center.windows()).some((w) => /notification center/i.test(w.title ?? ""));
+      if (!open) {
+        center = await gbRef().menuExtra({ id: "com.apple.menuextra.clock" });
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      const nodes = await center.nodes();
+      const list = nodes.find((n) => n.id === "AXNotificationListItems");
+      const items = [];
+      if (list) {
+        const after = nodes.slice(nodes.indexOf(list) + 1);
+        for (let k = 0; k < after.length && after[k].depth > list.depth; k++) {
+          const n = after[k];
+          if (n.depth !== list.depth + 1) continue;
+          const kids = [];
+          for (let j = k + 1; j < after.length && after[j].depth > n.depth; j++) kids.push(after[j]);
+          const title = kids.find((c) => c.id === "title")?.value ?? null;
+          const body = kids.find((c) => c.id === "body")?.value ?? null;
+          const when = kids.find((c) => c.role === "text" && c.id == null)?.value ?? null;
+          const app = (n.label ?? "").split(",")[0].trim() || null;
+          if (title == null && body == null) continue; // headers and "Clear All"
+          items.push({ app, title, body, when, stacked: /,\s*stacked$/.test(n.label ?? ""), index: n.index });
+        }
+      }
+      ctx.log({ app: "macos:notifications", action: "read notifications", count: items.length });
+      if (!options.keepOpen && !open) await gbRef().pressKey("Escape");
+      if (options.emit !== false) {
+        ctx.out.text(`Notifications:\n${items.map((n) => `#${n.index} ${n.app}: ${[n.title, n.body].filter(Boolean).join(" — ")}${n.when ? ` (${n.when})` : ""}${n.stacked ? " [stacked]" : ""}`).join("\n") || "(none)"}`);
+      }
+      Object.defineProperty(items, "center", { value: center, enumerable: false });
+      return items;
     },
 
     // Keys and text sent system-wide to whatever is in front: Spotlight
