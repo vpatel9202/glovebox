@@ -129,3 +129,14 @@ Emulator notes: a fresh boot can show a System UI "not responding" dialog,
 and the Play Store image runs at a load average of 20 to 50 for several
 minutes after boot. Both fail the smoke for reasons outside glovebox; wait,
 or dismiss the dialog first.
+
+### Two sessions on one phone
+
+On the API 36 emulator, two CLI sessions ran at once through the per-phone
+broker: one tapped and typed in the fixture, the other read Clock and took a
+screenshot, each on its own hidden screen (displays 3 and 4), with the
+phone's top focus on display 0 throughout. Opening the fixture from the
+second session failed with `open_in_other_session`. Resetting one session
+closed only its display; the other kept reading. After `glovebox stop` the
+broker exited within its ten-second idle window, and no display, socket or
+server was left.

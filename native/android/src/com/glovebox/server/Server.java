@@ -37,13 +37,44 @@ public final class Server {
         server.run();
     }
 
+    // One thread per session: a session's requests run in order, and one
+    // session's slow request (a cold app start) does not hold up another's.
+    private final java.util.Map<String, java.util.concurrent.ExecutorService> lanes = new java.util.HashMap<>();
+
+    private java.util.concurrent.ExecutorService lane(String session) {
+        synchronized (lanes) {
+            return lanes.computeIfAbsent(session, k -> java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "glovebox-session");
+                t.setDaemon(true);
+                return t;
+            }));
+        }
+    }
+
     private void run() throws Exception {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in, "UTF-8"));
         String line;
         while ((line = in.readLine()) != null) {
-            line = line.trim();
-            if (line.isEmpty()) continue;
-            handle(line);
+            final String request = line.trim();
+            if (request.isEmpty()) continue;
+            String session = "";
+            boolean close = false;
+            try {
+                JSONObject parsed = new JSONObject(request);
+                JSONObject params = parsed.optJSONObject("params");
+                if (params != null) session = params.optString("session", "");
+                close = "_closeSession".equals(parsed.optString("method"));
+            } catch (Exception malformed) {
+                // handle() reports it.
+            }
+            java.util.concurrent.ExecutorService lane = lane(session);
+            lane.execute(() -> handle(request));
+            if (close) {
+                synchronized (lanes) {
+                    lanes.remove(session);
+                }
+                lane.shutdown();
+            }
         }
         device.close();
         System.exit(0);

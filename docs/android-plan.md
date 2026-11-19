@@ -260,8 +260,9 @@ close the user's. A dim-screen wake
 lock covers hidden work, because nothing on a hidden screen runs while the
 phone sleeps. Two findings changed the plan: `am start -W` never returns
 while the phone sleeps, and parallel sessions need a shared server, since a
-phone allows one shell automation connection. That shared server is still
-open.
+phone allows one shell automation connection. That server is shared through
+a per-phone broker on the host (`src/backends/android-broker.mjs`), and the
+server runs each session on its own thread.
 
 - One display per session, created with scrcpy's per-API flag choices and
   destroyed with its content on teardown, so agent apps never land on the

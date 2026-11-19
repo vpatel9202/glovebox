@@ -9,7 +9,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import net from "node:net";
 import { authorize, authorizeLocked, isAskFirst } from "../approval.mjs";
+import { paths } from "../config.mjs";
+import { brokerSocket, runBroker } from "./android-broker.mjs";
 
 const execFileAsync = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -128,10 +131,6 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
     seen.add(hardware);
     const ps = await adb(["-s", serial, "shell", "ps", "-A", "-o", "ARGS"]).catch(() => "");
     const lines = ps.split("\n");
-    if (lines.some((l) => l.includes(SERVER_CLASS))) {
-      add("ok", `${serial}: a glovebox server is already running (another session); not checked further`);
-      continue;
-    }
     const competing = COMPETING.filter(([re]) => lines.some((l) => re.test(l.trim()))).map(([, name]) => name);
     if (competing.length) {
       add("fail", `${serial}: ${competing.join(", ")} is running and holds the screen reader`, "Stop it first; only one automation tool can read the screen at a time");
@@ -151,6 +150,30 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
     }
   }
   return out;
+}
+
+const BROKER_LOG = path.join(paths.home, "android-broker.log");
+const CLI = path.join(here, "..", "..", "bin", "glovebox.mjs");
+
+function openSocket(socket) {
+  return new Promise((resolve, reject) => {
+    const conn = net.connect(socket);
+    conn.once("connect", () => resolve(conn));
+    conn.once("error", reject);
+  });
+}
+
+function startBroker(transport, hardware) {
+  fs.mkdirSync(paths.home, { recursive: true, mode: 0o700 });
+  const log = fs.openSync(BROKER_LOG, "a", 0o600);
+  const child = spawn(process.execPath, [CLI, "android-broker", transport, hardware], { detached: true, stdio: ["ignore", "ignore", log], env: process.env });
+  child.unref();
+  fs.closeSync(log);
+}
+
+// `glovebox android-broker <transport> <hardware serial>` (started by the first session).
+export function runDeviceBroker(transport, hardware) {
+  return runBroker({ transport, hardware, adb, adbBin: adbPath(), dex: SERVER_DEX, remoteDex: REMOTE_DEX, serverClass: SERVER_CLASS });
 }
 
 export class AndroidBackend extends EventEmitter {
@@ -189,45 +212,50 @@ export class AndroidBackend extends EventEmitter {
     }
     const transport = await resolveSerial(this.serial);
     this.transport = transport;
-    await adb(["-s", transport, "push", SERVER_DEX, REMOTE_DEX]);
-    // Only one shell automation connection can exist; a stale server would
-    // hold it and make this one fail without a word.
-    // (Match the class: the dex path is in CLASSPATH, not on the command line.)
-    await adb(["-s", transport, "shell", "pkill", "-f", SERVER_CLASS]).catch(() => {});
-    const child = spawn(adbPath(), ["-s", transport, "shell", `CLASSPATH=${REMOTE_DEX} app_process / ${SERVER_CLASS}`], {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    this.child = child;
-    let stderr = "";
+    const socket = brokerSocket(await hardwareSerial(transport));
+    // The phone's broker (android-broker.mjs) owns its one server; start it
+    // if no session has.
+    let conn = await openSocket(socket).catch(() => null);
+    if (!conn) {
+      startBroker(transport, await hardwareSerial(transport));
+      for (let i = 0; i < 150 && !conn; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        conn = await openSocket(socket).catch(() => null);
+      }
+      if (!conn) throw codedError(`The glovebox device broker for ${transport} did not start; see ${BROKER_LOG}`, "failed");
+    }
+    this.child = conn;
     let buffer = "";
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
+    let exitReason = null;
+    conn.setEncoding("utf8");
+    conn.on("data", (chunk) => {
       buffer += chunk;
       let newline;
       while ((newline = buffer.indexOf("\n")) >= 0) {
         const line = buffer.slice(0, newline).trim();
         buffer = buffer.slice(newline + 1);
-        if (!line.startsWith("{")) continue; // anything but protocol is noise
+        if (!line.startsWith("{")) continue;
         try {
-          this.#onMessage(JSON.parse(line));
+          const message = JSON.parse(line);
+          if (message.event === "exit") exitReason = message.reason;
+          else this.#onMessage(message);
         } catch {
-          // A malformed line is noise too.
+          // A malformed line is noise.
         }
       }
     });
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => {
-      stderr = (stderr + chunk).slice(-4000);
-    });
-    child.on("exit", (code, signal) => {
-      if (this.child === child) this.child = null;
-      const reason = stderr.trim().split("\n").filter(Boolean).at(-1) ?? `exit ${code ?? signal}`;
-      for (const { reject } of this.pending.values()) reject(codedError(`The glovebox server on ${this.label} stopped: ${reason}`, "failed"));
+    conn.on("error", () => {});
+    conn.on("close", () => {
+      if (this.child === conn) this.child = null;
+      const reason = exitReason ?? "the connection to the device broker closed";
+      for (const { reject, timer } of this.pending.values()) {
+        clearTimeout(timer);
+        reject(codedError(`The glovebox server on ${this.label} stopped: ${reason}`, "failed"));
+      }
       this.pending.clear();
-      this.emit("exit", { code, signal, reason });
+      if (!this.closing) this.emit("exit", { reason });
     });
-    child.stdin.on("error", () => {});
-    this.info = await this.#send("hello", { client: this.client }, 15_000);
+    this.info = await this.#send("hello", { client: this.client }, 20_000);
   }
 
   #onMessage(message) {
@@ -293,16 +321,15 @@ export class AndroidBackend extends EventEmitter {
         reject(codedError(`${method} timed out after ${timeout} ms on ${this.label}`, "failed"));
       }, timeout);
       this.pending.set(id, { resolve, reject, timer });
-      child.stdin.write(`${JSON.stringify({ id, method, params })}\n`);
+      child.write(`${JSON.stringify({ id, method, params })}\n`);
     });
   }
 
+  // Leaves the phone's broker; it closes this session's hidden screens.
   close() {
-    const child = this.child;
+    const conn = this.child;
     this.child = null;
-    if (child) {
-      child.stdin.end();
-      child.kill();
-    }
+    this.closing = true;
+    if (conn) conn.destroy();
   }
 }

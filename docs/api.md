@@ -174,6 +174,10 @@ await clock.getAXState();
   screen, the user opening it on the phone shows nothing until the session
   ends.
 - Hidden-screen apps stay out of the phone's recent apps.
+- Several glovebox sessions (agents, CLI sessions) can use one phone at the
+  same time, each with its own hidden screens and element indices. One app
+  can be open in only one session at a time; a second fails with
+  `open_in_other_session`. Ending a session closes its hidden screens.
 - If an app on a hidden screen moves itself to the phone's own screen (some
   sign-in and system screens do), glovebox stops with `moved_to_phone_screen`
   rather than follow it.

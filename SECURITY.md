@@ -99,8 +99,11 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   theirs. The displays and their apps are destroyed when the session ends or
   the server dies, and never appear in the phone's recent apps. Hidden-screen work
   wakes the phone and keeps it awake until a minute after the last action.
-- **No socket.** The server talks only over the `adb shell` that started it,
-  and exits when that connection closes.
+- **No network socket.** The server on the phone talks only over the `adb
+  shell` that started it. On the computer, a per-phone broker process owns
+  that shell and relays for every glovebox session through a Unix socket in
+  `~/.glovebox` that only your user can open; it exits, and the server with
+  it, ten seconds after the last session ends.
 - **Personal phones.** Developer options and USB debugging are themselves a
   weaker security setting. Use the emulator, or a phone set aside for agents,
   when you can.

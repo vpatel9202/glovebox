@@ -295,6 +295,12 @@ async function main() {
     case "doctor":
       await doctor();
       return;
+    case "android-broker": {
+      // Internal: started by the first session that uses a phone.
+      const { runDeviceBroker } = await import("../src/backends/android.mjs");
+      await runDeviceBroker(positionals[0], positionals[1]);
+      return;
+    }
     case "allow":
     case "deny":
     case "revoke": {

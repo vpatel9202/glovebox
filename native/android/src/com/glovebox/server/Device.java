@@ -48,9 +48,45 @@ final class Device {
     private final HandlerThread thread;
     private UiAutomation automation;
     private String connectError;
-    final Tree tree = new Tree();
-    // Hidden screens by app (package), made on first use.
+    // Several glovebox sessions can share this server (the host's device
+    // broker tags each request with its session). Each session has its own
+    // element indices and its own hidden screens; requests of one session run
+    // in order on that session's thread (Server), so the current session's
+    // tree is per thread.
+    private final Map<String, Tree> trees = new HashMap<>();
+    private final ThreadLocal<String> session = ThreadLocal.withInitial(() -> "");
+    // Hidden screens by session and app, made on first use.
     private final Map<String, Hidden> hidden = new HashMap<>();
+
+    private Tree tree() {
+        synchronized (trees) {
+            return trees.computeIfAbsent(session.get(), k -> new Tree());
+        }
+    }
+
+    private String hiddenKey(String pkg) {
+        return session.get() + "\n" + pkg;
+    }
+
+    // A session ended (its host connection closed): close its hidden screens.
+    private void closeSession(String name) {
+        synchronized (hidden) {
+            java.util.Iterator<Map.Entry<String, Hidden>> it = hidden.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Hidden> e = it.next();
+                if (!e.getKey().startsWith(name + "\n")) continue;
+                try {
+                    e.getValue().release();
+                } catch (Throwable ignored) {
+                    // Gone with the process at worst.
+                }
+                it.remove();
+            }
+        }
+        synchronized (trees) {
+            trees.remove(name);
+        }
+    }
     private HandlerThread frames;
 
     Device() {
@@ -92,7 +128,11 @@ final class Device {
     }
 
     Object call(String method, JSONObject p) throws Exception {
+        session.set(p.optString("session", ""));
         switch (method) {
+            case "_closeSession":
+                closeSession(p.optString("session", ""));
+                return new JSONObject();
             case "hello":
             case "ping":
                 return hello();
@@ -119,9 +159,9 @@ final class Device {
             case "axTree":
                 return axTree(p, displayOrThrow(p));
             case "elementFrame":
-                return new JSONObject().put("frame", Tree.frame(tree.node(p.getInt("index"))));
+                return new JSONObject().put("frame", Tree.frame(tree().node(p.getInt("index"))));
             case "actionNames":
-                return new JSONObject().put("actions", Tree.actions(tree.node(p.getInt("index"))));
+                return new JSONObject().put("actions", Tree.actions(tree().node(p.getInt("index"))));
             case "hitTest":
                 return hitTest(p.getString("pid"), displayOrThrow(p), p.getDouble("x"), p.getDouble("y"));
             case "screenshot":
@@ -134,16 +174,16 @@ final class Device {
             case "longPress":
                 return input(method, p);
             case "performAction":
-                Input.perform(tree.node(p.getInt("index")), p.getString("action"));
+                Input.perform(tree().node(p.getInt("index")), p.getString("action"));
                 return new JSONObject();
             case "setValue":
-                Input.setText(tree.node(p.getInt("index")), p.optString("value"));
+                Input.setText(tree().node(p.getInt("index")), p.optString("value"));
                 return new JSONObject();
             case "focusElement":
-                Input.focus(tree.node(p.getInt("index")));
+                Input.focus(tree().node(p.getInt("index")));
                 return new JSONObject();
             case "selectText": {
-                AccessibilityNodeInfo n = tree.node(p.getInt("index"));
+                AccessibilityNodeInfo n = tree().node(p.getInt("index"));
                 CharSequence text = n.getText();
                 int length = text == null ? 0 : text.length();
                 int start = p.has("start") ? p.getInt("start") : 0;
@@ -155,7 +195,7 @@ final class Device {
             case "cursor":
                 return new JSONObject().put("enabled", false);
             case "forget":
-                tree.clear();
+                tree().clear();
                 return new JSONObject();
             // Test-only (Phase 1 Gate A check): a private virtual display and a read of it.
             case "_createDisplay":
@@ -199,9 +239,16 @@ final class Device {
         keepAwake();
         String pkg = p.getString("pid");
         synchronized (hidden) {
-            Hidden h = hidden.get(pkg);
+            Hidden h = hidden.get(hiddenKey(pkg));
             if (h != null) return h.id;
             if (!create) return -1;
+            // Another session's hidden copy of the same app: a second copy
+            // could close or take over that one, as with the user's.
+            for (Map.Entry<String, Hidden> e : hidden.entrySet()) {
+                if (e.getValue().owner.equals(pkg)) {
+                    throw new Server.Coded("open_in_other_session", pkg + " is open in another glovebox session on this phone. Finish there first.");
+                }
+            }
             if (frames == null) {
                 frames = new HandlerThread("glovebox-frames");
                 frames.start();
@@ -209,7 +256,7 @@ final class Device {
             Point size = displaySize(DEFAULT_DISPLAY);
             int dpi = context.getResources().getDisplayMetrics().densityDpi;
             h = new Hidden(context, pkg, size.x, size.y, dpi, new android.os.Handler(frames.getLooper()));
-            hidden.put(pkg, h);
+            hidden.put(hiddenKey(pkg), h);
             return h.id;
         }
     }
@@ -228,7 +275,7 @@ final class Device {
     private android.os.PowerManager.WakeLock awake;
 
     @SuppressWarnings("deprecation")
-    private void keepAwake() {
+    private synchronized void keepAwake() {
         try {
             android.os.PowerManager pm = (android.os.PowerManager) context.getSystemService(Context.POWER_SERVICE);
             if (awake == null) {
@@ -591,7 +638,7 @@ final class Device {
         List<AccessibilityWindowInfo> shown = appWindows(pkg, d);
         AccessibilityWindowInfo app = shown.get(shown.size() - 1);
         CharSequence title = app.getTitle();
-        Tree.Walk walk = tree.walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200), p.optBoolean("keyboard", false));
+        Tree.Walk walk = tree().walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200), p.optBoolean("keyboard", false));
         return new JSONObject()
                 .put("window", new JSONObject().put("windowId", d).put("title", title == null ? pkg : title.toString()))
                 .put("nodes", walk.nodes)
@@ -611,7 +658,7 @@ final class Device {
         }
         if (hit == null) return new JSONObject();
         return new JSONObject()
-                .put("index", tree.indexOf(hit))
+                .put("index", tree().indexOf(hit))
                 .put("role", Tree.role(hit))
                 .put("actions", Tree.actions(hit))
                 .put("frame", Tree.frame(hit));
@@ -629,7 +676,7 @@ final class Device {
         if (d >= 0 && d != DEFAULT_DISPLAY && !"activate".equals(p.optString("for"))) appWindows(p.getString("pid"), d);
         if (p.has("index")) {
             try {
-                CharSequence c = tree.node(p.getInt("index")).getPackageName();
+                CharSequence c = tree().node(p.getInt("index")).getPackageName();
                 pkg = c == null ? null : c.toString();
             } catch (Server.Coded ignored) {
                 // A stale index fails later, in the action itself.
@@ -674,7 +721,6 @@ final class Device {
 
     // ---- input (display 0; the virtual-display route comes in Phase 3)
 
-    private Input input;
 
     private JSONObject input(String method, JSONObject p) throws Exception {
         requireAutomation();
@@ -682,7 +728,7 @@ final class Device {
             throw new Server.Coded("background_unavailable", "Android input goes to the app's screen (hidden or the phone's)");
         }
         int d = displayOrThrow(p);
-        if (input == null) input = new Input(automation);
+        Input input = new Input(automation);
         input.display = d;
         switch (method) {
             case "keys": {
@@ -694,7 +740,7 @@ final class Device {
                 return Input.ok("keys");
             }
             case "type":
-                return type(p.getString("text"), d);
+                return type(p.getString("text"), d, input);
             case "click": {
                 float x = (float) p.getDouble("x"), y = (float) p.getDouble("y");
                 if ("right".equals(p.optString("button"))) input.longPress(x, y, 0);
@@ -743,7 +789,7 @@ final class Device {
         return null;
     }
 
-    private JSONObject type(String text, int d) throws Exception {
+    private JSONObject type(String text, int d, Input input) throws Exception {
         AccessibilityNodeInfo field = inputFocus(d);
         if (field != null && field.isEditable()) {
             boolean hint = Build.VERSION.SDK_INT >= 26 && field.isShowingHintText();
@@ -822,7 +868,7 @@ final class Device {
     private JSONObject displayTree(JSONObject p) throws Exception {
         int displayId = p.getInt("displayId");
         List<AccessibilityWindowInfo> windows = displayWindows(displayId);
-        Tree.Walk walk = tree.walk(windows, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200));
+        Tree.Walk walk = tree().walk(windows, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200));
         JSONArray packages = new JSONArray();
         for (AccessibilityWindowInfo w : windows) packages.put(windowPackage(w));
         return new JSONObject().put("windows", windows.size()).put("packages", packages).put("nodes", walk.nodes);
