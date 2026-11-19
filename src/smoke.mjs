@@ -401,3 +401,107 @@ JSON.stringify({ screen: fp.screen, route, counts });`);
   process.stdout.write(passed ? "\nAll Android smoke checks passed.\n" : "\nSome Android smoke checks failed.\n");
   return passed;
 }
+
+// `glovebox smoke --macos`: every capability row the fixture app
+// (native/macos/fixture) can show, through the MCP server. The fixture logs
+// what reached it, so each check reads that log, not a model. Background
+// checks run first with the frontmost app checked; the last few use the
+// foreground route on purpose. The fixture is quit at the end and the
+// clipboard is put back.
+export async function runMacSmoke({ keep = false } = {}) {
+  const fixture = await import("./macos-fixture.mjs");
+  const { MacBackend } = await import("./backends/macos.mjs");
+  const results = [];
+  const step = (name, pass, detail) => {
+    results.push(pass);
+    process.stdout.write(`${pass ? "PASS" : "FAIL"}  ${name}${detail && !pass ? `\n      ${String(detail).split("\n").slice(0, 6).join("\n      ")}` : ""}\n`);
+  };
+  process.stdout.write("Building Glovebox Fixture if needed...\n");
+  await fixture.buildFixture();
+  await fixture.launchFixture();
+  const raw = new MacBackend({ client: "glovebox smoke" });
+  // Keep the user's clipboard (all of it) in the helper; put it back at the
+  // end. The stash is the helper's, so the fixture's pid just passes the gate.
+  const fixturePid = (await raw.request("resolveApp", { query: fixture.FIXTURE_BUNDLE_ID })).pid;
+  await raw.request("pasteStash", { pid: fixturePid, op: "stash", text: "" }).catch(() => {});
+  const frontBefore = frontmostApp();
+  const mcp = client();
+  const since = () => fixture.readFixtureLog().length;
+  const events = (from, name) => fixture.readFixtureLog().slice(from).filter((e) => e.event === name);
+  const run = async (code) => {
+    const r = await mcp.js(code);
+    return r;
+  };
+  const check = async (name, code, eventName, test = () => true) => {
+    const from = since();
+    const r = await run(code);
+    await new Promise((res) => setTimeout(res, 300));
+    const got = events(from, eventName);
+    step(name, !r.isError && got.some(test), r.isError ? r.text : JSON.stringify(got.slice(-2)) || "no event");
+    return r;
+  };
+  try {
+    await mcp.request("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "glovebox smoke", version: "1" } });
+    const first = await run(`const fx = await gb.getApp("${fixture.FIXTURE_BUNDLE_ID}"); await fx.getAXState();`);
+    step("read: form fields are named by their labels", !first.isError && /text field "Name"/.test(first.text) && /pop up button "Color"/.test(first.text), first.text.slice(0, 400));
+    const web = await run(`await fx.expect({role: "heading", label: "Web Fixture"}, {timeout: 5000}); (await fx.find({role: "button", label: "Web button"})) != null`);
+    step("read: web content inside the app", !web.isError && /true/.test(web.text), web.text.slice(0, 300));
+    await check("menu bar item, background", `await fx.menu("Fixture > Beta")`, "menu", (e) => e.item === "Beta");
+    await check("submenu item", `await fx.menu(["Fixture", "More", "Gamma"])`, "menu", (e) => e.item === "Gamma");
+    await check("menu shortcut in the background (Cmd+Shift+A)", `await fx.pressKey("super+shift+a"); console.log(fx.lastRoute)`, "menu", (e) => e.item === "Alpha");
+    await check("pop-up: open and pick in one step", `await fx.select({id: "color"}, "Purple")`, "popup", (e) => e.item === "Purple");
+    await check("context menu pick", `await fx.contextMenu({id: "contextTarget"}, "Rename Item")`, "menu", (e) => e.item === "Rename Item");
+    await check("checkbox through accessibility", `await fx.click((await fx.find({role: "checkbox", label: "Subscribe"})).index)`, "checkbox");
+    await check("type any characters (accents, emoji, CJK)", `await fx.click((await fx.find({id: "name"})).index); await fx.pressKey("super+a BackSpace"); await fx.typeText("Zoë 🎉 東京")`, "text", (e) => e.value === "Zoë 🎉 東京");
+    await check("paste long text, clipboard put back", `await fx.click((await fx.find({id: "notes"})).index); await fx.paste("${"lorem ipsum ".repeat(20).trim()} ✓")`, "notes", (e) => e.value.endsWith("✓"));
+    await check("type into web content", `await fx.click((await fx.find({role: "text field", text: "Web field"})).index); await fx.typeText("web ok")`, "web", (e) => e.what === "input:web ok");
+    await check("click web content", `await fx.click((await fx.find({role: "button", label: "Web button"})).index)`, "web", (e) => e.what === "button");
+    const canvas = `(await fx.find({id: "canvas"})).index`;
+    await check("press and hold (700 ms)", `await fx.press(${canvas}, {ms: 700})`, "canvas.up", (e) => e.heldMs >= 650);
+    await check("double click", `await fx.doubleClick(${canvas})`, "canvas.down", (e) => e.clicks === 2);
+    await check("right click", `await fx.rightClick(${canvas}, {raw: true})`, "canvas.right");
+    await check("middle click", `await fx.click(${canvas}, {button: "middle"})`, "canvas.other", (e) => e.button === 2);
+    await check("scroll", `await fx.scroll(${canvas}, 3)`, "canvas.scroll", (e) => e.dy !== 0);
+    await check("pinch (trackpad gesture)", `await fx.pinch(${canvas}, {scale: 1.5})`, "canvas.pinch", (e) => Math.abs(e.total - 0.5) < 0.05);
+    await check("rotate (trackpad gesture)", `await fx.rotate(${canvas}, {degrees: 30})`, "canvas.rotate", (e) => e.total === -30);
+    await check("window move", `await fx.window().move(180, 140)`, "window.moved");
+    await check("window resize", `await fx.window().resize(800, 790)`, "window.resized", (e) => e.w === 800);
+    await check("window minimize", `await fx.window().minimize()`, "window.minimized");
+    await check("window restore", `await fx.window().restore()`, "window.restored");
+    await check("new window, from the menu", `await fx.menu("File > New Window")`, "window.new");
+    const notice = await run(`await fx.getAXState()`);
+    step("read notes the window that opened", /\(windows: .*opened/.test(notice.text), notice.text.split("\n").slice(-2).join(" "));
+    await check("sheet: open, type, OK", `await fx.click((await fx.find({label: "Show Sheet"})).index); await fx.expect({id: "sheetField"}); await fx.click((await fx.find({id: "sheetField"})).index); await fx.typeText("in sheet"); await fx.click((await fx.find({role: "button", label: "OK"})).index)`, "sheet", (e) => e.result === "OK" && e.text === "in sheet");
+    await check("alert: pick a button", `await fx.click((await fx.find({label: "Show Alert"})).index); await fx.click((await fx.expect({role: "button", label: "Discard"})).index)`, "alert", (e) => e.result === "Discard");
+    await check("hide and unhide the app", `await fx.hide(); await sleep(300); await fx.unhide()`, "app.unhidden");
+    const frontAfter = frontmostApp();
+    if (frontBefore) step("everything above stayed in the background", frontBefore === frontAfter, `${frontBefore} -> ${frontAfter}`);
+
+    // Foreground on purpose: these move the real pointer or need the app in front.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "glovebox-smoke-"));
+    const file = path.join(dir, "pick-me.txt");
+    fs.writeFileSync(file, "glovebox smoke\n");
+    await check("drop a file on the app (foreground)", `await fx.dropFiles((await fx.find({id: "dropTarget"})).index, ${JSON.stringify([file])})`, "drop", (e) => e.files === "pick-me.txt");
+    await check("hover (foreground)", `await fx.hover([20, 20]); await fx.hover(${canvas})`, "canvas.enter");
+    await check("open panel: choose a file (foreground)", `await fx.menu("File > Open…"); await sleep(1200); await fx.choosePath(${JSON.stringify(file)})`, "open", (e) => e.ok && e.path.endsWith("pick-me.txt"));
+    await check("save panel: name and folder (foreground)", `await fx.menu("File > Save…"); await sleep(1200); await fx.choosePath(${JSON.stringify(path.join(dir, "named.txt"))})`, "save", (e) => e.ok && e.path.endsWith("named.txt"));
+    const shot = await run(`const s = await gb.screenshot({emit: false}); s.width + "x" + s.height`);
+    step("whole-screen screenshot", !shot.isError && /\d+x\d+/.test(shot.text), shot.text);
+    const wins = await run(`(await gb.windows({emit: false})).some((w) => w.bundleId === "${fixture.FIXTURE_BUNDLE_ID}")`);
+    step("every window on screen, with owners", !wins.isError && /true/.test(wins.text), wins.text);
+    const extras = await run(`(await gb.menuExtras({emit: false})).length`);
+    step("menu bar extras listed", !extras.isError && Number(extras.text.trim()) > 0, extras.text);
+    if (!keep) await check("quit the app", `await fx.quit()`, "quit");
+    fs.rmSync(dir, { recursive: true, force: true });
+  } finally {
+    mcp.close();
+    const finder = await raw.request("resolveApp", { query: "com.apple.finder" }).catch(() => null);
+    const ok = await raw.request("pasteStash", { pid: fixturePid, op: "restore" }).then(() => true, () => false);
+    if (!ok && finder) await raw.request("pasteStash", { pid: finder.pid, op: "restore" }).catch(() => {});
+    if (!keep) await fixture.quitFixture();
+    raw.close?.();
+  }
+  const passed = results.every(Boolean);
+  process.stdout.write(passed ? `\nAll ${results.length} macOS checks passed.\n` : `\n${results.filter((r) => !r).length} of ${results.length} macOS checks failed.\n`);
+  return passed;
+}
