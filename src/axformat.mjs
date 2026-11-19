@@ -79,6 +79,9 @@ function quote(text) {
 // Actions that are implied by the role or covered by click()/scroll().
 const QUIET_ACTIONS = new Set([
   "AXPress",
+  // Nearly every element has it (on Android, every long-clickable view);
+  // rightClick() and longPress() still reach it.
+  "AXShowMenu",
   "AXRaise",
   "AXCancel",
   "AXConfirm",
@@ -90,6 +93,12 @@ const QUIET_ACTIONS = new Set([
 
 function actionName(action) {
   return action.replace(/^AX/, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+}
+
+// Ids that name nothing: macOS's auto-generated "_NS:123" ids. (The Android
+// server leaves out framework ids such as android:id/text1.)
+function genericId(id) {
+  return /^_NS:/.test(id);
 }
 
 // One node as data for scripts (app.nodes, app.find): the same role name,
@@ -118,7 +127,7 @@ export function nodeLine(node, { toImage } = {}) {
   if (node.title && node.desc && node.desc !== node.title) parts.push(`desc=${quote(node.desc)}`);
   if (node.value != null && node.value !== label) parts.push(`value=${quote(node.value)}`);
   if (node.placeholder) parts.push(`placeholder=${quote(node.placeholder)}`);
-  if (node.id) parts.push(`id=${node.id}`);
+  if (node.id && !genericId(node.id)) parts.push(`id=${node.id}`);
   if (node.help && node.help !== label) parts.push(`help=${quote(node.help)}`);
   const flags = [];
   if (node.focused) flags.push("focused");

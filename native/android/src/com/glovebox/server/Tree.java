@@ -240,7 +240,9 @@ final class Tree {
         }
         if (n.isCheckable()) o.put("value", n.isChecked() ? "1" : "0");
         String id = n.getViewIdResourceName();
-        if (id != null) o.put("id", id.contains(":id/") ? id.substring(id.indexOf(":id/") + 4) : id);
+        // Framework ids (android:id/text1, android:id/title) are the same in
+        // every app and name nothing; an app's own ids do.
+        if (id != null && !id.startsWith("android:id/")) o.put("id", id.contains(":id/") ? id.substring(id.indexOf(":id/") + 4) : id);
         o.put("frame", frame(n));
         JSONArray actions = actions(n);
         if (actions.length() > 0) o.put("actions", actions);
