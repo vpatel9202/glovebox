@@ -18,6 +18,10 @@ Usage:
         [--session name] [--title t] [--timeout ms]
                                     Reads code from stdin when no code or file is given.
                                     Screenshots are saved to files and printed as paths.
+  nostrings scripts [--examples]     List saved scripts (~/.nostrings/scripts);
+                                    --examples adds the ones in examples/
+  nostrings script <name> [k=v ...]  Run a saved script again, no model needed
+        [--session name] [--timeout ms]
   nostrings reset [--session name]   Drop a CLI session's bindings
   nostrings stop                     Stop the CLI daemon and its sessions
   nostrings smoke [--full]           Batched, persistent smoke test on Calculator
@@ -301,6 +305,7 @@ async function main() {
       serial: { type: "string" },
       keep: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
+      examples: { type: "boolean" },
       "android-only": { type: "boolean" },
       n: { type: "string", short: "n" },
       help: { type: "boolean", short: "h" },
@@ -339,6 +344,36 @@ async function main() {
           code,
           title: flags.title,
           session: flags.session,
+          timeoutMs: flags.timeout ? Number(flags.timeout) : undefined,
+          client: process.env.NOSTRINGS_CLIENT,
+        }),
+      );
+      return;
+    }
+    case "scripts": {
+      const { installExamples, listScripts, scriptsDir } = await import("../src/scripts.mjs");
+      if (flags.examples) {
+        const added = installExamples();
+        process.stdout.write(added.length ? `Added ${added.join(", ")} to ${scriptsDir()}.\n` : "The examples are already in your scripts.\n");
+      }
+      const list = listScripts();
+      if (!list.length) process.stdout.write(`No saved scripts in ${scriptsDir()}. Agents save one with ui.scripts.save(name, code, description).\n`);
+      for (const s of list) process.stdout.write(`${s.name.padEnd(24)} ${s.description}\n`);
+      return;
+    }
+    case "script": {
+      const [name, ...pairs] = positionals;
+      if (!name) die("nostrings script <name> [key=value ...]: name a saved script (see: nostrings scripts)");
+      const { parseArgPairs, readScript } = await import("../src/scripts.mjs");
+      readScript(name); // fails early, with the list of saved names
+      const args = parseArgPairs(pairs);
+      const { daemonRequest } = await import("../src/daemon.mjs");
+      printResult(
+        await daemonRequest({
+          op: "run",
+          code: `await ui.scripts.run(${JSON.stringify(name)}, ${JSON.stringify(args)})`,
+          title: `script ${name}`,
+          session: flags.session ?? `script-${name}`,
           timeoutMs: flags.timeout ? Number(flags.timeout) : undefined,
           client: process.env.NOSTRINGS_CLIENT,
         }),

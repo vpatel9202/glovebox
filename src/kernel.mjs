@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { createApi } from "./api.mjs";
 import { createBackend, createDeviceBackend } from "./backends/index.mjs";
 import { loadConfig, paths } from "./config.mjs";
+import { listScripts, readScript, saveScript, wrapScript } from "./scripts.mjs";
 import { transformCell } from "./transform.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -158,8 +159,34 @@ const ctx = {
   },
 };
 
+// ui.scripts: save a routine that worked, list saved ones, and run one by
+// name with arguments. See src/scripts.mjs.
+function scriptsApi() {
+  return {
+    list() {
+      const list = listScripts();
+      out.text(list.length ? list.map((s) => `${s.name} — ${s.description}`).join("\n") : 'No saved scripts yet. ui.scripts.save("name", code, "what it does") saves one.');
+      return list;
+    },
+    save(name, code, description) {
+      const file = saveScript(name, code, description);
+      log({ action: "save script", script: name, file });
+      out.text(`Saved script "${name}" to ${file}. Run it with await ui.scripts.run("${name}", args), or from a shell: nostrings script ${name} key=value`);
+    },
+    source(name) {
+      return readScript(name);
+    },
+    async run(name, args = {}) {
+      const fn = vm.runInContext(wrapScript(readScript(name)), context, { filename: `${name}.js` });
+      log({ action: "run script", script: name });
+      return await fn(args);
+    },
+  };
+}
+
 function makeContext() {
   const ui = createApi(ctx);
+  ui.scripts = scriptsApi();
   const consoleProxy = Object.fromEntries(
     ["log", "info", "warn", "error", "debug"].map((name) => [
       name,

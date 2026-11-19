@@ -37,6 +37,7 @@
     "src",
     "native",
     "!native/android/build/*.keystore",
+    "examples",
     "skills",
     "docs",
     "README.md",

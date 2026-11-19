@@ -18,6 +18,8 @@ A failing command exits with status 1.
 | `nostrings doctor` | Checks Node (20.10+), the config, the helper build, that the helper answers, background input, Accessibility, Screen Recording, and Input Monitoring. Exits 1 on any `FAIL`. |
 | `nostrings mcp` | Runs the stdio MCP server (tools `js`, `js_reset`). |
 | `nostrings run [code] [-f file] [-s name] [-t title] [--timeout ms]` | Runs a script in a persistent CLI session and prints the result. |
+| `nostrings scripts [--examples]` | Lists saved scripts in `~/.nostrings/scripts` with their descriptions. `--examples` first copies the scripts in `examples/` there, leaving any of yours with the same name alone. |
+| `nostrings script <name> [key=value ...] [--session name] [--timeout ms]` | Runs a saved script in its own CLI session (`script-<name>` unless `--session` names one) with the pairs as `args`; numbers and `true`/`false` are converted. Prints what the script prints and returns. |
 | `nostrings reset [-s name]` | Drops a CLI session's bindings. |
 | `nostrings stop` | Stops the CLI daemon and every session in it. |
 | `nostrings smoke [--full]` | End-to-end test on Calculator. See `testing.md`. |

@@ -90,6 +90,13 @@ dialogs, and an agent that could press them would approve itself.
   can.
 - nostrings does not screen app or page content for prompt injection. Text an
   agent reads in an approved app can try to steer it.
+- `ui.scripts.save` writes a file in `~/.nostrings/scripts/`, the one place a
+  session can write. A saved script never runs by itself, only when a session
+  calls `ui.scripts.run` or you run `nostrings script`, and it runs with the
+  same approvals as any other script. An agent steered by injected text could
+  still save a harmful script for later, so read a script
+  (`ui.scripts.source(name)`, or the file) before you rerun one you did not
+  write. Saves and runs are logged.
 - The optional "nostrings local signing" certificate lives in your login
   keychain and signs only the helper you build. Without it, macOS ties
   privacy grants to an ad-hoc signature and a rebuild means granting again.

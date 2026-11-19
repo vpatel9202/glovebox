@@ -333,3 +333,29 @@ test("init connects agents once, keeps backups, and leaves unparseable configs a
   assert.equal(planAgents({ home, only: ["cursor"] })[0].status, "manual");
   fsm.rmSync(home, { recursive: true, force: true });
 });
+
+test("saved scripts: names are checked, the first line describes, args parse", async () => {
+  const fsm = await import("node:fs");
+  const osm = await import("node:os");
+  const pathm = await import("node:path");
+  const home = fsm.mkdtempSync(pathm.join(osm.tmpdir(), "nostrings-scripts-"));
+  const before = process.env.NOSTRINGS_HOME;
+  process.env.NOSTRINGS_HOME = home;
+  try {
+    const s = await import("../src/scripts.mjs");
+    assert.throws(() => s.saveScript("../evil", "return 1"), /Script names/);
+    assert.throws(() => s.saveScript("ok", "  "), /code is the script/);
+    s.saveScript("sum", "// old line\nreturn args.a + args.b;", "Adds two numbers");
+    assert.deepEqual(s.listScripts(), [{ name: "sum", description: "Adds two numbers" }]);
+    assert.equal(s.readScript("sum"), "// Adds two numbers\nreturn args.a + args.b;\n");
+    const fn = vm.runInNewContext(s.wrapScript(s.readScript("sum")));
+    assert.equal(await fn({ a: 2, b: 40 }), 42);
+    assert.throws(() => s.readScript("missing"), /Saved: sum/);
+    assert.deepEqual(s.parseArgPairs(["a=2", "b=x", "c=true", "d="]), { a: 2, b: "x", c: true, d: "" });
+    assert.throws(() => s.parseArgPairs(["novalue"]), /key=value/);
+  } finally {
+    if (before === undefined) delete process.env.NOSTRINGS_HOME;
+    else process.env.NOSTRINGS_HOME = before;
+    fsm.rmSync(home, { recursive: true, force: true });
+  }
+});

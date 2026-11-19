@@ -272,6 +272,37 @@ These are not one app, so each asks first under its own key.
   screenshots, the app switcher) and while Spotlight's panel is open.
 - The Dock is an app: `ui.getApp("Dock")`.
 
+## Saved scripts
+
+A routine that worked can be saved and run again by name, from any session
+or from a shell, with no model in the loop. Scripts are files in
+`~/.nostrings/scripts/<name>.js` and never run unless something calls them.
+
+- `ui.scripts.save(name, code, description)` saves `code` (a string) under
+  `name` (a-z, 0-9, `-`, `_`). The description becomes the file's first line.
+- `ui.scripts.list()` prints and returns `[{name, description}]`.
+- `await ui.scripts.run(name, args)` runs one: its code sees `args` and the
+  same `ui`, keeps its variables to itself, and `return`s a value.
+- `ui.scripts.source(name)` returns the code, to read or change before saving
+  again.
+- From a shell: `nostrings scripts` lists them, `nostrings script <name>
+  key=value ...` runs one in its own CLI session, and `nostrings scripts
+  --examples` adds the [examples](../examples/README.md).
+
+```js
+ui.scripts.save("calc", `
+const calc = await ui.getApp("Calculator");
+await calc.pressKey("Escape");
+await calc.typeText(args.expr + "=");
+await calc.settle();
+return (await calc.find({role: "text", label: "Edit field"}))?.value;
+`, "Work out an expression in Calculator. args: expr");
+await ui.scripts.run("calc", {expr: "12*34"});   // "408"
+```
+
+Check `ui.scripts.list()` before rebuilding a routine by hand, and offer to
+save one once a multi-step task has worked.
+
 ## Approval and stopping
 
 The first time a session touches an app, the user sees a dialog: Allow for

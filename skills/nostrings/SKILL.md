@@ -49,6 +49,13 @@ open and save panels, and `app.paste(text)` for long text. Beyond one app:
 Center")`, `ui.notifications()`, `ui.spotlight("Name")`. `help("macOS")`
 lists them. Call `ui.quitLaunched()` when done with apps you opened.
 
+Saved scripts: at the start of a GUI task, check `ui.scripts.list()`; if a
+saved script fits, `await ui.scripts.run("name", {…args})` does it in one
+call. After a multi-step task works, offer to save it:
+`ui.scripts.save("name", code, "what it does. args: …")`, where the code uses
+`args` and `return`. The user can then rerun it with `nostrings script name
+key=value` and no model. `help("Saved scripts")` has the details.
+
 Android phones and emulators (over `adb`) use the same loop:
 `const phone = ui.device()` (or `ui.device("emulator-5554")` when several are
 connected), then `const app = await phone.getApp("Clock")` and the same read,
