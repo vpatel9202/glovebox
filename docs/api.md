@@ -261,6 +261,9 @@ await clock.getAXState();
   `app.swipe(from, to, {ms})` moves a finger without a long press first (pagers,
   sheets, pull to refresh); `drag` holds first, to pick up an item.
   `scroll(target, dy)` swipes about 48 dp per line.
+  `app.pinch(target, {scale, ms, distance, angle})` moves two fingers apart
+  (`scale` > 1 zooms in) or together, and `app.rotate(target, {degrees,
+  ms})` twists them, around an element or point, for maps and photos.
 - `typeText` puts text straight into the focused field (no keyboard, any
   characters), then falls back to key events for fields that refuse it.
   `lastRoute` says which: `set-text` or `keys`, after the screen

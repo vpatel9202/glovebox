@@ -295,6 +295,16 @@ JSON.stringify({ heading, link, greet, back: Boolean(await fx.find({ role: "butt
     step("web content reads (heading, link)", web.heading === "Web fixture", web.error ?? `heading ${web.heading}`);
     step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
 
+    const gest = await run(`
+await fx.click((await fx.find({ role: "button", label: "Gesture screen" })).index);
+const pad = await fx.expect({ label: "Gesture pad" });
+await fx.pinch(pad.index, { scale: 2 });
+await fx.rotate(pad.index, { degrees: 45 });
+const got = (await fx.find(/^scale:/))?.label;
+await fx.pressKey("Back");
+JSON.stringify({ got, back: Boolean(await fx.expect({ role: "button", label: "Tap me" })) });`);
+    step("pinch and rotate with two fingers", /^scale: 2\.0\d, angle: 4[45]$/.test(gest.got ?? "") && gest.back === true, gest.error ?? gest.got);
+
     const slid = await run(`
 if (/window "keyboard/.test(await tree())) await fx.pressKey("Back"); // hide the keyboard
 const s = (await tree()).match(/^\\s*\\d+ slider "Slider".*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);

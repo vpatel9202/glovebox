@@ -85,6 +85,68 @@ final class Input {
         touch(MotionEvent.ACTION_UP, down, SystemClock.uptimeMillis(), lx, ly);
     }
 
+    // Several fingers at once: `paths` is one [[x, y], ...] per finger, all
+    // with the same number of points, moved together over `ms`. The fingers
+    // go down one after another and lift in reverse, as a hand does.
+    void touches(JSONArray paths, long ms) throws Exception {
+        int fingers = paths.length();
+        if (fingers < 1 || fingers > 5) throw new Server.Coded("bad_request", "touches takes 1 to 5 finger paths");
+        int points = paths.getJSONArray(0).length();
+        for (int f = 1; f < fingers; f++) {
+            if (paths.getJSONArray(f).length() != points) throw new Server.Coded("bad_request", "Every finger path needs the same number of points");
+        }
+        MotionEvent.PointerProperties[] props = new MotionEvent.PointerProperties[fingers];
+        for (int f = 0; f < fingers; f++) {
+            props[f] = new MotionEvent.PointerProperties();
+            props[f].id = f;
+            props[f].toolType = MotionEvent.TOOL_TYPE_FINGER;
+        }
+        long down = SystemClock.uptimeMillis();
+        // Interpolated steps between the given points, so movement is smooth.
+        int steps = Math.max(points - 1, (int) (ms / 12));
+        for (int f = 1; f <= fingers; f++) {
+            int action = f == 1 ? MotionEvent.ACTION_DOWN : MotionEvent.ACTION_POINTER_DOWN | ((f - 1) << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+            multi(action, down, f, props, coordsAt(paths, f, 0));
+        }
+        for (int k = 1; k <= steps; k++) {
+            Device.sleep(Math.max(1, ms / Math.max(1, steps)));
+            multi(MotionEvent.ACTION_MOVE, down, fingers, props, coordsAt(paths, fingers, (double) k / steps));
+        }
+        for (int i = 0; i < 3; i++) {
+            Device.sleep(30); // rest, so the gesture ends where it stops
+            multi(MotionEvent.ACTION_MOVE, down, fingers, props, coordsAt(paths, fingers, 1));
+        }
+        for (int f = fingers; f >= 1; f--) {
+            int action = f == 1 ? MotionEvent.ACTION_UP : MotionEvent.ACTION_POINTER_UP | ((f - 1) << MotionEvent.ACTION_POINTER_INDEX_SHIFT);
+            multi(action, down, f, props, coordsAt(paths, f, 1));
+        }
+    }
+
+    private static MotionEvent.PointerCoords[] coordsAt(JSONArray paths, int fingers, double t) throws Exception {
+        MotionEvent.PointerCoords[] out = new MotionEvent.PointerCoords[fingers];
+        for (int f = 0; f < fingers; f++) {
+            JSONArray path = paths.getJSONArray(f);
+            double pos = t * (path.length() - 1);
+            int i = Math.min((int) Math.floor(pos), path.length() - 2 < 0 ? 0 : path.length() - 2);
+            double frac = path.length() == 1 ? 0 : pos - i;
+            JSONArray a = path.getJSONArray(i), b = path.getJSONArray(Math.min(i + 1, path.length() - 1));
+            out[f] = new MotionEvent.PointerCoords();
+            out[f].x = (float) (a.getDouble(0) + (b.getDouble(0) - a.getDouble(0)) * frac);
+            out[f].y = (float) (a.getDouble(1) + (b.getDouble(1) - a.getDouble(1)) * frac);
+            out[f].pressure = 1;
+            out[f].size = 1;
+        }
+        return out;
+    }
+
+    private void multi(int action, long downTime, int count, MotionEvent.PointerProperties[] props, MotionEvent.PointerCoords[] coords) {
+        MotionEvent.PointerProperties[] p = java.util.Arrays.copyOf(props, count);
+        MotionEvent.PointerCoords[] c = java.util.Arrays.copyOf(coords, count);
+        MotionEvent e = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, count, p, c, 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0);
+        inject(e);
+        e.recycle();
+    }
+
     private void touch(int action, long downTime, long eventTime, float x, float y) {
         MotionEvent e = MotionEvent.obtain(downTime, eventTime, action, x, y, 0);
         e.setSource(InputDevice.SOURCE_TOUCHSCREEN);

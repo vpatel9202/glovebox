@@ -641,6 +641,49 @@ export class App {
     });
   }
 
+  // Two fingers around `target` (index or [x, y]) moving apart (`scale` > 1
+  // zooms in) or together (< 1), over `ms`. `distance` is the fingers'
+  // starting gap in image pixels (default a third of the window's short
+  // side), `angle` their direction in degrees. Android only.
+  async pinch(target, options = {}) {
+    const { scale = 2, ms = 500, angle = 0 } = options;
+    return this.#twoFingers("pinch", target, options, (r0, view, room) => {
+      const r1 = Math.min(r0 * scale, room);
+      const steps = 8;
+      return Array.from({ length: steps + 1 }, (_, k) => r0 + ((r1 - r0) * k) / steps).map((r) => [r, angle]);
+    }, ms, { scale });
+  }
+
+  // Two fingers around `target` turning by `degrees` (clockwise on screen
+  // for positive) over `ms`, as to rotate a map or photo. Android only.
+  async rotate(target, options = {}) {
+    const { degrees = 45, ms = 600, angle = 0 } = options;
+    return this.#twoFingers("rotate", target, options, (r0) => {
+      const steps = 12;
+      return Array.from({ length: steps + 1 }, (_, k) => [r0, angle + (degrees * k) / steps]);
+    }, ms, { degrees });
+  }
+
+  // Builds two finger paths from [radius, angle] samples (radius in screen
+  // points from the center) and sends them as one multi-touch gesture.
+  async #twoFingers(action, target, options, samples, ms, detail) {
+    if (this.platform !== "android") throw new Error(`app.${action}() needs a touch screen (Android)`);
+    return this.#act(action, { target: describeTarget(target), ...detail }, async () => {
+      const view = await this.#ensureView();
+      const [cx, cy] = await this.#screenPoint(target);
+      const [ox, oy] = view.origin, [w, h] = view.size;
+      // How far a finger can go from the center and stay on the window.
+      const room = Math.max(1, Math.min(cx - ox, ox + w - cx, cy - oy, oy + h - cy) - 2);
+      const r0 = Math.min(room, (options.distance ?? Math.min(view.width, view.height) / 3) / view.scale / 2);
+      const pts = samples(r0, view, room);
+      const finger = (sign) => pts.map(([r, deg]) => {
+        const t = (deg * Math.PI) / 180;
+        return [cx + sign * r * Math.cos(t), cy + sign * r * Math.sin(t)];
+      });
+      await this.#deliver("touches", { paths: [finger(1), finger(-1)], ms }, options);
+    });
+  }
+
   async drag(from, to, options = {}) {
     const points = to === undefined && Array.isArray(from) && Array.isArray(from[0]) ? from : [from, to];
     return this.#act("drag", { path: points.map(describeTarget).join(" -> ") }, async () => {

@@ -291,6 +291,7 @@ final class Device {
             case "scroll":
             case "drag":
             case "longPress":
+            case "touches":
                 return input(method, p);
             case "performAction": {
                 AccessibilityNodeInfo n = tree().node(p.getInt("index"));
@@ -1040,6 +1041,9 @@ final class Device {
             }
             case "drag":
                 input.path(p.getJSONArray("path"), p.optLong("ms", 400), p.optBoolean("hold", false));
+                return Input.ok("touch");
+            case "touches":
+                input.touches(p.getJSONArray("paths"), p.optLong("ms", 500));
                 return Input.ok("touch");
             default:
                 throw new Server.Coded("bad_request", "Unknown input method " + method);
