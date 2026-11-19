@@ -8,7 +8,7 @@ const USAGE = `glovebox ${VERSION} — scriptable computer use for coding agents
 
 Usage:
   glovebox setup [--rebuild]        Build the helper and ask macOS for permissions
-  glovebox signing [--create]       Make permission grants survive helper rebuilds
+  glovebox signing [--create] [--trust]  Make grants survive rebuilds; --trust stops keychain prompts
   glovebox doctor                   Check that everything is ready
   glovebox mcp                      Run the stdio MCP server (tools: js, js_reset)
   glovebox run [code] [-f file]     Run a script in a persistent CLI session
@@ -203,6 +203,7 @@ async function main() {
       rebuild: { type: "boolean" },
       restart: { type: "boolean" },
       create: { type: "boolean" },
+      trust: { type: "boolean" },
       full: { type: "boolean" },
       android: { type: "boolean" },
       serial: { type: "string" },
@@ -277,8 +278,13 @@ async function main() {
         await helper.createSigningIdentity({ log: (m) => process.stdout.write(`${m}\n`) });
         identity = await helper.signingIdentity();
       }
+      if (identity && flags.trust) {
+        await helper.trustSigningKey({ log: (m) => process.stdout.write(`${m}\n`) });
+        return;
+      }
       if (identity) {
         process.stdout.write(`Signing identity "${helper.SIGNING_NAME}" (${identity}) is ready.\n`);
+        process.stdout.write("If macOS asks for your keychain password on each rebuild, run once: glovebox signing --trust\n");
         process.stdout.write("Run `glovebox setup --rebuild` once to re-sign the helper with it, and grant permissions one last time.\n");
       } else {
         process.stdout.write(

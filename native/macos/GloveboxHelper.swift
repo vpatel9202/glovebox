@@ -598,7 +598,14 @@ func hitTest(_ params: [String: Any]) throws -> [String: Any] {
     guard err == .success, let element = hit else { return [:] }
     var elementPid: pid_t = 0
     AXUIElementGetPid(element, &elementPid)
-    if Int(elementPid) != pid { return ["foreign": true] }
+    if Int(elementPid) != pid {
+        // Something of another app is on top there (a menu bar extra, an
+        // overlay). Say whose, with its index in that app's table.
+        var out: [String: Any] = ["foreign": true, "pid": Int(elementPid), "role": axRole(element), "title": axTitle(element), "index": table(Int(elementPid)).index(of: element)]
+        if let app = NSRunningApplication(processIdentifier: elementPid) { out["app"] = app.localizedName ?? ""; out["bundleId"] = app.bundleIdentifier ?? "" }
+        if let frame = axFrame(element) { out["frame"] = rectJSON(frame) }
+        return out
+    }
     var out: [String: Any] = ["index": table(pid).index(of: element), "role": (axAttr(element, kAXRoleAttribute) as String?) ?? "AXUnknown"]
     var names: CFArray?
     if AXUIElementCopyActionNames(element, &names) == .success, let actions = names as? [String] { out["actions"] = actions }
@@ -1496,6 +1503,21 @@ func screenCapture(_ params: [String: Any]) throws -> [String: Any] {
     return ["data": data.base64EncodedString(), "width": image.width, "height": image.height, "mimeType": format == "jpeg" ? "image/jpeg" : "image/png"]
 }
 
+// The element at a global screen point, whichever app owns it.
+func elementAtPoint(_ params: [String: Any]) throws -> [String: Any] {
+    let system = AXUIElementCreateSystemWide()
+    var hit: AXUIElement?
+    let err = AXUIElementCopyElementAtPosition(system, Float(try params.requireDouble("x")), Float(try params.requireDouble("y")), &hit)
+    guard err == .success, let element = hit else { return [:] }
+    var pid: pid_t = 0
+    AXUIElementGetPid(element, &pid)
+    var out: [String: Any] = ["pid": Int(pid), "role": axRole(element), "title": axTitle(element), "index": table(Int(pid)).index(of: element)]
+    if let app = NSRunningApplication(processIdentifier: pid) { out["app"] = app.localizedName ?? ""; out["bundleId"] = app.bundleIdentifier ?? "" }
+    if let frame = axFrame(element) { out["frame"] = rectJSON(frame) }
+    if let v: String = axAttr(element, kAXValueAttribute) { out["value"] = String(v.prefix(160)) }
+    return out
+}
+
 // Menu bar extras (status items) of every running app, with Control Center's
 // and the clock among them. Indices are in the owning app's element table.
 func menuExtras(_ params: [String: Any]) -> [[String: Any]] {
@@ -1506,7 +1528,15 @@ func menuExtras(_ params: [String: Any]) -> [[String: Any]] {
         let element = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(element, 0.25)
         guard let bar: AXUIElement = axAttr(element, kAXExtrasMenuBarAttribute) else { continue }
-        for item in axChildren(bar) {
+        // Some extras bars (MenuBarAgent on macOS 26+) group their items.
+        var items: [AXUIElement] = []
+        var queue = axChildren(bar)
+        while !queue.isEmpty {
+            let e = queue.removeFirst()
+            let kids = axChildren(e)
+            if axRole(e) != kAXMenuBarItemRole && axTitle(e).isEmpty && !kids.isEmpty && items.count < 200 { queue.append(contentsOf: kids) } else { items.append(e) }
+        }
+        for item in items {
             var entry: [String: Any] = ["pid": pid, "app": app.localizedName ?? "", "index": table(pid).index(of: item)]
             if let id = app.bundleIdentifier { entry["bundleId"] = id }
             let title = axTitle(item)
@@ -2140,6 +2170,7 @@ let systemMethods: [String: (String, String)] = [
     "menuExtras": ("macos:system", "the menu bar and Control Center"),
     "systemKeys": ("macos:system", "system-wide keys (Spotlight, Mission Control, shortcuts)"),
     "clipboard": ("macos:clipboard", "the clipboard"),
+    "elementAtPoint": ("macos:screen", "what is on screen at a point"),
 ]
 
 func gate(_ connection: Connection, _ method: String, _ params: [String: Any]) throws {
@@ -2150,6 +2181,13 @@ func gate(_ connection: Connection, _ method: String, _ params: [String: Any]) t
     }
     // Authorizes the app that handles the file or link itself.
     if method == "open" { return }
+    // A surface the scripting layer assembles from apps (notifications):
+    // asks under its macos: key.
+    if method == "approveSurface" {
+        guard let key = params.string("key"), key.hasPrefix("macos:") else { throw HelperError("approveSurface needs a macos: key", code: "bad_request") }
+        try authorize(connection, bundleId: key, name: params.string("name") ?? key, reason: params.string("reason"))
+        return
+    }
     if method == "dropFiles" {
         try authorize(connection, bundleId: "macos:files", name: "files on this Mac", reason: "It wants to drag files into an app.")
     }
@@ -2203,6 +2241,8 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
     case "hover": return try withInputRoute(params, .mouse) { try hover(params) }
     case "gesture": return try withInputRoute(params, .mouse) { try gesture(params) }
     case "displays": return displaysInfo()
+    case "approveSurface": return [:]
+    case "elementAtPoint": return try elementAtPoint(params)
     case "allWindows": return allWindows(params)
     case "screenCapture": return try screenCapture(params)
     case "menuExtras": return menuExtras(params)
