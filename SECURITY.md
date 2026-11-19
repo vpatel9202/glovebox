@@ -20,7 +20,9 @@ computer. Treat it with the same care as giving someone remote control.
   refused even if it is also allowed.
 - **System-wide keys ask twice.** `gb.pressKey` and `gb.typeText` go to
   whatever app is in front, so they need `macos:system` and that app's
-  approval too.
+  approval too. Two cases skip the second check because the keys never reach
+  that app: system hotkeys (Cmd+Space, Mission Control, screenshots, the app
+  switcher, lock screen) and typing while Spotlight's panel is open.
 - **Unanswered dialogs deny.** A dialog nobody answers denies after two
   minutes, so an unattended agent cannot wait on it forever.
 - **Taking over stops a script.** If a script had to bring an app forward and

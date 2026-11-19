@@ -1261,8 +1261,19 @@ function macSystem(ctx, gbRef) {
     // Opens an app, file or setting through Spotlight, as a person would.
     async spotlight(query, options = {}) {
       mac();
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Spotlight's panel (com.apple.campo on macOS 27) toggles with
+      // Cmd+Space, so start from closed.
+      const isOpen = async () => (await backend.request("allWindows", {})).some((w) => /^com\.apple\.(campo|spotlight|siri)$/i.test(w.bundleId ?? "") && w.frame[3] > 100);
+      if (await isOpen()) {
+        await gbRef().pressKey("Escape");
+        for (let i = 0; i < 30 && (await isOpen()); i++) await wait(100);
+        await wait(300);
+      }
       await gbRef().pressKey("super+space");
-      await new Promise((r) => setTimeout(r, 500));
+      for (let i = 0; i < 20 && !(await isOpen()); i++) await wait(100);
+      if (!(await isOpen())) throw new Error("Spotlight did not open");
+      await wait(300);
       await gbRef().typeText(String(query));
       await new Promise((r) => setTimeout(r, options.wait ?? 900));
       if (options.open !== false) await gbRef().pressKey("Return");
