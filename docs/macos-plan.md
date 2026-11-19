@@ -44,9 +44,9 @@ gb-1iz.12), in the order they are built:
 ## Status, 2026-11-19
 
 M0 through M7 are built. `glovebox smoke --macos` passes 37 of 37 checks on
-the fixture app. Rows marked done below ran on this Mac. Still open: the
-Dock as an app handle, Spotlight and global keys tried by hand, other displays
-and Spaces (M8), and the OS limits list.
+the fixture app. Rows marked done below ran on this Mac. Still open: other
+displays and Spaces (M8), full screen, a SwiftUI-only app, two-finger swipe,
+and the OS limits list.
 
 ## Phases
 
@@ -160,8 +160,8 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | 2 | ... in SwiftUI apps | same | partial: AppKit fixture and System Settings reads; no SwiftUI-only app driven yet |
 | 3 | ... in Safari web pages | same | done |
 | 4 | ... in Chrome web pages | same | done 2026-11-19 |
-| 5 | ... in Electron apps | same | partial: VS Code reads in full; background shortcuts go as keys (gb-c3n.12) |
-| 6 | Use any app, terminals and System Settings included | approval asks | partial: nothing is blocked; a dialog appears for an unlisted app (Chess); ask-first under allow-all not yet run |
+| 5 | ... in Electron apps | same | done 2026-11-19: VS Code reads in full; Cmd+Shift+P in the background opens its Command Palette through the menu (Electron fills in shortcuts a few seconds after launch) |
+| 6 | Use any app, terminals and System Settings included | approval asks | done 2026-11-19: an unlisted app passes under allow-all with no dialog (Stickies); an ask-first app prompts under allow-all (Script Editor); an unanswered prompt denies after 121 s and the app never launches (Automator) |
 | 7 | Use the menu bar, in the background | `app.menu` | done 2026-11-19 |
 | 8 | Use menu shortcuts in the background | `pressKey("super+s")` | done 2026-11-19 |
 | 9 | Pick from a pop-up without stealing keys | `app.select` | done 2026-11-19 |
@@ -176,7 +176,7 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | 18 | See the whole screen | `gb.screenshot`, `gb.ocr`, `gb.windows` | done 2026-11-19 |
 | 19 | Use menu bar extras and Control Center | `gb.menuExtras` | done 2026-11-19 |
 | 20 | Read notifications | `gb.notifications` | done 2026-11-19 |
-| 21 | Spotlight, Mission Control, global shortcuts | `gb.pressKey`, `gb.spotlight` | partial: Cmd+Space opens Spotlight; typing into it untested with nobody at the Mac |
+| 21 | Spotlight, Mission Control, global shortcuts | `gb.pressKey`, `gb.spotlight` | done 2026-11-19: gb.spotlight("Chess") opened Chess, twice in a row |
 | 22 | Use the Dock | `gb.getApp("Dock")` | done 2026-11-19 (read) |
 | 23 | Copy and paste | `gb.clipboard`, `app.paste` | done 2026-11-19 |
 | 24 | Open files and links | `gb.open`, `app.open` | done 2026-11-19 |

@@ -23,7 +23,11 @@ Nothing in the smoke test is mocked.
   `gb.menuExtra("Control Center")`, Notification Center through
   `gb.notifications()`, Chrome page content after the first read, VS Code
   Insiders' full tree (about 3,700 elements), background typing in Chrome's
-  address bar.
+  address bar. Approval: under `allow-all` an unlisted app (Stickies) opened
+  without a dialog, an ask-first app (Script Editor) showed one, and an
+  unanswered one (Automator) denied after 121 s without launching it.
+  `pressKey("super+shift+p")` opened VS Code's Command Palette in the
+  background through its menu. `gb.spotlight("Chess")` opened Chess twice.
 
 The Grok, OpenCode, and Codex configs in `agents.md` follow each client's
 documented MCP format but have not been exercised end to end yet.

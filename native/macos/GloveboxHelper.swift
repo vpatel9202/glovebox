@@ -1147,10 +1147,21 @@ func axTitle(_ e: AXUIElement) -> String {
 }
 
 // The items of a menu bar item or menu item: the children of its AXMenu child.
+// Electron builds a menu's items on first access, so an existing but empty
+// menu is read again after a moment.
 func menuItems(of e: AXUIElement) -> [AXUIElement] {
-    if axRole(e) == kAXMenuRole { return axChildren(e) }
-    for child in axChildren(e) where axRole(child) == kAXMenuRole { return axChildren(child) }
-    return []
+    var menu: AXUIElement?
+    if axRole(e) == kAXMenuRole { menu = e }
+    else { menu = axChildren(e).first { axRole($0) == kAXMenuRole } }
+    guard let m = menu else { return [] }
+    var items = axChildren(m)
+    var tries = 0
+    while items.isEmpty && tries < 4 {
+        usleep(60_000)
+        items = axChildren(m)
+        tries += 1
+    }
+    return items
 }
 
 let modifierNames: [(Int, String)] = [(4, "ctrl"), (2, "alt"), (1, "shift")]
@@ -1244,25 +1255,35 @@ func menuShortcut(_ params: [String: Any]) throws -> [String: Any] {
     if key.count == 1, key != key.lowercased() { mods.insert("shift") }
     let wantKey = key.count == 1 ? key.lowercased() : key
     let bar = try menuBar(pid)
-    var stack = axChildren(bar).filter { normalizeTitle(axTitle($0)) != "apple" }
+    // Electron fills in its menus' shortcuts only after something reads the
+    // menus, so a miss on the first pass gets a second one.
     var seen = 0
-    while let e = stack.popLast(), seen < 3000 {
-        seen += 1
-        let items = menuItems(of: e)
-        if !items.isEmpty { stack.append(contentsOf: items); continue }
-        guard let s = shortcutText(e) else { continue }
-        var parts = s.split(separator: "+").map(String.init)
-        var k = parts.removeLast()
-        var have = Set(parts)
-        if let base = shifted[k] { k = base; have.insert("shift") }
-        if k.count == 1, k != k.lowercased() { have.insert("shift"); k = k.lowercased() }
-        // A menu's "A" with Shift prints as uppercase; letters compare case-free.
-        guard k.lowercased() == wantKey.lowercased(), have == mods else { continue }
-        if let enabled: Bool = axAttr(e, kAXEnabledAttribute), !enabled { return ["found": true, "pressed": false, "title": axTitle(e), "disabled": true] }
-        // dryRun: say which item the chord would press, and press nothing.
-        if params.bool("dryRun") == true { return ["found": true, "pressed": false, "title": axTitle(e), "visited": seen] }
-        let err = AXUIElementPerformAction(e, kAXPressAction as CFString)
-        return ["found": true, "pressed": err == .success || err == .cannotComplete, "title": axTitle(e)]
+    for pass in 0..<2 {
+        if pass == 1 {
+            // Read each menu the way menus() does; that makes Electron fill them in.
+            let t = table(pid)
+            for top in axChildren(bar) { _ = menuItemInfo(top, table: t, depth: 1) }
+            usleep(150_000)
+        }
+        var stack = axChildren(bar).filter { normalizeTitle(axTitle($0)) != "apple" }
+        while let e = stack.popLast(), seen < 6000 {
+            seen += 1
+            let items = menuItems(of: e)
+            if !items.isEmpty { stack.append(contentsOf: items); continue }
+            guard let s = shortcutText(e) else { continue }
+            var parts = s.split(separator: "+").map(String.init)
+            var k = parts.removeLast()
+            var have = Set(parts)
+            if let base = shifted[k] { k = base; have.insert("shift") }
+            if k.count == 1, k != k.lowercased() { have.insert("shift"); k = k.lowercased() }
+            // A menu's "A" with Shift prints as uppercase; letters compare case-free.
+            guard k.lowercased() == wantKey.lowercased(), have == mods else { continue }
+            if let enabled: Bool = axAttr(e, kAXEnabledAttribute), !enabled { return ["found": true, "pressed": false, "title": axTitle(e), "disabled": true] }
+            // dryRun: say which item the chord would press, and press nothing.
+            if params.bool("dryRun") == true { return ["found": true, "pressed": false, "title": axTitle(e), "visited": seen, "pass": pass] }
+            let err = AXUIElementPerformAction(e, kAXPressAction as CFString)
+            return ["found": true, "pressed": err == .success || err == .cannotComplete, "title": axTitle(e)]
+        }
     }
     return ["found": false, "visited": seen]
 }
@@ -1559,6 +1580,16 @@ func systemKeys(_ params: [String: Any]) throws -> [String: Any] {
     keyTargetPid = nil
     backgroundRoute = nil
     if params["chords"] != nil { return try pressKeys(params) }
+    // System UI (Spotlight) drops Unicode-only key events; send real key
+    // codes when every character has one.
+    let text = params.string("text") ?? ""
+    let typable = text.allSatisfy { c in
+        let k = String(c)
+        return keyCodes[k.lowercased()] != nil || shifted[k] != nil
+    }
+    if typable && !text.isEmpty {
+        return try pressKeys(["chords": text.map { ["key": String($0) == " " ? "space" : String($0), "mods": [String]()] }])
+    }
     return try typeText(params)
 }
 
@@ -2166,6 +2197,34 @@ func authorize(_ connection: Connection, bundleId: String, name: String, reason:
 
 // Methods that only read the app list or the helper's own state.
 let ungatedMethods: Set<String> = ["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor", "displays"]
+// Spotlight is a panel that takes the keys without becoming the front app.
+func spotlightOpen() -> Bool {
+    allWindows([:]).contains { w in
+        let id = ((w["bundleId"] as? String) ?? "").lowercased()
+        let frame = (w["frame"] as? [Double]) ?? []
+        return (id == "com.apple.siri" || id == "com.apple.spotlight" || id == "com.apple.campo") && frame.count == 4 && frame[3] > 100
+    }
+}
+
+// Chords macOS handles itself before any app sees them.
+func isSystemHotkey(_ chord: [String: Any]) -> Bool {
+    let key = (chord["key"] as? String) ?? ""
+    let mods = Set((chord["mods"] as? [String]) ?? [])
+    switch key {
+    case "space": return mods == ["super"] || mods == ["super", "alt"]                    // Spotlight, Finder search
+    case "Up", "Down", "Left", "Right": return mods == ["ctrl"]                          // Mission Control, Spaces
+    case "3", "4", "5": return mods == ["super", "shift"]                                // screenshots
+    case "Tab": return mods == ["super"] || mods == ["super", "shift"]                   // app switcher
+    case "q": return mods == ["super", "ctrl"]                                           // lock screen
+    default: return false
+    }
+}
+
+let systemUIBundles: Set<String> = [
+    "com.apple.siri", "com.apple.spotlight", "com.apple.campo", "com.apple.dock", "com.apple.systemuiserver",
+    "com.apple.controlcenter", "com.apple.notificationcenterui", "com.apple.menubaragent", "com.apple.windowmanager",
+]
+
 // Methods with no app of their own: each asks under a macos: key.
 let systemMethods: [String: (String, String)] = [
     "screenCapture": ("macos:screen", "the whole screen"),
@@ -2252,7 +2311,12 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
     case "systemKeys":
         // System-wide keys land in whatever is in front, so that app must be
         // approved too (a terminal in front asks first).
-        if let front = NSWorkspace.shared.frontmostApplication, let id = front.bundleIdentifier, front.processIdentifier != getpid() {
+        // System UI in front (Spotlight, the Dock, Control Center) is what
+        // macos:system already covers, and system hotkeys (Spotlight,
+        // Mission Control, screenshots) never reach the app.
+        let hotkey = params["chords"] != nil && ((params["chords"] as? [[String: Any]]) ?? []).allSatisfy { isSystemHotkey($0) }
+        if !hotkey, !spotlightOpen(), let front = NSWorkspace.shared.frontmostApplication, let id = front.bundleIdentifier, front.processIdentifier != getpid(),
+           !systemUIBundles.contains(id.lowercased()) {
             try authorize(connection, bundleId: id, name: front.localizedName ?? id, reason: "System-wide keys go to the app in front.")
         }
         return try systemKeys(params)
