@@ -248,3 +248,35 @@ test("device approval asks first for sensitive apps and never blocks outright", 
   await authorizeLocked({ ...base, approved: lockApproved, prompt: answer("session") });
   await authorizeLocked({ ...base, approved: lockApproved, prompt: answer("deny") });
 });
+
+test("app.find, app.nodes and app.text return data and print nothing", async () => {
+  const { createApi } = await import("../src/api.mjs");
+  const printed = [];
+  const nodes = [
+    { i: 1, d: 0, role: "AXWindow", title: "Form", frame: [0, 0, 100, 100] },
+    { i: 2, d: 1, role: "AXButton", title: "Save", actions: ["AXPress"], frame: [10, 10, 20, 10] },
+    { i: 3, d: 1, role: "AXTextField", value: "x".repeat(300), placeholder: "Notes", settable: true, frame: [10, 30, 80, 10] },
+    { i: 4, d: 1, role: "AXButton", title: "Cancel", disabled: true, frame: [40, 10, 20, 10] },
+  ];
+  const backend = {
+    platform: "macos",
+    async request(method, params) {
+      if (method === "resolveApp") return { name: "Form", bundleId: "com.form", pid: 7, running: true };
+      if (method === "windows") return [{ index: 0, windowId: 9, title: "Form", frame: [0, 0, 100, 100], scale: 2, focused: true, main: true }];
+      if (method === "axTree") return { window: { windowId: 9, title: "Form" }, nodes: nodes.map((n) => (n.value ? { ...n, value: n.value.slice(0, params.maxText) } : n)) };
+      throw new Error(`unexpected ${method}`);
+    },
+  };
+  const config = { ax: { maxNodes: 800, maxDepth: 40, maxTextLength: 160 }, screenshot: {} };
+  const gb = createApi({ backend, config, checkAbort() {}, log() {}, out: { text: (t) => printed.push(t) } });
+  const app = await gb.getApp("Form");
+  assert.equal((await app.find({ role: "button", label: "save" })).index, 2);
+  assert.equal((await app.find("notes")).index, 3); // a bare string matches placeholder too
+  assert.equal((await app.find({ role: "button", disabled: false }, { all: true })).length, 1);
+  assert.equal(await app.find({ label: /^Nope$/ }), null);
+  const save = (await app.nodes()).find((n) => n.index === 2);
+  assert.deepEqual(save.actions, ["press"]);
+  assert.equal(save.frame.length, 4);
+  assert.equal((await app.text(3)).length, 300);
+  assert.deepEqual(printed, []);
+});

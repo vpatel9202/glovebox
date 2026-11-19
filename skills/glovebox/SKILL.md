@@ -29,7 +29,10 @@ The loop:
    show only changes. Lines look like `14 button "7" id=Seven`; the leading
    number is the element index.
 3. Act by index when the tree has the element: `app.click(14)`,
-   `app.setValue(9, "text")`. Then read again in the same call.
+   `app.setValue(9, "text")`. Then read again in the same call. When you
+   already know what you want, look it up silently in the same call instead
+   of printing a read: `const ok = await app.find({role: "button", label:
+   "OK"}); await app.click(ok.index)`. `app.text(i)` gives a field's full text.
 4. Take `app.getScreenshot()` only when the tree cannot tell you what you need
    (remote desktops such as Citrix, canvases, visual layout). Click with
    `[x, y]` pixels from that screenshot; they are the same pixels the image

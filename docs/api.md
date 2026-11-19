@@ -57,6 +57,19 @@ await calc.getAXState();
   `{width, height, mimeType, data}` and adds the image to the result. Over the
   CLI the image is saved to a file and the path is printed.
 - `app.getAXStateAndScreenshot(options)` does both.
+- `app.find(query, {all, window})` looks elements up without printing
+  anything. `query` is `{role, label, id, value, text}`, each a string
+  (case-insensitive substring; `role` exact, as reads print it) or a RegExp,
+  plus flags such as `{focused: true}`; a bare string matches `text` (label,
+  value, placeholder or id). Returns the first match or `null`, or every
+  match with `{all: true}`. Each element is `{index, role, label, value, id,
+  placeholder, focused, selected, disabled, settable, actions, depth,
+  frame}`, with `frame` as `[x, y, w, h]` in image pixels. Use it to act in
+  the same call: `await app.click((await app.find({role: "button", label:
+  "Save"})).index)`.
+- `app.nodes(options)` returns every element in that form, and
+  `app.text(index)` the full text of one; reads cut text at 160 characters.
+  Neither prints nor changes what the next read diffs against.
 - `app.windows()` lists windows with their frames and image size.
 - `app.frame(index)` and `app.center(index)` give an element's rectangle or
   center in image pixels.

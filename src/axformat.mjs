@@ -92,6 +92,23 @@ function actionName(action) {
   return action.replace(/^AX/, "").replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 }
 
+// One node as data for scripts (app.nodes, app.find): the same role name,
+// label and flags a read prints, and the frame in image pixels.
+export function nodeRecord(node, { toImage } = {}) {
+  const role = roleName(node);
+  const record = { index: node.i, role, label: node.title ?? node.desc ?? null, depth: node.d };
+  if (node.title && node.desc && node.desc !== node.title) record.desc = node.desc;
+  if (node.value != null) record.value = node.value;
+  if (node.placeholder) record.placeholder = node.placeholder;
+  if (node.id) record.id = node.id;
+  if (node.help) record.help = node.help;
+  for (const flag of ["focused", "selected", "disabled"]) if (node[flag]) record[flag] = true;
+  if (node.settable && /text|combo|slider|search/.test(role)) record.settable = true;
+  record.actions = (node.actions ?? []).filter((a) => !a.startsWith("Name:")).map(actionName);
+  if (node.frame) record.frame = (toImage ? toImage(node.frame) : node.frame).map((v) => Math.round(v));
+  return record;
+}
+
 // One node as one line, without indentation. `toImage` maps a screen-point
 // frame to image pixels when frames are requested.
 export function nodeLine(node, { toImage } = {}) {

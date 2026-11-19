@@ -3,7 +3,7 @@
 // Every action goes through ctx, which owns output, the abort flag, and the
 // audit log. Reads (getAXState, getScreenshot) emit into the result by
 // default; pass {emit: false} to only get the return value.
-import { diffTrees, formatTree } from "./axformat.mjs";
+import { diffTrees, formatTree, nodeRecord } from "./axformat.mjs";
 import { center, toImage, toScreen, viewFor } from "./geometry.mjs";
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -288,6 +288,57 @@ export class App {
     const ax = this.#ctx.config.ax;
     const tree = await this.#call("axTree", { window: view.window, maxNodes: ax.maxNodes, maxDepth: ax.maxDepth, maxText: ax.maxTextLength });
     return formatTree(tree.nodes);
+  }
+
+  // The tree as data, without printing it or touching the diff baseline:
+  // [{index, role, label, value, id, placeholder, focused, ..., actions,
+  // frame: [x, y, w, h] in image pixels}]. `maxText` (default 10000) bounds
+  // each text; reads cut text much shorter.
+  async nodes(options = {}) {
+    const ax = this.#ctx.config.ax;
+    const view = await this.#refreshView(options.window);
+    const tree = await this.#call("axTree", {
+      window: view.window,
+      maxNodes: options.maxNodes ?? ax.maxNodes,
+      maxDepth: options.maxDepth ?? ax.maxDepth,
+      maxText: options.maxText ?? 10_000,
+      menus: options.menus ?? false,
+      keyboard: options.keyboard === true,
+    });
+    return tree.nodes.map((node) => nodeRecord(node, { toImage: (f) => toImage(view, f) }));
+  }
+
+  // The first element matching `query`, or null; `{all: true}` returns every
+  // match. `query` fields: role ("button"), label, id, value, text (label,
+  // value, placeholder or id), each a string (case-insensitive substring) or a
+  // RegExp, and any flag (focused, selected, disabled, settable) as a boolean.
+  // A string query matches `text`. Prints nothing.
+  async find(query, options = {}) {
+    // Scripts run in their own realm, so their RegExps fail `instanceof`.
+    const isRegExp = (v) => Object.prototype.toString.call(v) === "[object RegExp]";
+    const q = typeof query === "string" || isRegExp(query) ? { text: query } : (query ?? {});
+    const test = (want, have) => {
+      if (want == null) return true;
+      if (have == null) return false;
+      return isRegExp(want) ? want.test(String(have)) : String(have).toLowerCase().includes(String(want).toLowerCase());
+    };
+    const matches = (n) =>
+      (q.role == null || (isRegExp(q.role) ? q.role.test(n.role) : n.role === String(q.role).toLowerCase())) &&
+      test(q.label, n.label) &&
+      test(q.id, n.id) &&
+      test(q.value, n.value) &&
+      (q.text == null || [n.label, n.value, n.placeholder, n.id, n.desc].some((v) => test(q.text, v))) &&
+      ["focused", "selected", "disabled", "settable"].every((f) => q[f] == null || Boolean(n[f]) === q[f]);
+    const all = (await this.nodes(options)).filter(matches);
+    return options.all ? all : (all[0] ?? null);
+  }
+
+  // The full text of element `index` (its value, else its label): reads cut
+  // long text short.
+  async text(index, options = {}) {
+    const node = (await this.nodes({ ...options, maxText: options.maxText ?? 100_000 })).find((n) => n.index === index);
+    if (!node) throw new RangeError(`No element ${index} in ${this.name}'s window; read again`);
+    return node.value ?? node.label ?? "";
   }
 
   async getAXStateAndScreenshot(options = {}) {
