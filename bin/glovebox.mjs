@@ -115,7 +115,7 @@ async function doctor() {
   const { doctorChecks } = await import("../src/backends/android.mjs");
   for (const { level, label, fix } of await doctorChecks()) {
     if (level === "fail") check(false, label, fix);
-    else lines.push(`${level === "ok" ? "ok  " : level}  ${label}`);
+    else lines.push(`${level === "ok" ? "ok  " : level}  ${label}${level !== "ok" && fix ? `\n      ${fix}` : ""}`);
   }
   process.stdout.write(`${lines.join("\n")}\n`);
   if (!ok) process.exitCode = 1;

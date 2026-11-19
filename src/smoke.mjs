@@ -175,9 +175,21 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
     step("fixture app built", false, "Run: npm run build:android");
     return false;
   }
-  const transport = await resolveSerial(serial ?? process.env.ANDROID_SERIAL);
-  await adb(["-s", transport, "install", "-r", FIXTURE_APK], { timeout: 120_000 });
-  await adb(["-s", transport, "shell", "am", "force-stop", FIXTURE_PACKAGE]);
+  let transport;
+  try {
+    transport = await resolveSerial(serial ?? process.env.ANDROID_SERIAL);
+    const install = () => adb(["-s", transport, "install", "-r", "--user", "0", FIXTURE_APK], { timeout: 120_000 });
+    await install().catch(async (error) => {
+      // A fixture signed by an older build key: replace it.
+      if (!/INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match/i.test(error.message)) throw error;
+      await adb(["-s", transport, "uninstall", FIXTURE_PACKAGE]);
+      await install();
+    });
+    await adb(["-s", transport, "shell", "am", "force-stop", FIXTURE_PACKAGE]);
+  } catch (error) {
+    step("fixture app installs", false, error.message);
+    return false;
+  }
   // The fixture is ours: skip its dialog. Ask-first apps and a locked phone still ask.
   const mcp = client({ ...process.env, GLOVEBOX_APPROVAL: "allow-all" });
   // Runs `code` and parses the JSON its last line prints.
@@ -226,7 +238,7 @@ JSON.stringify({ echo1, echo2: await label("echo"), route });`);
     step("pressKey BackSpace deletes a character", typed.echo2 === "echo: hello glovebo", typed.error ?? typed.echo2);
 
     const slid = await run(`
-await fx.pressKey("Back"); // hide the keyboard
+if (/window "keyboard/.test(await tree())) await fx.pressKey("Back"); // hide the keyboard
 const s = (await tree()).match(/^\\s*\\d+ slider "Slider".*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);
 const y = s[1] + s[3] / 2;
 await fx.drag([s[0] + s[2] * 0.1, y], [s[0] + s[2] * 0.9, y]);
@@ -261,7 +273,11 @@ JSON.stringify({ code });`);
     step("js_reset drops the binding", !after.isError && after.text.trim() === "undefined", after.text);
   } finally {
     mcp.close();
-    if (!keep) await adb(["-s", transport, "uninstall", FIXTURE_PACKAGE]).catch(() => {});
+    if (!keep) {
+      await adb(["-s", transport, "uninstall", FIXTURE_PACKAGE]).catch((error) => {
+        process.stdout.write(`      (Could not remove the fixture app; run: adb -s ${transport} uninstall ${FIXTURE_PACKAGE})\n      ${error.message.split("\n")[0]}\n`);
+      });
+    }
   }
   const passed = results.every(Boolean);
   process.stdout.write(passed ? "\nAll Android smoke checks passed.\n" : "\nSome Android smoke checks failed.\n");

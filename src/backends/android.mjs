@@ -105,8 +105,10 @@ export async function doctorChecks({ client = "glovebox doctor" } = {}) {
   }
   add("ok", `${version} (${adbPath()})`);
   const built = fs.existsSync(SERVER_DEX);
-  add(built ? "ok" : "fail", built ? "Android server built" : "Android server not built", "Run: npm run build:android");
   const devices = await listDevices();
+  // Not built only matters once there is a phone to use it on.
+  const usable = devices.some((d) => d.state === "device");
+  add(built ? "ok" : usable ? "fail" : "info", built ? "Android server built" : "Android server not built", "Run: npm run build:android");
   if (devices.length === 0) add("info", "No Android device connected (adb devices is empty)");
   const seen = new Set();
   for (const { serial, state } of devices) {

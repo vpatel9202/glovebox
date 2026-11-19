@@ -16,7 +16,7 @@
   "bin": {
     "glovebox": "bin/glovebox.mjs"
   },
-  "files": ["bin", "src", "native", "skills", "docs", "README.md", "LICENSE", "NOTICE", "SECURITY.md", "CHANGELOG.md"],
+  "files": ["bin", "src", "native", "!native/android/build/*.keystore", "skills", "docs", "README.md", "LICENSE", "NOTICE", "SECURITY.md", "CHANGELOG.md"],
   "engines": {
     "node": ">=20.10"
   },
