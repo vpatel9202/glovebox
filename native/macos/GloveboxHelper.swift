@@ -1257,11 +1257,13 @@ func menuShortcut(_ params: [String: Any]) throws -> [String: Any] {
         if k.count == 1, k != k.lowercased() { have.insert("shift"); k = k.lowercased() }
         // A menu's "A" with Shift prints as uppercase; letters compare case-free.
         guard k.lowercased() == wantKey.lowercased(), have == mods else { continue }
-        if let enabled: Bool = axAttr(e, kAXEnabledAttribute), !enabled { return ["found": true, "pressed": false, "title": axTitle(e)] }
+        if let enabled: Bool = axAttr(e, kAXEnabledAttribute), !enabled { return ["found": true, "pressed": false, "title": axTitle(e), "disabled": true] }
+        // dryRun: say which item the chord would press, and press nothing.
+        if params.bool("dryRun") == true { return ["found": true, "pressed": false, "title": axTitle(e), "visited": seen] }
         let err = AXUIElementPerformAction(e, kAXPressAction as CFString)
         return ["found": true, "pressed": err == .success || err == .cannotComplete, "title": axTitle(e)]
     }
-    return ["found": false]
+    return ["found": false, "visited": seen]
 }
 
 // Opens an element's menu (a pop-up button, menu button, or any element with
