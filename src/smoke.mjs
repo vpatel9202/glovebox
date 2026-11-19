@@ -207,11 +207,14 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
     return { focus, hash };
   };
   // An emulator's home screen updates its app suggestions after any launch,
-  // hidden or not; a static settings page shows only what glovebox changes.
+  // hidden or not; a static Files screen shows only what glovebox changes.
   if (emulator) {
     await adb(["-s", transport, "shell", "input", "keyevent", "KEYCODE_WAKEUP"]).catch(() => {});
     await adb(["-s", transport, "shell", "wm", "dismiss-keyguard"]).catch(() => {});
-    await adb(["-s", transport, "shell", "am", "start", "-W", "-a", "android.settings.DEVICE_INFO_SETTINGS"]).catch(() => {});
+    // (Not Settings: it is an ask-first app, and a stray inspect of it would
+    // raise an approval dialog on the Mac.)
+    const files = (await adb(["-s", transport, "shell", "cmd", "package", "resolve-activity", "--brief", "-c", "android.intent.category.LAUNCHER", "-a", "android.intent.action.MAIN", "com.google.android.documentsui"]).catch(() => "")).trim().split("\n").at(-1);
+    if (files && files.includes("/")) await adb(["-s", transport, "shell", "am", "start", "-W", "-n", files]).catch(() => {});
     await new Promise((r) => setTimeout(r, 1500));
   }
   const before = await watch();

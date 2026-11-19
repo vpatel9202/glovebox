@@ -140,9 +140,14 @@ export class App {
     this.#ctx.log({ app: this.bundleId ?? this.name, action, ...device, ...detail });
     const result = await fn();
     await this.#ctx.settle();
-    // Android UI animates most changes for about 300 ms; a read right after
-    // an action would catch it halfway.
-    if (this.platform === "android") await new Promise((r) => setTimeout(r, this.#ctx.config.androidSettleMs ?? 300));
+    // Android UI animates most changes; a read right after an action would
+    // catch it halfway. Wait until the app has been quiet (no accessibility
+    // events) for a moment, up to 1.5 s; a fixed androidSettleMs overrides.
+    if (this.platform === "android") {
+      const fixed = this.#ctx.config.androidSettleMs;
+      if (fixed != null) await new Promise((r) => setTimeout(r, fixed));
+      else await this.#call("waitQuiet", { quiet: 150, max: 1500 }).catch(() => new Promise((r) => setTimeout(r, 300)));
+    }
     return result;
   }
 

@@ -109,14 +109,30 @@ final class Device {
     private volatile int eventCount;
     private volatile String lastEvent = "";
 
+    private final Map<String, Long> lastEventAt = new java.util.concurrent.ConcurrentHashMap<>();
+
     private void onEvent(android.view.accessibility.AccessibilityEvent e) {
         CharSequence pkg = e.getPackageName();
+        if (pkg != null) lastEventAt.put(pkg.toString(), android.os.SystemClock.uptimeMillis());
         eventCount++;
         lastEvent = pkg + " " + android.view.accessibility.AccessibilityEvent.eventTypeToString(e.getEventType());
         synchronized (waiters) {
             for (Object[] w : waiters) {
                 if (pkg == null || pkg.toString().equals(w[0])) ((java.util.concurrent.CountDownLatch) w[1]).countDown();
             }
+        }
+    }
+
+    // After an action: waits until the app has sent no accessibility event
+    // for `quiet` ms (its screen stopped changing), at most `max` ms.
+    private JSONObject waitQuiet(String pkg, long quiet, long max) throws Exception {
+        long start = android.os.SystemClock.uptimeMillis();
+        while (true) {
+            long now = android.os.SystemClock.uptimeMillis();
+            long last = Math.max(start, lastEventAt.getOrDefault(pkg, 0L));
+            if (now - last >= quiet) return new JSONObject().put("quiet", true).put("ms", now - start);
+            if (now - start >= max) return new JSONObject().put("quiet", false).put("ms", now - start);
+            sleep(Math.min(25, quiet - (now - last)));
         }
     }
 
@@ -244,6 +260,8 @@ final class Device {
             }
             case "inspect":
                 return inspect(p);
+            case "waitQuiet":
+                return waitQuiet(p.getString("pid"), p.optLong("quiet", 150), p.optLong("max", 1500));
             case "waitEvent":
                 return waitEvent(p.getString("pid"), p.optLong("timeout", 1000));
             case "cursor":

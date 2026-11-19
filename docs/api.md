@@ -252,6 +252,10 @@ await clock.getAXState();
 - System keys for `pressKey`: `Back`, `HomeScreen`, `Recents`,
   `Notifications`, `QuickSettings`, `VolumeUp`, `VolumeDown`, `Menu`. `Home`
   and `End` move the text cursor.
+- After each action glovebox waits until the app has sent no change events
+  for 150 ms (at most 1.5 s), instead of a fixed pause: about 150-300 ms
+  on the fixture, longer for screens that keep changing. A number in
+  `androidSettleMs` (config) restores a fixed pause.
 - `waitForChange()` after a tree read waits on the app's own change events
   instead of polling, so it notices a change within about 100 ms.
 - The keyboard shows as one `window "keyboard"` line; pass
