@@ -154,10 +154,13 @@ Computer use can click anything, so approval is part of the product:
   dialog naming the agent (from the MCP `clientInfo`) and the app: Allow for
   This Session, Always Allow (persisted to `config.json`), or Deny.
 - `allowlist` mode never prompts. `allow-all` is an explicit opt-in.
-- Terminals, password managers, Keychain Access, System Settings, Script
-  Editor, Automator, and the helper itself are blocked by default and never
-  offered in a dialog. Only an explicit `glovebox allow` unlocks one. The
-  full list is in `SECURITY.md`.
+- Nothing is blocked outright (decided 2026-11-19): the user decides.
+  Terminals, password managers, Keychain Access, System Settings, messaging
+  and scripting apps, and the surfaces that are not one app (whole screen,
+  clipboard, notifications, menu bar) are ask first: they prompt even under
+  `allow-all`, and `glovebox allow` skips the prompt. Unanswered dialogs deny
+  after two minutes. The one refused target is the helper itself, whose
+  windows are the dialogs. The full list is in `SECURITY.md`.
 - Switching away stops a script on the foreground route; background scripts
   keep running. A script brings an app forward at most once per call; if the app is no longer in front later in
   the same call, the user took over, and the script stops rather than taking

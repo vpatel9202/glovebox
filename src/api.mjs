@@ -77,6 +77,8 @@ export class App {
   #waitBase = null;
   #activatedCell = -1;
   #opened = false; // Android: opened on its screen at least once this session
+  #knownWindows = null; // macOS: window ids at the last read, for open/close notices
+  #notice = "";
 
   // `backend` is the host's (ctx.backend) or a device's; `pid` is whatever
   // handle that backend gave the app (a number on macOS, a package on Android).
@@ -164,8 +166,19 @@ export class App {
       // Without Accessibility every app looks windowless; say which it is.
       const { accessibility } = await this.#backend.request("permissions", {});
       if (!accessibility) throw new Error("Accessibility permission is missing for the glovebox helper. Run: glovebox doctor");
-      throw new Error(`${this.name} has no open windows`);
+      if (this.platform !== "macos") throw new Error(`${this.name} has no open windows`);
+      // A windowless app (the Dock, a menu bar app, an app whose last window
+      // closed): reads show what it has outside windows, in the main
+      // display's space.
+      const [display] = await this.#backend.request("displays");
+      const next = viewFor({ index: -1, title: "(no window)", frame: display.frame, scale: display.scale }, this.#ctx.config.screenshot);
+      next.note = " (the app has no windows; this is what it shows outside them, in screen space)";
+      next.windowless = true;
+      this.#view = next;
+      this.#knownWindows = new Map();
+      return next;
     }
+    this.#noteWindows(windows);
     const pick =
       window != null
         ? windows.find((w) => w.index === window)
@@ -185,6 +198,23 @@ export class App {
 
   async #ensureView() {
     return this.#refreshView(undefined);
+  }
+
+  // One line, shown on the next read, when windows opened or closed since the
+  // last one: a dialog or a new document window is easy to miss in a diff.
+  #noteWindows(windows) {
+    if (this.platform !== "macos") return;
+    const now = new Map(windows.filter((w) => w.windowId != null).map((w) => [w.windowId, w]));
+    if (this.#knownWindows) {
+      const opened = [...now.values()].filter((w) => !this.#knownWindows.has(w.windowId));
+      const closed = [...this.#knownWindows.values()].filter((w) => !now.has(w.windowId));
+      const parts = [
+        ...opened.map((w) => `window ${w.index} "${w.title}" opened${w.subrole && w.subrole !== "AXStandardWindow" ? ` (${w.subrole.replace(/^AX/, "")})` : ""}`),
+        ...closed.map((w) => `"${w.title}" closed`),
+      ];
+      if (parts.length) this.#notice += `\n(windows: ${parts.join("; ")})`;
+    }
+    this.#knownWindows = now;
   }
 
   async getAXState(options = {}) {
@@ -220,6 +250,10 @@ export class App {
       text = `${header}\n${lines.join("\n")}`;
     }
     if (tree.truncated) text += `\n(truncated at ${tree.nodes.length} elements; pass {maxNodes} to see more)`;
+    if (emit && this.#notice) {
+      text += this.#notice;
+      this.#notice = "";
+    }
     // Once, on a full read: a diff of a near-empty tree needs no reminder.
     if (tree.nodes.length <= 2 && !text.includes(" — changes since last read") && !text.endsWith(" — no change.")) {
       text += "\n(few elements: this screen may be drawn, not described; app.ocr() reads its text with positions, or take a screenshot)";
@@ -241,6 +275,7 @@ export class App {
     const { window, emit = true } = options;
     const shot = this.#ctx.config.screenshot;
     const view = await this.#refreshView(window);
+    if (view.windowless) throw new Error(`${this.name} has no window to capture; gb.screenshot() captures the whole screen`);
     if (view.windowId == null) throw new Error(`Cannot find a capturable window id for ${this.name}`);
     const image = await this.#call("screenshot", {
       windowId: view.windowId,
@@ -464,7 +499,12 @@ export class App {
   // (hidden by default): {action ("android.intent.action.VIEW"), data (a
   // URL or URI), type, component ("pkg/.Activity"), categories, extras}.
   async open(intent) {
-    if (this.platform !== "android") throw new Error("app.open() is for Android apps; use activate() on macOS");
+    if (this.platform === "macos") {
+      // A file path or URL, opened in this app without bringing it forward.
+      const target = String(intent);
+      return this.#act("open", { target }, () => this.#backend.request("open", { target, bundleId: this.bundleId, activate: false }));
+    }
+    if (this.platform !== "android") throw new Error("app.open() needs a macOS or Android app");
     const spec = typeof intent === "string" ? { data: intent } : intent;
     return this.#act("open", { intent: spec.data ?? spec.component ?? spec.action }, async () => {
       await this.#call("activate", { intent: spec });
@@ -622,6 +662,31 @@ export class App {
     const repeat = Math.max(1, options.repeat ?? 1);
     return this.#act("pressKey", { keys: String(keys), repeat }, async () => {
       const all = Array.from({ length: repeat }, () => chords).flat();
+      // A menu shortcut (Cmd+S) sent as a key never reaches a background
+      // app's menus, so it presses the menu item instead. Other keys go as keys.
+      if (this.platform === "macos" && this.#useBackground(options) && all.some((c) => c.mods.includes("super"))) {
+        let batch = [];
+        const flush = async () => {
+          if (batch.length) await this.#deliver("keys", { chords: batch }, options);
+          batch = [];
+        };
+        const routes = [];
+        for (const chord of all) {
+          if (chord.mods.includes("super")) {
+            const hit = await this.#call("menuShortcut", { key: chord.key, mods: chord.mods }).catch(() => ({ found: false }));
+            if (hit.found && hit.pressed) {
+              await flush();
+              routes.push(`menu "${hit.title}"`);
+              await new Promise((r) => setTimeout(r, 120));
+              continue;
+            }
+          }
+          batch.push(chord);
+        }
+        await flush();
+        if (routes.length) this.lastRoute = batch.length || all.length > routes.length ? `${this.lastRoute ?? "background"} + ${routes.join(", ")}` : routes.join(", ");
+        return;
+      }
       await this.#deliver("keys", { chords: all }, options);
     });
   }
@@ -667,7 +732,17 @@ export class App {
   // Builds two finger paths from [radius, angle] samples (radius in screen
   // points from the center) and sends them as one multi-touch gesture.
   async #twoFingers(action, target, options, samples, ms, detail) {
-    if (this.platform !== "android") throw new Error(`app.${action}() needs a touch screen (Android)`);
+    if (this.platform === "macos") {
+      // Trackpad gesture events: magnify by scale - 1, rotate (clockwise
+      // positive here, counterclockwise in AppKit).
+      return this.#act(action, { target: describeTarget(target), ...detail }, async () => {
+        const [x, y] = await this.#screenPoint(target);
+        await this.#pointCursor([x, y]);
+        const amount = action === "pinch" ? (detail.scale ?? 2) - 1 : -(detail.degrees ?? 45);
+        await this.#deliver("gesture", { x, y, kind: action === "pinch" ? "magnify" : "rotate", amount, ms }, options);
+      });
+    }
+    if (this.platform !== "android") throw new Error(`app.${action}() needs a touch screen or trackpad`);
     return this.#act(action, { target: describeTarget(target), ...detail }, async () => {
       const view = await this.#ensureView();
       const [cx, cy] = await this.#screenPoint(target);
@@ -711,6 +786,208 @@ export class App {
       const [x, y] = await this.#screenPoint(target);
       await this.#deliver("longPress", { x, y, ms: options.ms ?? 0 }, options);
     });
+  }
+
+  // macOS: moves the pointer onto a target without clicking, for tooltips and
+  // hover menus. In the background only the app sees it; the real pointer
+  // stays put.
+  // AppKit tracks the pointer from the real cursor, so hover uses the
+  // foreground route by default: it brings the app forward and moves the real
+  // pointer. {background: true} tries without (web content in Chromium apps
+  // reacts to it).
+  async hover(target, options = {}) {
+    return this.#act("hover", { target: describeTarget(target) }, async () => {
+      const [x, y] = await this.#screenPoint(target);
+      await this.#pointCursor([x, y]);
+      const route = options.background === true ? options : { ...options, foreground: options.foreground ?? true };
+      await this.#deliver("hover", { x, y }, route);
+    });
+  }
+
+  // Holds the mouse button down on a target for `ms` (default 800): press
+  // and hold, long press. A mouse event, never an accessibility press.
+  async press(target, options = {}) {
+    if (this.platform === "android") return this.longPress(target, options);
+    const ms = options.ms ?? 800;
+    return this.#act("press", { target: describeTarget(target), ms }, async () => {
+      const [x, y] = await this.#screenPoint(target);
+      await this.#pointCursor([x, y]);
+      await this.#deliver("click", { x, y, button: options.button ?? "left", count: 1, mods: [], holdMs: ms }, options);
+    });
+  }
+
+  // macOS menus. menus() lists the menu bar (or one menu: menus(["File"]))
+  // with each item's shortcut; menu(["File", "Export…"]) presses an item
+  // through accessibility, which works in the background. "File > Export"
+  // works as a path too. Titles match without case or a trailing "…".
+  async menus(path = [], options = {}) {
+    this.#requireMac("menus");
+    const list = typeof path === "string" ? path.split(/\s*>\s*/).filter(Boolean) : [].concat(path);
+    const result = await this.#call("menus", { path: list, depth: options.depth });
+    const lines = [];
+    const walk = (items, indent) => {
+      for (const it of items) {
+        const flags = [it.shortcut, it.disabled && "disabled", it.checked && "checked"].filter(Boolean).join(", ");
+        const sub = typeof it.submenu === "number" ? ` (${it.submenu} items)` : Array.isArray(it.submenu) ? " >" : "";
+        if (it.title || it.shortcut) lines.push(`${"  ".repeat(indent)}${it.title || "(untitled)"}${flags ? ` [${flags}]` : ""}${sub}`);
+        if (Array.isArray(it.submenu)) walk(it.submenu, indent + 1);
+      }
+    };
+    walk(result.items, 0);
+    if (options.emit !== false) this.#ctx.out.text(`${this.name} — menu${list.length ? ` ${list.join(" > ")}` : " bar"}:\n${lines.join("\n") || "(empty)"}`);
+    return result.items;
+  }
+
+  async menu(path) {
+    this.#requireMac("menu");
+    const list = typeof path === "string" ? path.split(/\s*>\s*/).filter(Boolean) : [].concat(path);
+    return this.#act("menu", { path: list.join(" > ") }, async () => {
+      await this.#call("menuPress", { path: list });
+      this.lastRoute = "menu";
+    });
+  }
+
+  // Opens a pop-up button's (or menu button's) menu and picks `item` in one
+  // step; `item` may be a path into a submenu. The menu is open only for that
+  // moment, so the user's typing never lands in it. Returns the title picked.
+  async select(target, item) {
+    this.#requireMac("select");
+    return this.#pick("select", target, item, false);
+  }
+
+  // Opens an element's context menu (what a right-click shows) and picks
+  // `item`, in one step.
+  async contextMenu(target, item) {
+    this.#requireMac("contextMenu");
+    return this.#pick("contextMenu", target, item, true);
+  }
+
+  async #pick(action, target, item, context) {
+    const path = [].concat(item).map(String);
+    return this.#act(action, { target: describeTarget(target), item: path.join(" > ") }, async () => {
+      let index = target;
+      if (isPoint(target)) {
+        const [x, y] = await this.#screenPoint(target);
+        const hit = await this.#call("hitTest", { x, y });
+        if (hit.index == null) throw new Error(`No element at ${describeTarget(target)}`);
+        index = hit.index;
+      } else if (!Number.isInteger(target)) {
+        const found = await this.find(target);
+        if (!found) throw new Error(`No element matches ${describeQuery(target)}`);
+        index = found.index;
+      }
+      const result = await this.#call("selectMenuItem", { index, path, context });
+      this.lastRoute = "accessibility";
+      return result.title;
+    });
+  }
+
+  // macOS window controls, without bringing the app forward: app.window(i)
+  // (default: the window reads use) has move(x, y) and resize(w, h) in screen
+  // points, minimize(), restore(), raise(), zoom(), fullScreen(on), close().
+  window(index) {
+    this.#requireMac("window");
+    const run = (op, extra = {}) =>
+      this.#act("window", { op, window: index ?? "default", ...extra }, async () => {
+        const view = index == null ? await this.#ensureView() : null;
+        await this.#call("windowAction", { op, window: index ?? view.window, ...extra });
+      });
+    return {
+      move: (x, y) => run("move", { x, y }),
+      resize: (width, height) => run("resize", { width, height }),
+      minimize: () => run("minimize"),
+      restore: () => run("restore"),
+      raise: () => run("raise"),
+      zoom: () => run("zoom"),
+      fullScreen: (on = true) => run("fullScreen", { on }),
+      close: () => run("close"),
+    };
+  }
+
+  // Quits the app (it may ask to save first; then `terminated` is false and
+  // its dialog shows in the next read). {force: true} force-quits.
+  async quit(options = {}) {
+    this.#requireMac("quit");
+    return this.#act("quit", { force: options.force === true }, () => this.#call("appAction", { op: options.force ? "forceQuit" : "quit" }));
+  }
+
+  async hide() {
+    this.#requireMac("hide");
+    return this.#act("hide", {}, () => this.#call("appAction", { op: "hide" }));
+  }
+
+  async unhide() {
+    this.#requireMac("unhide");
+    return this.#act("unhide", {}, () => this.#call("appAction", { op: "unhide" }));
+  }
+
+  // Pastes text (any characters, any length) through the clipboard, then
+  // puts the user's clipboard back. Faster than typeText for long text.
+  async paste(text) {
+    this.#requireMac("paste");
+    if (typeof text !== "string") throw new TypeError("paste expects a string");
+    const detail = this.#ctx.config.log.text ? { text } : { length: text.length };
+    return this.#act("paste", detail, async () => {
+      await this.#call("pasteStash", { op: "stash", text });
+      try {
+        await this.pressKey("super+v");
+        await new Promise((r) => setTimeout(r, 250));
+      } finally {
+        await this.#call("pasteStash", { op: "restore" });
+      }
+    });
+  }
+
+  // Drags files from this Mac onto a target in the app (a drop zone, a mail
+  // body, a Finder window), as a person would. Uses the real pointer, then
+  // puts it back. Asks first (macos:files).
+  async dropFiles(target, paths) {
+    this.#requireMac("dropFiles");
+    const list = [].concat(paths).map(String);
+    return this.#act("dropFiles", { target: describeTarget(target), files: list.length }, async () => {
+      const [x, y] = await this.#screenPoint(target);
+      const result = await this.#call("dropFiles", { x, y, paths: list });
+      this.lastRoute = result.route;
+    });
+  }
+
+  // In an open or save panel that is showing, goes to `path` and confirms
+  // (Open or Save) unless {confirm: false}. In a save panel the last part of
+  // the path is the file name. Panels run in a separate macOS process that
+  // takes no background keys, so this brings the app forward.
+  async choosePath(path, options = {}) {
+    this.#requireMac("choosePath");
+    const target = String(path);
+    return this.#act("choosePath", { path: target }, async () => {
+      const nodes = await this.nodes();
+      const sheet = nodes.find((n) => n.role === "sheet") ?? nodes.find((n) => n.depth === 0);
+      const inSheet = nodes.filter((n) => n.index === sheet.index || (n.depth > sheet.depth && nodes.indexOf(n) > nodes.indexOf(sheet)));
+      const nameField = inSheet.find((n) => n.role === "text field" && /save as|name/i.test(`${n.label ?? ""} ${n.desc ?? ""}`));
+      let go = target;
+      if (nameField) {
+        const slash = target.lastIndexOf("/");
+        go = slash > 0 ? target.slice(0, slash) : target;
+        await this.#call("setValue", { index: nameField.index, value: target.slice(slash + 1) });
+      }
+      const fg = { ...options, foreground: true };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      await this.#activate();
+      await wait(300);
+      await this.#deliver("keys", { chords: parseKeys("super+shift+g") }, fg);
+      await wait(900);
+      // The Go To field keeps the last path, selected; replace it.
+      await this.#deliver("keys", { chords: parseKeys("super+a BackSpace") }, fg);
+      await this.#deliver("type", { text: go }, fg);
+      // Return picks the highlighted suggestion; let the list catch up.
+      await wait(1300);
+      await this.#deliver("keys", { chords: parseKeys("Return") }, fg);
+      await wait(1000);
+      if (options.confirm !== false) await this.#deliver("keys", { chords: parseKeys("Return") }, fg);
+    });
+  }
+
+  #requireMac(name) {
+    if (this.platform !== "macos") throw new Error(`app.${name}() is for macOS apps`);
   }
 
   async setValue(index, value) {
@@ -789,6 +1066,166 @@ function appSurface(ctx, backend) {
 
     async permissions() {
       return backend.request("permissions", {});
+    },
+  };
+}
+
+// Things on the Mac that are not one app: the whole screen, every window,
+// the menu bar's extras, system-wide keys, the clipboard, opening files.
+// Each asks first under its own key (macos:screen, macos:system,
+// macos:clipboard, macos:files).
+function macSystem(ctx, gbRef) {
+  const backend = ctx.backend;
+  const mac = () => {
+    if (backend.platform !== "macos") throw new Error("This is for the Mac; use gb.device() for a phone");
+  };
+  const displayView = async (index = 0) => {
+    const displays = await backend.request("displays");
+    const d = displays[index];
+    if (!d) throw new Error(`No display ${index}; there are ${displays.length}`);
+    return { display: d, view: viewFor({ index, title: d.name, frame: d.frame, scale: d.scale }, ctx.config.screenshot) };
+  };
+  return {
+    // [{index, frame, scale, main, name}] in global screen points.
+    async displays() {
+      mac();
+      return backend.request("displays");
+    },
+
+    // Every window on screen, front to back, with its owner, so an agent can
+    // find a dialog it did not expect and getApp(`pid:${w.pid}`) its owner.
+    // {all: true} includes windows that are not on screen.
+    async windows(options = {}) {
+      mac();
+      ctx.checkAbort();
+      const list = await backend.request("allWindows", { all: options.all === true });
+      if (options.emit !== false) {
+        const lines = list.filter((w) => options.all || w.layer < 1000).map((w) => `${w.app} (pid ${w.pid}${w.bundleId ? `, ${w.bundleId}` : ""}) ${w.title ? `"${w.title}" ` : ""}@${w.frame.map(Math.round).join(",")}${w.layer ? ` layer ${w.layer}` : ""}`);
+        ctx.out.text(`Windows, front to back:\n${lines.join("\n")}`);
+      }
+      return list;
+    },
+
+    // A screenshot of a whole display (default the main one). The image
+    // space is the display's, scaled like a window's.
+    async screenshot(options = {}) {
+      mac();
+      ctx.checkAbort();
+      const { view } = await displayView(options.display ?? 0);
+      const shot = ctx.config.screenshot;
+      const image = await backend.request("screenCapture", { display: options.display ?? 0, width: view.width, height: view.height, format: options.format ?? shot.format, quality: (options.quality ?? shot.quality) / 100 });
+      ctx.log({ app: "macos:screen", action: "screenshot", display: options.display ?? 0 });
+      const result = { width: image.width, height: image.height, mimeType: image.mimeType, view };
+      Object.defineProperty(result, "data", { value: image.data, enumerable: false });
+      if (options.emit !== false) {
+        ctx.out.text(`Screenshot of display ${options.display ?? 0}: ${image.width}x${image.height} (${view.scale.toFixed(3)} image pixels per screen point, origin ${view.origin.join(",")}).`);
+        await ctx.out.image(image.data, image.mimeType, `display${options.display ?? 0}`);
+      }
+      return result;
+    },
+
+    // OCR of a whole display: [{text, confidence, frame}] in that display's
+    // image pixels, plus `screen` [x, y] in global points for each.
+    async ocr(options = {}) {
+      mac();
+      const { recognizeText } = await import("./ocr.mjs");
+      const shot = await gbRef().screenshot({ ...options, format: "png", emit: false });
+      const found = await recognizeText(Buffer.from(shot.data, "base64"), { languages: options.languages });
+      const v = shot.view;
+      const items = found.map((t) => {
+        const frame = t.frame.map(Math.round);
+        return { text: t.text, confidence: Math.round(t.confidence * 100) / 100, frame, screen: toScreen(v, center(frame)).map(Math.round) };
+      });
+      if (options.emit !== false) {
+        ctx.out.text(`Display ${options.display ?? 0} — text (OCR) — image ${v.width}x${v.height}\n${items.map((t) => `${JSON.stringify(t.text)} @${t.frame[0]},${t.frame[1]} ${t.frame[2]}x${t.frame[3]}`).join("\n") || "(no text found)"}`);
+      }
+      return items;
+    },
+
+    // The menu bar's extras (Wi-Fi, battery, Control Center, the clock, and
+    // third-party status icons), left to right: [{app, pid, index, title, help}].
+    async menuExtras(options = {}) {
+      mac();
+      ctx.checkAbort();
+      const list = await backend.request("menuExtras");
+      if (options.emit !== false) {
+        ctx.out.text(`Menu bar extras, left to right:\n${list.map((e) => `${e.app} (pid ${e.pid}) #${e.index} ${JSON.stringify(e.title ?? e.help ?? e.id ?? "")}${e.help && e.title ? ` help=${JSON.stringify(e.help)}` : ""}`).join("\n")}`);
+      }
+      return list;
+    },
+
+    // Opens a menu bar extra (by title, help, id or app name, substring or
+    // RegExp) and returns its app's handle: read it to see the menu or panel.
+    async menuExtra(query) {
+      mac();
+      const list = await gbRef().menuExtras({ emit: false });
+      const test = matcher(typeof query === "object" && Object.prototype.toString.call(query) !== "[object RegExp]" ? query : { text: query });
+      const hit = list.find((e) => test({ label: e.title, value: e.help, id: e.id, desc: e.app, role: "menu extra" }));
+      if (!hit) throw new Error(`No menu bar extra matches ${describeQuery(query)}. There are: ${list.map((e) => e.title ?? e.help ?? e.app).join(", ")}`);
+      const app = await gbRef().getApp(`pid:${hit.pid}`);
+      await app.performSecondaryAction(hit.index, "AXPress");
+      await new Promise((r) => setTimeout(r, 300));
+      return app;
+    },
+
+    // Keys and text sent system-wide to whatever is in front: Spotlight
+    // (super+space), Mission Control (ctrl+Up), screenshots, app switching.
+    async pressKey(keys) {
+      mac();
+      ctx.checkAbort();
+      ctx.log({ app: "macos:system", action: "pressKey", keys: String(keys) });
+      await backend.request("systemKeys", { chords: parseKeys(keys) });
+      await ctx.settle();
+    },
+
+    async typeText(text) {
+      mac();
+      ctx.checkAbort();
+      ctx.log({ app: "macos:system", action: "typeText", length: String(text).length });
+      await backend.request("systemKeys", { text: String(text) });
+      await ctx.settle();
+    },
+
+    // Opens an app, file or setting through Spotlight, as a person would.
+    async spotlight(query, options = {}) {
+      mac();
+      await gbRef().pressKey("super+space");
+      await new Promise((r) => setTimeout(r, 500));
+      await gbRef().typeText(String(query));
+      await new Promise((r) => setTimeout(r, options.wait ?? 900));
+      if (options.open !== false) await gbRef().pressKey("Return");
+    },
+
+    clipboard: {
+      // {text, files, image, types}. Asks first (macos:clipboard).
+      async read() {
+        mac();
+        ctx.checkAbort();
+        const result = await backend.request("clipboard", { op: "read" });
+        ctx.log({ app: "macos:clipboard", action: "read", length: result.text?.length ?? 0 });
+        return result;
+      },
+      // A string, or {files: [paths]} to copy files.
+      async write(value) {
+        mac();
+        ctx.checkAbort();
+        const params = typeof value === "string" ? { text: value } : { files: [].concat(value.files ?? []) };
+        ctx.log({ app: "macos:clipboard", action: "write", length: params.text?.length ?? params.files.length });
+        await backend.request("clipboard", { op: "write", ...params });
+      },
+    },
+
+    // Opens a file path or URL in the app that handles it (or {app}), in the
+    // background unless {activate: true}, and returns that app's handle.
+    async open(target, options = {}) {
+      mac();
+      ctx.checkAbort();
+      let bundleId;
+      if (options.app) bundleId = (await backend.request("resolveApp", { query: String(options.app) })).bundleId;
+      ctx.log({ app: bundleId ?? "default", action: "open", target: String(target) });
+      const info = await backend.request("open", { target: String(target), bundleId, activate: options.activate === true });
+      await new Promise((r) => setTimeout(r, 400));
+      return gbRef().getApp(`pid:${info.pid}`);
     },
   };
 }
@@ -875,6 +1312,8 @@ export function createApi(ctx) {
     sleep(ms) {
       return new Promise((resolve) => setTimeout(resolve, ms));
     },
+
+    ...macSystem(ctx, () => gb),
 
     help(topic) {
       const text = ctx.help(topic);

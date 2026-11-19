@@ -95,7 +95,6 @@ Replies carry `{message, code}`. Codes the macOS helper uses:
 
 | Code | Meaning |
 |---|---|
-| `blocked` | The app is blocked by default (terminals, password managers, ...). |
 | `denied` | On the `deny` list, or the user chose Deny. |
 | `not_allowed` | `approval` is `allowlist` and the app is not on `allow`. |
 | `background_unavailable` | The private functions background input needs are missing. |
