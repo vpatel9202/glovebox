@@ -1,13 +1,21 @@
 # Contributing
 
-nostrings is small and macOS-only for now. Keep changes focused and say what
-you ran.
+nostrings is small: plain JavaScript, one dependency, a Swift helper for the
+Mac and a Java server for Android. Keep changes focused and say what you ran.
+
+Good places to start: [issues labelled good first
+issue](https://github.com/vpatel9202/nostrings/issues?q=is%3Aopen+label%3A%22good+first+issue%22),
+a new [example script](examples/README.md), or a [backend
+port](#porting-a-backend). Questions and ideas go in
+[Discussions](https://github.com/vpatel9202/nostrings/discussions).
 
 ## Requirements
 
-- macOS 14 or later (tested on macOS 27, Apple silicon)
-- Node 20.10 or later
-- Xcode command line tools: `xcode-select --install`
+- Node 20.10 or later. Unit tests and the conformance check run on any OS.
+- For the Mac side: macOS 14 or later (tested on macOS 27, Apple silicon) and
+  the Xcode command line tools (`xcode-select --install`).
+- For Android: `adb`, and the Android SDK plus a JDK to rebuild the server
+  (`npm run build:android`).
 
 ## Setup
 
@@ -27,13 +35,17 @@ the macOS permissions. See the README for the signing option.
 ## Tests
 
 ```bash
-npm test                # unit tests; run anywhere (Node 22+: node --test test/unit.test.mjs)
+npm test                 # unit tests and the conformance check on a fake backend; any OS
 nostrings smoke          # GUI test on Calculator (macOS only)
 nostrings smoke --full   # adds background click, drag, and scroll checks in TextEdit (macOS only)
+nostrings smoke --macos  # 51 checks on a test app (macOS only)
+nostrings smoke --android --serial emulator-5554   # 20 checks on a test app
 ```
 
-Unit tests cover cell rewriting, key parsing, tree diffs, and coordinate
-mapping. The smoke tests drive real apps and need the helper's permissions.
+Unit tests cover cell rewriting, key parsing, tree diffs, coordinate mapping,
+saved scripts, agent configs, and the backend contract. The smoke tests drive
+real apps and need the helper's permissions; read
+[docs/testing.md](docs/testing.md) first.
 
 For kernel logs on stderr:
 
@@ -50,10 +62,22 @@ NOSTRINGS_DEBUG=1 nostrings mcp
   behavior, change the reasons there too.
 - Update `CHANGELOG.md` for user-visible changes.
 
-## Porting
+## Porting a backend
 
-A new backend implements [docs/backend-protocol.md](docs/backend-protocol.md).
-The Windows and Linux plans are in [docs/roadmap.md](docs/roadmap.md).
+Windows and Linux are the most wanted contributions. A backend is one native
+program that speaks JSON lines ([docs/backend-protocol.md](docs/backend-protocol.md))
+and needs no change to the scripting layer.
+
+1. Start from [test/fake-backend.mjs](test/fake-backend.mjs), the smallest
+   backend that passes, and the plan for your OS in
+   [docs/roadmap.md](docs/roadmap.md) (UI Automation on Windows, AT-SPI on
+   Linux).
+2. Make the read side pass: `nostrings conformance --command "your backend"
+   --app <an app>`. That is enough for an agent to read the screen.
+3. Add input (`keys`, `type`, `click`, `scroll`) and check it with
+   `--input`, then wire the backend into `src/backends/index.mjs`.
+4. Open a draft pull request early with the conformance output. Say which OS
+   version and apps you tried.
 
 ## Security
 

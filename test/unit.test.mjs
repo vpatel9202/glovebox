@@ -359,3 +359,17 @@ test("saved scripts: names are checked, the first line describes, args parse", a
     fsm.rmSync(home, { recursive: true, force: true });
   }
 });
+
+test("conformance: the reference fake backend passes every check", async () => {
+  const { commandBackend, runConformance } = await import("../src/conformance.mjs");
+  const pathm = await import("node:path");
+  const fake = pathm.join(pathm.dirname(new URL(import.meta.url).pathname), "fake-backend.mjs");
+  const backend = commandBackend(`"${process.execPath}" "${fake}"`);
+  try {
+    const results = await runConformance(backend, { app: "Fake", input: true });
+    assert.deepEqual(results.filter((r) => !r.ok), []);
+    assert.equal(results.length, 14);
+  } finally {
+    backend.close();
+  }
+});

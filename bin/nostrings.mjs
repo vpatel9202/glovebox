@@ -30,6 +30,8 @@ Usage:
   nostrings smoke --android [--serial s] [--keep]
                                     The same on a phone or emulator, with a test app
                                     that is installed for the run (--keep leaves it)
+  nostrings conformance [--command "cmd"] [--android [--serial s]] [--app name] [--input]
+                                    Check a backend against docs/backend-protocol.md
   nostrings allow <app>...           Always allow an app (name or bundle id)
   nostrings deny <app>...            Never allow an app
   nostrings revoke <app>...          Remove an app from both lists
@@ -306,6 +308,9 @@ async function main() {
       keep: { type: "boolean" },
       yes: { type: "boolean", short: "y" },
       examples: { type: "boolean" },
+      command: { type: "string" },
+      app: { type: "string" },
+      input: { type: "boolean" },
       "android-only": { type: "boolean" },
       n: { type: "string", short: "n" },
       help: { type: "boolean", short: "h" },
@@ -394,6 +399,29 @@ async function main() {
       const { runSmoke, runAndroidSmoke, runMacSmoke } = await import("../src/smoke.mjs");
       const passed = flags.android ? await runAndroidSmoke({ serial: flags.serial, keep: flags.keep }) : flags.macos ? await runMacSmoke({ keep: flags.keep, foreground: !flags["background-only"] }) : await runSmoke({ full: flags.full });
       process.exitCode = passed ? 0 : 1;
+      return;
+    }
+    case "conformance": {
+      const { commandBackend, runConformance } = await import("../src/conformance.mjs");
+      let backend;
+      if (flags.command) backend = commandBackend(flags.command);
+      else if (flags.android) {
+        const { createDeviceBackend } = await import("../src/backends/index.mjs");
+        backend = createDeviceBackend({ serial: flags.serial ?? null, client: "nostrings conformance" });
+      } else {
+        const { createBackend } = await import("../src/backends/index.mjs");
+        backend = createBackend({ client: "nostrings conformance" });
+      }
+      const app = flags.app ?? (flags.android ? "Clock" : process.platform === "darwin" && !flags.command ? "Calculator" : undefined);
+      const results = await runConformance(backend, {
+        app,
+        input: flags.input,
+        report: (r) => process.stdout.write(`${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.detail ? `\n      ${r.detail}` : ""}\n`),
+      });
+      backend.close?.();
+      const failed = results.filter((r) => !r.ok).length;
+      process.stdout.write(failed ? `\n${failed} of ${results.length} checks failed.\n` : `\nAll ${results.length} checks passed.\n`);
+      process.exitCode = failed ? 1 : 0;
       return;
     }
     case "setup":

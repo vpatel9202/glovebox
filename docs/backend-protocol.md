@@ -30,7 +30,7 @@ own state are not gated: `hello`, `ping`, `permissions`, `listApps`,
 |---|---|---|
 | `hello` | `client` (name shown in dialogs and the menu) | `{version, platform, pid}` |
 | `ping` | | `{version, platform, pid, background}` |
-| `permissions` | `prompt`, `inputMonitoring` | `{accessibility, screenRecording, escapeWatcher, inputMonitoring}` |
+| `permissions` | `ask?` (`accessibility`, `screenRecording` or `inputMonitoring`) | `{accessibility, screenRecording, escapeWatcher, inputMonitoring}` |
 | `listApps` | | `[{name, bundleId, pid?, path?, running, active?}]` |
 | `resolveApp` | `query` (name, bundle id, `pid:N`, path) | one app |
 | `launch` | `bundleId`, `path`, `name`, `activate` | the running app |
@@ -100,9 +100,41 @@ back from the error codes below, not from `ping`.
 
 `permissions` returns `inputMonitoring` (listening for key events, which
 Escape-to-stop needs on macOS) next to `accessibility` and `screenRecording`.
-`prompt: true` asks the OS to prompt; with `inputMonitoring: true` it also
-asks for Input Monitoring. `escapeWatcher` says whether an Escape watcher is
-running.
+`ask` names the one permission to prompt for; without it nothing is
+prompted. Never prompt for two at once: macOS shows one privacy prompt at a
+time and drops one that arrives while another is open. `escapeWatcher` says
+whether an Escape watcher is running.
+
+`axTree` nodes are flat, in depth-first order, one object per element:
+
+| Field | Meaning |
+|---|---|
+| `i` | element index, stable for the session; actions name elements by it |
+| `d` | depth below the window (the window is 0) |
+| `role` | the platform role (`AXButton`); the scripting layer maps it to words |
+| `subrole`, `title`, `desc`, `value`, `help`, `placeholder`, `id` | optional text |
+| `frame` | `[x, y, w, h]` in global screen points, if on screen |
+| `actions` | action names `performAction` accepts |
+| `settable`, `focused`, `selected`, `disabled` | optional booleans |
+
+## Checking a backend
+
+`nostrings conformance` runs the core of this contract against a backend and
+prints PASS or FAIL per check: hello, ping, permissions, listApps, resolveApp
+(and its `not_found`), launch, windows, axTree, elementFrame (and
+`stale_index`), and screenshot size. `--input` adds an Escape key press and
+a click. A new backend started as a command that speaks JSON lines on stdio:
+
+```bash
+nostrings conformance --command "python3 my_backend.py" --app gnome-calculator
+nostrings conformance --command "node test/fake-backend.mjs" --app Fake   # the reference fake
+nostrings conformance --android --serial emulator-5554                    # the Android server
+nostrings conformance                                                     # the macOS helper
+```
+
+[test/fake-backend.mjs](../test/fake-backend.mjs) is the smallest backend
+that passes: one fake app, one window, three elements. Start a port from its
+shape.
 
 ## Background input
 
