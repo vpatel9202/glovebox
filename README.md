@@ -211,8 +211,8 @@ rows on 2026-11-19. "—" means I could not confirm it from those.
 | [open-computer-use](https://github.com/iFurySt/open-computer-use) | macOS, Linux, Windows | one per MCP call; CLI has sequences | — | app state | — | — | npm |
 | [computer-use-mcp](https://github.com/minghinmatthewlam/computer-use-mcp) | macOS 14+ | one per call | element IDs | screenshot and tree per action | — | yes | notarized binary |
 | [cua-driver](https://github.com/trycua/cua) | macOS, Windows, Linux | — | — | — | — | yes | see its docs |
-| [native-devtools-mcp](https://github.com/sh3ll3x3c/native-devtools-mcp) | macOS, Windows, Android, Chrome/Electron | one per call | — | — | — | yes on macOS | see its docs |
-| [OpenComputerUse](https://github.com/IAmJSD/OpenComputerUse) | macOS, Linux, Windows, Android, iOS | one per call, plus `steps` batches | session ids | — | — | yes | see its docs |
+| [native-devtools-mcp](https://github.com/sh3ll3x3c/native-devtools-mcp) | macOS, Windows, Android, Chrome/Electron | one per call | — | — | — | yes on macOS (AX dispatch) | npm |
+| [OpenComputerUse](https://github.com/IAmJSD/OpenComputerUse) | macOS, Linux, Windows, Android, iOS | one per call, plus step lists and recipes | session ids | — | — | yes | Homebrew or a binary |
 | [mobile-mcp](https://github.com/mobile-next/mobile-mcp) | Android, iOS (no desktop) | one per call | — | — | — | n/a | npm |
 
 **Pick something else if** you need Windows or Linux (agent-desktop, cua-driver,
