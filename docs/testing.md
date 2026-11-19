@@ -98,13 +98,16 @@ the fixture's approval skipped (ask-first apps and a locked phone still ask):
 6. `scroll` moves the list past its first row.
 7. The screenshot is in the same pixel space as clicks.
 8. `Back` leaves the app, and the next read fails with `not_visible`.
-9. On the hidden screen (the default on Android 14+): `lastRoute` says
+9. The code screen: `typeText("123456")` into the first of six one-digit
+   boxes fills all six. The web screen (a WebView): the heading reads, the
+   link and the Greet button work, and typed text reaches the page.
+10. On the hidden screen (the default on Android 14+): `lastRoute` says
    `hidden screen`, the phone's top-focused display did not change, and on an
    emulator a hash of the phone's screen (status and navigation bars cropped)
    is the same before and after. On a physical phone the hash is reported,
    not checked, since the user may be using it. Only hashes are kept.
-10. `js_reset` drops the binding.
-11. `getApp(..., {foreground: true})` taps the fixture on the phone's own
+11. `js_reset` drops the binding.
+12. `getApp(..., {foreground: true})` taps the fixture on the phone's own
     screen (it shows there for a moment, then `Back`).
 
 Failure details print only the fixture's labels and error codes, never other

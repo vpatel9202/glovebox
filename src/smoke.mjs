@@ -275,6 +275,23 @@ if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
 JSON.stringify({ got, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
     step("typeText fills a six-box code field", code.got === "code: 123456" && code.back === true, code.error ?? `${code.got}, back on main: ${code.back}`);
 
+    const web = await run(`
+await fx.click((await fx.find({ role: "button", label: "Web screen" })).index);
+await sleep(1000);
+const heading = (await fx.find({ role: "heading" }))?.label;
+await fx.click((await fx.find({ role: "link" })).index);
+const link = (await fx.find({ id: "out" }))?.label;
+await fx.click((await fx.find({ role: "text field" })).index);
+await fx.typeText("glovebox");
+await fx.click((await fx.find({ role: "button", label: "Greet" })).index);
+const greet = (await fx.find({ id: "out" }))?.label;
+await fx.pressKey("Back");
+await sleep(400);
+if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
+JSON.stringify({ heading, link, greet, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
+    step("web content reads (heading, link)", web.heading === "Web fixture", web.error ?? `heading ${web.heading}`);
+    step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
+
     const slid = await run(`
 if (/window "keyboard/.test(await tree())) await fx.pressKey("Back"); // hide the keyboard
 const s = (await tree()).match(/^\\s*\\d+ slider "Slider".*@(\\d+),(\\d+) (\\d+)x(\\d+)/m).slice(1).map(Number);

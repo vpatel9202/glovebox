@@ -69,6 +69,11 @@ public class Main extends Activity {
         codeScreen.setAllCaps(false);
         codeScreen.setOnClickListener(v -> startActivity(new android.content.Intent(this, Code.class)));
         root.addView(codeScreen);
+        Button webScreen = new Button(this);
+        webScreen.setText("Web screen");
+        webScreen.setAllCaps(false);
+        webScreen.setOnClickListener(v -> startActivity(new android.content.Intent(this, Web.class)));
+        root.addView(webScreen);
 
         SeekBar slider = new SeekBar(this);
         slider.setMax(100);

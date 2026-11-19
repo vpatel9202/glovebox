@@ -14,5 +14,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".Code" android:exported="false" />
+        <activity android:name=".Web" android:exported="false" />
     </application>
 </manifest>

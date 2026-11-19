@@ -432,8 +432,9 @@ export class App {
       }
       await this.#pointCursor([x, y]);
       if (press?.index != null && press.actions?.includes("AXPress") && (press.role == null || PRESSABLE.has(press.role))) {
-        await this.#call("performAction", { index: press.index, action: "AXPress" });
-        this.lastRoute = "accessibility";
+        const result = await this.#call("performAction", { index: press.index, action: "AXPress" });
+        // Android taps web content instead, and says so.
+        this.lastRoute = result?.route === "touch" ? `${this.screen === "hidden" ? "hidden screen" : "foreground"} (touch)` : "accessibility";
       } else {
         await this.#deliver("click", { x, y, button, count, mods }, options);
       }

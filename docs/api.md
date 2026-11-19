@@ -222,6 +222,11 @@ await clock.getAXState();
   field holds goes as keys, so a one-time-code row of one-digit boxes that
   moves focus on its own fills box by box: click the first box, then
   `typeText("123456")`.
+- Web content inside apps (WebView) reads with its HTML roles: heading,
+  link, button, text field. `click(index)` on web content taps the
+  element's center, since web content ignores accessibility clicks, and
+  `lastRoute` says `touch`. Every read fetches fresh nodes; the system's
+  cache misses web page updates.
 - System keys for `pressKey`: `Back`, `HomeScreen`, `Recents`,
   `Notifications`, `QuickSettings`, `VolumeUp`, `VolumeDown`, `Menu`. `Home`
   and `End` move the text cursor.

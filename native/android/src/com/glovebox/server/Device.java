@@ -173,9 +173,25 @@ final class Device {
             case "drag":
             case "longPress":
                 return input(method, p);
-            case "performAction":
-                Input.perform(tree().node(p.getInt("index")), p.getString("action"));
+            case "performAction": {
+                AccessibilityNodeInfo n = tree().node(p.getInt("index"));
+                String action = p.getString("action");
+                // Web content (WebView, Chrome) answers an accessibility click
+                // with success and does nothing; tap it instead.
+                if (Tree.isWeb(n) && ("AXPress".equals(action) || "AXShowMenu".equals(action))) {
+                    Rect b = new Rect();
+                    n.getBoundsInScreen(b);
+                    if (b.isEmpty()) throw new Server.Coded("not_visible", "The element is off screen; scroll to it first");
+                    Input input = new Input(automation);
+                    input.display = displayOrThrow(p);
+                    if (input.display == DEFAULT_DISPLAY) keepAwake();
+                    if ("AXPress".equals(action)) input.tap(b.exactCenterX(), b.exactCenterY(), 1);
+                    else input.longPress(b.exactCenterX(), b.exactCenterY(), 0);
+                    return Input.ok("touch");
+                }
+                Input.perform(n, action);
                 return new JSONObject();
+            }
             case "setValue":
                 Input.setText(tree().node(p.getInt("index")), p.optString("value"));
                 return new JSONObject();
@@ -653,16 +669,56 @@ final class Device {
         return new JSONArray().put(w);
     }
 
+    // The accessibility cache misses some updates (web content changes in a
+    // WebView among them), so a read can show text the screen no longer has.
+    // Clearing it makes the next read fetch fresh nodes.
+    private static Method clearCache;
+
+    private void clearAccessibilityCache() {
+        try {
+            if (clearCache == null) {
+                clearCache = UiAutomation.class.getDeclaredMethod("clearCache");
+                clearCache.setAccessible(true);
+            }
+            clearCache.invoke(automation);
+        } catch (Throwable e) {
+            // Older releases: reads may lag behind web content.
+        }
+    }
+
     private JSONObject axTree(JSONObject p, int d) throws Exception {
         String pkg = p.getString("pid");
+        long t0 = android.os.SystemClock.uptimeMillis();
+        if (!p.optBoolean("cached")) clearAccessibilityCache();
         List<AccessibilityWindowInfo> shown = appWindows(pkg, d);
         AccessibilityWindowInfo app = shown.get(shown.size() - 1);
         CharSequence title = app.getTitle();
         Tree.Walk walk = tree().walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200), p.optBoolean("keyboard", false));
+        // A WebView builds its accessibility tree only once a service asks for
+        // it: the first read finds an empty web area. Give it a moment.
+        for (int retry = 0; retry < 4 && emptyWebArea(walk.nodes); retry++) {
+            sleep(250);
+            for (AccessibilityWindowInfo w : shown) {
+                AccessibilityNodeInfo root = w.getRoot();
+                if (root != null) root.refresh();
+            }
+            walk = tree().walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200), p.optBoolean("keyboard", false));
+        }
         return new JSONObject()
+                .put("ms", android.os.SystemClock.uptimeMillis() - t0)
                 .put("window", new JSONObject().put("windowId", d).put("title", title == null ? pkg : title.toString()))
                 .put("nodes", walk.nodes)
                 .put("truncated", walk.truncated);
+    }
+
+    private static boolean emptyWebArea(JSONArray nodes) throws Exception {
+        for (int i = 0; i < nodes.length(); i++) {
+            JSONObject n = nodes.getJSONObject(i);
+            if (!"AXWebArea".equals(n.optString("role"))) continue;
+            boolean last = i + 1 == nodes.length();
+            if (last || nodes.getJSONObject(i + 1).getInt("d") <= n.getInt("d")) return true;
+        }
+        return false;
     }
 
     private JSONObject hitTest(String pkg, int d, double x, double y) throws Exception {

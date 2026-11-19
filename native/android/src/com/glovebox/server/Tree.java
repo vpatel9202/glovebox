@@ -123,7 +123,17 @@ final class Tree {
     }
 
     private void visit(AccessibilityNodeInfo n, int depth, Walk walk, int maxNodes, int maxDepth, int maxText) throws Exception {
+        visit(n, depth, walk, maxNodes, maxDepth, maxText, null);
+    }
+
+    private void visit(AccessibilityNodeInfo n, int depth, Walk walk, int maxNodes, int maxDepth, int maxText, String parentLabel) throws Exception {
         if (n == null || !n.isVisibleToUser()) return;
+        // A plain text that only repeats its parent's label (the text inside
+        // a link or button) adds nothing.
+        if (parentLabel != null && n.getChildCount() == 0 && !n.isClickable() && !n.isEditable()
+                && n.getText() != null && parentLabel.contentEquals(n.getText())) {
+            return;
+        }
         if (walk.nodes.length() >= maxNodes) {
             walk.truncated = true;
             return;
@@ -137,7 +147,35 @@ final class Tree {
             childDepth = depth + 1;
         }
         if (depth >= maxDepth) return;
-        for (int i = 0; i < n.getChildCount(); i++) visit(n.getChild(i), childDepth, walk, maxNodes, maxDepth, maxText);
+        String label = n.getText() != null && n.getText().length() > 0 ? n.getText().toString()
+                : n.getContentDescription() != null && n.getContentDescription().length() > 0 ? n.getContentDescription().toString() : null;
+        for (int i = 0; i < n.getChildCount(); i++) visit(n.getChild(i), childDepth, walk, maxNodes, maxDepth, maxText, emit ? label : parentLabel);
+    }
+
+    // Web content (WebView, Chrome) names each node's HTML role in an extra;
+    // its class names are generic.
+    static boolean isWeb(AccessibilityNodeInfo n) {
+        android.os.Bundle extras = n.getExtras();
+        return extras != null && extras.getString("AccessibilityNodeInfo.chromeRole") != null;
+    }
+
+    private static String webRole(AccessibilityNodeInfo n) {
+        android.os.Bundle extras = n.getExtras();
+        String chrome = extras == null ? null : extras.getString("AccessibilityNodeInfo.chromeRole");
+        if (chrome == null) return null;
+        switch (chrome) {
+            case "link": return "AXLink";
+            case "heading": return "AXHeading";
+            case "button": case "toggleButton": return "AXButton";
+            case "checkBox": case "switch": return "AXCheckBox";
+            case "radioButton": return "AXRadioButton";
+            case "comboBoxSelect": case "popUpButton": case "comboBoxMenuButton": return "AXPopUpButton";
+            case "image": case "img": return "AXImage";
+            case "list": case "listBox": return "AXList";
+            case "rootWebArea": return "AXWebArea";
+            case "staticText": case "inlineTextBox": return "AXStaticText";
+            default: return null;
+        }
     }
 
     private static boolean meaningful(AccessibilityNodeInfo n) {
@@ -216,6 +254,8 @@ final class Tree {
             return n.isPassword() ? "AXSecureTextField" : "AXTextField";
         }
         if (simple.equals("WebView")) return "AXWebArea";
+        String web = webRole(n);
+        if (web != null) return web;
         if (simple.equals("CheckBox") || simple.equals("CheckedTextView")) return "AXCheckBox";
         if (simple.contains("Switch") || simple.equals("ToggleButton")) return "AXCheckBox";
         if (simple.equals("RadioButton")) return "AXRadioButton";
