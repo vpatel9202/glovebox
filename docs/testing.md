@@ -16,8 +16,14 @@ Nothing in the smoke test is mocked.
 - `glovebox smoke --full` with Firefox frontmost the whole time: background
   keys in Calculator; in TextEdit, a pixel click placed the caret, a drag
   selected a line, a scroll moved the view; the frontmost app never changed.
-- The approval dialog, a blocked app (Terminal) being refused, and Escape to
-  stop a script.
+- The approval dialog and Escape to stop a script. (Terminal used to be
+  refused outright; since 2026-11-19 it is ask first.)
+- `glovebox smoke --macos`, 2026-11-19: all 37 checks pass on the fixture
+  app (below). By hand the same day: Control Center read through
+  `gb.menuExtra("Control Center")`, Notification Center through
+  `gb.notifications()`, Chrome page content after the first read, VS Code
+  Insiders' full tree (about 3,700 elements), background typing in Chrome's
+  address bar.
 
 The Grok, OpenCode, and Codex configs in `agents.md` follow each client's
 documented MCP format but have not been exercised end to end yet.
@@ -190,3 +196,24 @@ and pinch and rotate) passes on API 34, 35, 36 and 37. The run found:
 - On API 37 (the Play Store image) the "phone's screen did not change"
   check failed in two runs out of three; when it fails, the smoke now
   reports the changed region.
+
+## macOS capability test
+
+```bash
+glovebox smoke --macos [--keep]
+```
+
+Builds Glovebox Fixture (`native/macos/fixture`, ad hoc signed into
+`~/.glovebox`) and drives it over MCP. The fixture logs every event it gets to
+`~/.glovebox/fixture.log`, and each check reads that log, so no model is
+involved. Checks, in order: labeled form fields; web content; menu bar and
+submenu items; a menu shortcut in the background; `select` on a pop-up;
+`contextMenu`; checkbox; typing accents, emoji and CJK; `paste` (the clipboard
+is kept in the helper and put back); typing into and clicking web content;
+press and hold; double, right and middle click; scroll; pinch and rotate;
+window move, resize, minimize and restore; a new window and the read's notice;
+a sheet; an alert; hide and unhide; then a check that the frontmost app never
+changed. The last checks use the foreground route on purpose: drop a file,
+hover, an open panel, a save panel, then a whole-screen screenshot, the
+window list, menu bar extras, and quitting the app. `--keep` leaves the
+fixture running. The fixture never writes files.

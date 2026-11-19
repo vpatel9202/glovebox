@@ -41,6 +41,14 @@ The loop:
    `[x, y]` pixels from that screenshot; they are the same pixels the image
    shows. `getAXState({frames: true})` gives element boxes in that same space.
 
+On macOS a few calls save a lot of steps: `app.menu("File > Export…")` for
+menu items, `app.select(popup, "Blue")` and `app.contextMenu(el, "Rename")`
+to pick from menus, `app.window().resize(w, h)`, `app.choosePath(path)` in
+open and save panels, and `app.paste(text)` for long text. Beyond one app:
+`gb.windows()` finds an unexpected dialog's owner, `gb.menuExtra("Control
+Center")`, `gb.notifications()`, `gb.spotlight("Name")`. `help("macOS")`
+lists them. Call `gb.quitLaunched()` when done with apps you opened.
+
 Keys use xdotool syntax: `Return`, `Tab`, `Escape`, `ctrl+a`, `shift+Tab`,
 `super+c` (Cmd on macOS). `typeText` treats `\n` as Return. Input stays in
 the background: the app is not brought forward and the user's cursor does

@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+- macOS: nothing is blocked any more. Terminals, System Settings, password
+  managers, messaging and scripting apps are ask first: they always show the
+  dialog, even under `allow-all`, and `glovebox allow` skips it. An
+  unanswered dialog denies after two minutes. `askFirst` in the config adds
+  apps. The one refused target is the helper's own dialogs.
+- macOS: menus (`app.menus`, `app.menu`), menu shortcuts that work on a
+  background app, `app.select` and `app.contextMenu` (open and pick in one
+  step, so the user's typing never lands in an open menu), window controls
+  (`app.window(i).move/resize/minimize/restore/zoom/fullScreen/close`),
+  `app.quit/hide/unhide`, `gb.quitLaunched()`, hover, press and hold, middle
+  click, trackpad pinch and rotate, `app.paste`, `app.choosePath` for open
+  and save panels, `app.dropFiles`, `app.open`, and window-opened notices in
+  reads. Fields are named by their labels.
+- macOS: Chrome, Edge and Electron apps (VS Code, Slack...) now show their web
+  content and editors in reads.
+- macOS: the rest of the Mac. `gb.windows`, `gb.screenshot` and `gb.ocr` for
+  the whole screen, `gb.menuExtras`/`gb.menuExtra` for the menu bar and
+  Control Center, `gb.notifications`, system-wide `gb.pressKey`/`gb.typeText`
+  and `gb.spotlight`, `gb.clipboard`, `gb.open`, `gb.displays`. Each asks
+  first under its own `macos:` key.
+- macOS: a background click on a window that is not key makes it key first,
+  so the click lands.
+- `glovebox smoke --macos`: 37 checks on a new test app, Glovebox Fixture.
+- `glovebox signing --trust`: asks for the keychain password once, so helper
+  rebuilds stop asking.
 - Android (experimental): `gb.device()` drives Android phones and emulators
   over ADB with a shell-privileged server. Apps run on a hidden screen, so
   the user's screen is not touched (API 34+); the phone's own screen is the
