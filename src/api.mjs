@@ -945,6 +945,8 @@ export class App {
     this.#requireMac("dropFiles");
     const list = [].concat(paths).map(String);
     return this.#act("dropFiles", { target: describeTarget(target), files: list.length }, async () => {
+      // The drop lands on whatever window is on top at that point.
+      await this.#activate();
       const [x, y] = await this.#screenPoint(target);
       const result = await this.#call("dropFiles", { x, y, paths: list });
       this.lastRoute = result.route;
