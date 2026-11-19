@@ -202,6 +202,11 @@ Everything here works on the background route unless it says foreground.
 - An app with no windows (the Dock, a menu bar app) still reads: the read
   shows what it has outside windows, in the main display's space.
 - Keys go to an open sheet (dialogs, save and open panels) while it is up.
+- A window on a Space that is not showing (another desktop, or a full-screen
+  window you switched away from) cannot be read; reads fail with
+  `other_space`. `app.activate()` switches there, as a person would.
+- SwiftUI controls (toggles, pickers, sliders, steppers, menus, lists) read
+  and act like AppKit ones.
 - Chromium browsers and Electron apps (Chrome, VS Code, Slack...) build their
   web accessibility tree only for assistive technology; the first read turns
   it on, so their pages and editors read like any other app.
@@ -216,6 +221,9 @@ Everything here works on the background route unless it says foreground.
 - `app.click(target, {button: "middle"})`.
 - `app.pinch(target, {scale})` and `app.rotate(target, {degrees})` send
   trackpad gestures (magnify, rotate) in the background.
+  `app.swipe(from, to)` sends a two-finger trackpad scroll from one point to
+  another; browsers do not take it as back and forward, so use
+  `pressKey("super+[")` and `super+]` for that.
 - A background click on a window that is not key inside its app makes it key
   first, so the click is not spent focusing the window.
 

@@ -45,8 +45,7 @@ gb-1iz.12), in the order they are built:
 
 M0 through M7 are built. `glovebox smoke --macos` passes 37 of 37 checks on
 the fixture app. Rows marked done below ran on this Mac. Still open: other
-displays and Spaces (M8), full screen, a SwiftUI-only app, two-finger swipe,
-and the OS limits list.
+displays (one display here) and the not-tried OS limits below.
 
 ## Phases
 
@@ -157,7 +156,7 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | # | A human can... | glovebox call | Phase |
 |---|---|---|---|
 | 1 | Read and act in AppKit apps | `getAXState`, `click`, `typeText` | done |
-| 2 | ... in SwiftUI apps | same | partial: AppKit fixture and System Settings reads; no SwiftUI-only app driven yet |
+| 2 | ... in SwiftUI apps | same | done 2026-11-19: the fixture's SwiftUI window (toggle, picker, text field, slider, stepper, menu, list, button) in the background |
 | 3 | ... in Safari web pages | same | done |
 | 4 | ... in Chrome web pages | same | done 2026-11-19 |
 | 5 | ... in Electron apps | same | done 2026-11-19: VS Code reads in full; Cmd+Shift+P in the background opens its Command Palette through the menu (Electron fills in shortcuts a few seconds after launch) |
@@ -172,7 +171,7 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | 14 | Pick a file in open/save panels | `app.choosePath` | done 2026-11-19 |
 | 15 | Hover for tooltips and hover menus | `app.hover` | done 2026-11-19 |
 | 16 | Press and hold, middle click | `app.press`, `button: "middle"` | done 2026-11-19 |
-| 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | done for pinch and rotate; two-finger swipe not built |
+| 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | pinch and rotate done; swipe sends a two-finger phased scroll that apps receive, but browsers do not take it as back/forward (use super+[ and super+]) |
 | 18 | See the whole screen | `gb.screenshot`, `gb.ocr`, `gb.windows` | done 2026-11-19 |
 | 19 | Use menu bar extras and Control Center | `gb.menuExtras` | done 2026-11-19 |
 | 20 | Read notifications | `gb.notifications` | done 2026-11-19 |
@@ -181,17 +180,27 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | 23 | Copy and paste | `gb.clipboard`, `app.paste` | done 2026-11-19 |
 | 24 | Open files and links | `gb.open`, `app.open` | done 2026-11-19 |
 | 25 | Drag files into apps | `app.dropFiles` | done 2026-11-19 |
-| 26 | Work on other displays and Spaces | reads and `restore` | M8 |
+| 26 | Work on other displays and Spaces | reads and `restore` | Spaces done 2026-11-19: full screen, then Ctrl+Left; reads say other_space, activate() goes there, restore() leaves full screen. One display here, so other displays are untested |
 | 27 | Type any text (accents, emoji, CJK) | `typeText`, `paste` | done 2026-11-19 |
 | 28 | Respond to system dialogs (permission prompts) | `gb.windows` + `getApp` | M6 |
 | 29 | Read canvases and remote desktops | `ocr`, screenshots | done |
 
 ## OS limits
 
-Things a human can do that synthetic input may not reach. Each is confirmed by
-trying it, and documented with what was seen:
+Things a human can do that synthetic input may not reach, with what was seen
+on 2026-11-19:
 
-- Password and Touch ID prompts from SecurityAgent (secure input).
-- The lock screen and login window.
-- Fields under Secure Event Input (password fields in other apps).
-- Protected content (DRM video) captures black.
+- **Fields under Secure Event Input: no limit.** With the fixture's password
+  field focused and secure input on (`kCGSSessionSecureInputPID` was the
+  fixture), typing reached the field on both routes, 5 of 5 characters.
+- **Two-finger page swipes in browsers: limit.** Phased scroll events reach
+  apps, but Safari did not go back on a synthetic swipe, on either route.
+  `pressKey("super+[")` does the same thing.
+- **Spaces: works, with one step.** A window on a Space that is not showing
+  is invisible to Accessibility; reads fail with `other_space` and
+  `app.activate()` goes there, as a person would.
+- **Not tried, on purpose:** password and Touch ID prompts from SecurityAgent
+  (raising one would put a real password prompt on the user's screen, and
+  agents must not type passwords anyway), the lock screen (locking needs the
+  user's password to come back), and DRM video capture (no protected content
+  at hand). Each is expected to stop synthetic input or capture.

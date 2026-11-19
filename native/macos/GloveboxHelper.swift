@@ -1485,6 +1485,7 @@ func gesture(_ params: [String: Any]) throws -> [String: Any] {
     case "magnify": hidType = 8   // kIOHIDEventTypeZoom
     case "rotate": hidType = 5    // kIOHIDEventTypeRotation
     case "smartMagnify": hidType = 22
+    case "swipe": hidType = 0
     default: throw HelperError("Unknown gesture \(kind)", code: "bad_request")
     }
     post(CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left))
@@ -1498,6 +1499,51 @@ func gesture(_ params: [String: Any]) throws -> [String: Any] {
         if kind == "rotate" { e.setDoubleValueField(CGEventField(rawValue: 114)!, value: value) }
         e.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
         return e
+    }
+    if kind == "swipe" {
+        // A two-finger trackpad swipe is a phased stream of continuous
+        // pixel scroll events; browsers turn a horizontal one into back and
+        // forward. dx, dy: how far the fingers move, in points.
+        let dx = params.double("dx") ?? 0, dy = params.double("dy") ?? 0
+        func scrollEvent(_ sx: Double, _ sy: Double, phase: Int64) -> CGEvent? {
+            let e = CGEvent(scrollWheelEvent2Source: eventSource, units: .pixel, wheelCount: 2, wheel1: Int32(sy.rounded()), wheel2: Int32(sx.rounded()), wheel3: 0)
+            e?.location = point
+            e?.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+            e?.setIntegerValueField(CGEventField(rawValue: 99)!, value: phase)   // scroll phase
+            e?.setIntegerValueField(CGEventField(rawValue: 123)!, value: 0)     // momentum phase
+            e?.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: sy)
+            e?.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis2, value: sx)
+            e?.setIntegerValueField(.scrollWheelEventPointDeltaAxis1, value: Int64(sy.rounded()))
+            e?.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: Int64(sx.rounded()))
+            e?.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            return e
+        }
+        func send(_ e: CGEvent?) {
+            guard let e = e else { return }
+            if let route = backgroundRoute { route.postScroll(e) } else { e.post(tap: .cghidEventTap) }
+        }
+        // The trackpad wraps its scrolls in gesture events (type 29, scroll).
+        func gestureEvent(phase: Int64) -> CGEvent? {
+            guard let e = CGEvent(source: eventSource) else { return nil }
+            e.location = point
+            e.setIntegerValueField(CGEventField(rawValue: 55)!, value: 29)
+            e.setIntegerValueField(CGEventField(rawValue: 110)!, value: 6)
+            e.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
+            e.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            return e
+        }
+        let per = (dx / Double(steps), dy / Double(steps))
+        send(gestureEvent(phase: 1))
+        send(scrollEvent(0, 0, phase: 128))                                     // may begin
+        send(scrollEvent(0, 0, phase: 1))                                       // began
+        usleep(useconds_t(ms * 1000 / steps))
+        for _ in 0..<steps {
+            send(scrollEvent(per.0, per.1, phase: 2))                           // changed
+            usleep(useconds_t(ms * 1000 / steps))
+        }
+        send(scrollEvent(0, 0, phase: 4))                                       // ended
+        send(gestureEvent(phase: 4))
+        return [:]
     }
     if kind == "smartMagnify" {
         post(event(phase: 0, value: 0))

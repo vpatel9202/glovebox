@@ -471,6 +471,7 @@ export async function runMacSmoke({ keep = false, foreground = true } = {}) {
     await check("new window, from the menu", `await fx.menu("File > New Window")`, "window.new");
     const notice = await run(`await fx.getAXState()`);
     step("read notes the window that opened", /\(windows: .*opened/.test(notice.text), notice.text.split("\n").slice(-2).join(" "));
+    await check("close a window", `await fx.window((await fx.windows()).find((w) => /Fixture Window/.test(w.title)).index).close()`, "window.closed", (e) => /Fixture Window/.test(e.title));
     await check("sheet: open, type, OK", `await fx.click((await fx.find({label: "Show Sheet"})).index); await fx.expect({id: "sheetField"}); await fx.click((await fx.find({id: "sheetField"})).index); await fx.typeText("in sheet"); await fx.click((await fx.find({role: "button", label: "OK"})).index)`, "sheet", (e) => e.result === "OK" && e.text === "in sheet");
     await check("alert: pick a button", `await fx.click((await fx.find({label: "Show Alert"})).index); await fx.click((await fx.expect({role: "button", label: "Discard"})).index)`, "alert", (e) => e.result === "Discard");
     await check("hide and unhide the app", `await fx.hide(); await sleep(300); await fx.unhide()`, "app.unhidden");

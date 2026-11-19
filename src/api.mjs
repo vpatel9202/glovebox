@@ -781,7 +781,17 @@ export class App {
 
   // Touch screens (Android): a finger swipe with no long press first, for
   // pagers, sheets and lists. `ms` is how long the finger moves.
+  // macOS: a two-finger trackpad swipe starting at `from` with the fingers
+  // ending at `to` (a swipe to the right goes back in browsers).
   async swipe(from, to, options = {}) {
+    if (this.platform === "macos") {
+      return this.#act("swipe", { path: `${describeTarget(from)} -> ${describeTarget(to)}` }, async () => {
+        const [x, y] = await this.#screenPoint(from);
+        const [x2, y2] = await this.#screenPoint(to);
+        await this.#pointCursor([x, y]);
+        await this.#deliver("gesture", { x, y, kind: "swipe", dx: x2 - x, dy: y2 - y, ms: options.ms ?? 300, steps: 12 }, options);
+      });
+    }
     return this.#act("swipe", { path: `${describeTarget(from)} -> ${describeTarget(to)}` }, async () => {
       const path = [await this.#screenPoint(from), await this.#screenPoint(to)];
       await this.#deliver("drag", { path, hold: false, ms: options.ms ?? 300 }, options);
