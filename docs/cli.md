@@ -13,13 +13,14 @@ A failing command exits with status 1.
 | Command | What it does |
 |---|---|
 | `glovebox setup [--rebuild] [--restart]` | Builds Glovebox Helper if it is missing or its source changed, then walks through Accessibility and Screen Recording, one at a time, and offers Input Monitoring. Exits 1 if the first two are not granted. macOS only. |
-| `glovebox signing [--create]` | Reports whether the local signing certificate exists. With `--create`, makes it in the login keychain. Run `setup --rebuild` afterwards to re-sign. macOS only. |
+| `glovebox signing [--create] [--trust]` | Reports whether the local signing certificate exists. With `--create`, makes it in the login keychain. Run `setup --rebuild` afterwards to re-sign. With `--trust`, asks for the login keychain password once (or reads `GLOVEBOX_KEYCHAIN_PASSWORD`) so codesign stops asking on every rebuild; glovebox does not keep the password. macOS only. |
 | `glovebox doctor` | Checks Node (20.10+), the config, the helper build, that the helper answers, background input, Accessibility, Screen Recording, and Input Monitoring. Exits 1 on any `FAIL`. |
 | `glovebox mcp` | Runs the stdio MCP server (tools `js`, `js_reset`). |
 | `glovebox run [code] [-f file] [-s name] [-t title] [--timeout ms]` | Runs a script in a persistent CLI session and prints the result. |
 | `glovebox reset [-s name]` | Drops a CLI session's bindings. |
 | `glovebox stop` | Stops the CLI daemon and every session in it. |
 | `glovebox smoke [--full]` | End-to-end test on Calculator. See `testing.md`. |
+| `glovebox smoke --macos [--keep] [--background-only]` | Every macOS capability, on the Glovebox Fixture test app. `--background-only` skips the checks that move the real pointer. |
 | `glovebox allow <app>...` | Adds apps to `allow`, and removes them from `deny`. |
 | `glovebox deny <app>...` | Adds apps to `deny`, and removes them from `allow`. |
 | `glovebox revoke <app>...` | Removes apps from both lists. |
@@ -55,7 +56,7 @@ Notes:
 - `allow`, `deny`, and `revoke` match names and bundle ids case-insensitively,
   rewrite `config.json`, and do not affect approvals a running session already
   holds. Use `glovebox reset` or `js_reset` to make a session re-check.
-- `approval allow-all` prints a warning: every app except the blocked ones is
+- `approval allow-all` prints a warning: every app except the ask-first ones is
   then controllable without asking.
 - `setup` and `signing` are macOS only; elsewhere they exit with an error.
 
@@ -82,8 +83,9 @@ merged key by key; arrays and scalars replace the default.
 
 | Key | Default | Meaning |
 |---|---|---|
-| `approval` | `"ask"` | `ask`: native dialog on first use of each app per session. `allowlist`: never prompt; only apps in `allow` work. `allow-all`: no prompts; blocked apps still need `allow`. |
-| `allow` | `[]` | App names or bundle ids that are always approved. Also unlocks blocked apps. |
+| `approval` | `"ask"` | `ask`: native dialog on first use of each app per session. `allowlist`: never prompt; only apps in `allow` work. `allow-all`: no prompts, except for ask-first apps (terminals, System Settings, password managers, messaging), which still ask unless on `allow`. |
+| `allow` | `[]` | App names or bundle ids that are always approved, ask-first apps included. |
+| `askFirst` | `[]` | More apps that always ask, even under `allow-all`. |
 | `deny` | `[]` | App names or bundle ids that are always refused. Wins over `allow`. |
 | `input` | `"background"` | `background`: input reaches apps without focusing them, with a foreground fallback. `foreground`: always bring the app forward. |
 | `foregroundApps` | `[]` | App names or bundle ids that always use the foreground route. |
@@ -103,7 +105,7 @@ merged key by key; arrays and scalars replace the default.
 
 `screenshot.maxLongSide` and `maxPixels` set the image scale; see "Coordinates
 and images" in `design.md`. Check order for each app: `deny`, `allow`, the
-blocked list (`SECURITY.md`), then `approval`.
+ask-first list (`SECURITY.md`), then `approval`.
 
 When changes apply: the session process reloads the config before every call,
 and the helper reads it on every approval check. The CLI daemon reads it once

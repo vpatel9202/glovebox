@@ -18,7 +18,7 @@ Usage:
   glovebox reset [--session name]   Drop a CLI session's bindings
   glovebox stop                     Stop the CLI daemon and its sessions
   glovebox smoke [--full]           Batched, persistent smoke test on Calculator
-  glovebox smoke --macos [--keep]   Every macOS capability, on the Glovebox Fixture app
+  glovebox smoke --macos [--keep] [--background-only]  Every macOS capability, on Glovebox Fixture
                                     (--full adds background click/drag/scroll in TextEdit)
   glovebox smoke --android [--serial s] [--keep]
                                     The same on a phone or emulator, with a test app
@@ -206,6 +206,7 @@ async function main() {
       create: { type: "boolean" },
       trust: { type: "boolean" },
       macos: { type: "boolean" },
+      "background-only": { type: "boolean" },
       full: { type: "boolean" },
       android: { type: "boolean" },
       serial: { type: "string" },
@@ -265,7 +266,7 @@ async function main() {
     }
     case "smoke": {
       const { runSmoke, runAndroidSmoke, runMacSmoke } = await import("../src/smoke.mjs");
-      const passed = flags.android ? await runAndroidSmoke({ serial: flags.serial, keep: flags.keep }) : flags.macos ? await runMacSmoke({ keep: flags.keep }) : await runSmoke({ full: flags.full });
+      const passed = flags.android ? await runAndroidSmoke({ serial: flags.serial, keep: flags.keep }) : flags.macos ? await runMacSmoke({ keep: flags.keep, foreground: !flags["background-only"] }) : await runSmoke({ full: flags.full });
       process.exitCode = passed ? 0 : 1;
       return;
     }

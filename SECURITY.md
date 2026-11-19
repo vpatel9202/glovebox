@@ -18,6 +18,9 @@ computer. Treat it with the same care as giving someone remote control.
   not one app (the whole screen, the clipboard, notifications, the Dock and
   menu bar, opening files) are ask first too. An app on the `deny` list is
   refused even if it is also allowed.
+- **System-wide keys ask twice.** `gb.pressKey` and `gb.typeText` go to
+  whatever app is in front, so they need `macos:system` and that app's
+  approval too.
 - **Unanswered dialogs deny.** A dialog nobody answers denies after two
   minutes, so an unattended agent cannot wait on it forever.
 - **Taking over stops a script.** If a script had to bring an app forward and

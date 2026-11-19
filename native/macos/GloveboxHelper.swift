@@ -601,9 +601,10 @@ func hitTest(_ params: [String: Any]) throws -> [String: Any] {
     if Int(elementPid) != pid {
         // Something of another app is on top there (a menu bar extra, an
         // overlay). Say whose, with its index in that app's table.
-        var out: [String: Any] = ["foreign": true, "pid": Int(elementPid), "role": axRole(element), "title": axTitle(element), "index": table(Int(elementPid)).index(of: element)]
+        // Only whose it is: its content belongs to an app this session may
+        // not be approved for (elementAtPoint, under macos:screen, says more).
+        var out: [String: Any] = ["foreign": true, "pid": Int(elementPid), "role": axRole(element)]
         if let app = NSRunningApplication(processIdentifier: elementPid) { out["app"] = app.localizedName ?? ""; out["bundleId"] = app.bundleIdentifier ?? "" }
-        if let frame = axFrame(element) { out["frame"] = rectJSON(frame) }
         return out
     }
     var out: [String: Any] = ["index": table(pid).index(of: element), "role": (axAttr(element, kAXRoleAttribute) as String?) ?? "AXUnknown"]
@@ -2248,7 +2249,13 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
     case "allWindows": return allWindows(params)
     case "screenCapture": return try screenCapture(params)
     case "menuExtras": return menuExtras(params)
-    case "systemKeys": return try systemKeys(params)
+    case "systemKeys":
+        // System-wide keys land in whatever is in front, so that app must be
+        // approved too (a terminal in front asks first).
+        if let front = NSWorkspace.shared.frontmostApplication, let id = front.bundleIdentifier, front.processIdentifier != getpid() {
+            try authorize(connection, bundleId: id, name: front.localizedName ?? id, reason: "System-wide keys go to the app in front.")
+        }
+        return try systemKeys(params)
     case "clipboard": return try clipboard(params)
     case "pasteStash": return try pasteStash(params)
     case "open": return try openTarget(connection, params)
