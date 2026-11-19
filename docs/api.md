@@ -270,7 +270,11 @@ await clock.getAXState();
   (`hidden screen (set-text)`, `foreground (keys)`). Text longer than the
   field holds goes as keys, so a one-time-code row of one-digit boxes that
   moves focus on its own fills box by box: click the first box, then
-  `typeText("123456")`.
+  `typeText("123456")`. Any characters (accents, emoji, CJK) work in
+  fields that take text directly, web page fields included; a field that
+  refuses it takes only what the key map has, and other text fails with
+  `bad_key`. The clipboard is never used: Android shows clipboard changes
+  on the phone's screen.
 - A button or checkbox with no name of its own is named by the text inside
   it (Compose apps put a control's text on child nodes), so
   `find({role: "button", label: "All contacts"})` works there too.

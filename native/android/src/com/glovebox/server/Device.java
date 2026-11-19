@@ -1064,9 +1064,50 @@ final class Device {
             AccessibilityNodeInfo root = w.getRoot();
             if (root == null) continue;
             AccessibilityNodeInfo focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
-            if (focus != null) return focus;
+            if (focus == null) continue;
+            // A WebView reports itself as focused; the field with focus is
+            // one of its virtual nodes.
+            if (!focus.isEditable()) {
+                AccessibilityNodeInfo inner = focusedEditableIn(focus);
+                if (inner != null) return inner;
+            }
+            return focus;
         }
         return null;
+    }
+
+    private static AccessibilityNodeInfo focusedEditableIn(AccessibilityNodeInfo root) {
+        java.util.ArrayDeque<AccessibilityNodeInfo> queue = new java.util.ArrayDeque<>();
+        queue.add(root);
+        int seen = 0;
+        while (!queue.isEmpty() && seen++ < 3000) {
+            AccessibilityNodeInfo n = queue.poll();
+            if (n != root && n.isEditable() && n.isFocused()) return n;
+            for (int i = 0; i < n.getChildCount(); i++) {
+                AccessibilityNodeInfo c = n.getChild(i);
+                if (c != null) queue.add(c);
+            }
+        }
+        return null;
+    }
+
+    // Whether an editable field on display `d` holds `text`.
+    private boolean editableHolding(int d, String text) {
+        java.util.ArrayDeque<AccessibilityNodeInfo> queue = new java.util.ArrayDeque<>();
+        for (AccessibilityWindowInfo w : displayWindows(d)) {
+            AccessibilityNodeInfo root = w.getRoot();
+            if (root != null) queue.add(root);
+        }
+        int seen = 0;
+        while (!queue.isEmpty() && seen++ < 3000) {
+            AccessibilityNodeInfo n = queue.poll();
+            if (n.isEditable() && n.getText() != null && n.getText().toString().contains(text)) return true;
+            for (int i = 0; i < n.getChildCount(); i++) {
+                AccessibilityNodeInfo c = n.getChild(i);
+                if (c != null) queue.add(c);
+            }
+        }
+        return false;
     }
 
     private JSONObject type(String text, int d, Input input) throws Exception {
@@ -1095,6 +1136,11 @@ final class Device {
                 field.refresh();
                 String now = field.getText() == null ? "" : field.getText().toString();
                 if (now.equals(expected)) return Input.ok("set-text");
+                if (now.equals(before)) {
+                    // Web nodes stay stale after refresh(); look again fresh.
+                    clearAccessibilityCache();
+                    if (editableHolding(d, expected)) return Input.ok("set-text");
+                }
                 if (now.equals(before)) {
                     // The field ignored it: fall through to key events.
                 } else {

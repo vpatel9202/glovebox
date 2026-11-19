@@ -285,7 +285,7 @@ const heading = (await fx.find({ role: "heading" }))?.label;
 await fx.click((await fx.find({ role: "link" })).index);
 const link = (await fx.find({ id: "out" }))?.label;
 await fx.click((await fx.find({ role: "text field" })).index);
-await fx.typeText("glovebox");
+await fx.typeText("glovebox é 😀 日本");
 await fx.click((await fx.find({ role: "button", label: "Greet" })).index);
 const greet = (await fx.find({ id: "out" }))?.label;
 await fx.pressKey("Back");
@@ -293,7 +293,7 @@ await sleep(400);
 if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
 JSON.stringify({ heading, link, greet, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
     step("web content reads (heading, link)", web.heading === "Web fixture", web.error ?? `heading ${web.heading}`);
-    step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
+    step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox é 😀 日本" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
 
     const gest = await run(`
 await fx.click((await fx.find({ role: "button", label: "Gesture screen" })).index);
