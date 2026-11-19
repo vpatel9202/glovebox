@@ -20,6 +20,9 @@ import org.json.JSONObject;
 
 final class Input {
     private final UiAutomation automation;
+    // The display events go to: 0 is the phone's screen, anything else a
+    // hidden screen. Set before each request.
+    int display;
 
     Input(UiAutomation automation) {
         this.automation = automation;
@@ -137,6 +140,18 @@ final class Input {
 
     void chord(String key, JSONArray mods) throws Exception {
         Integer global = GLOBAL.get(key);
+        if (global != null && display != 0 && (mods == null || mods.length() == 0)) {
+            // Global actions act on the phone's screen. Back is a key the
+            // hidden screen's app can take; the rest belong to the user's screen.
+            if (!"Back".equals(key)) {
+                throw new Server.Coded("phone_screen_only", key + " acts on the phone's own screen, and this app is on glovebox's hidden screen."
+                        + " Use Back inside the app, or getApp(name, {foreground: true}) to work on the phone's screen.");
+            }
+            long now = SystemClock.uptimeMillis();
+            inject(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD));
+            inject(new KeyEvent(now, now + 20, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0, 0, KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, InputDevice.SOURCE_KEYBOARD));
+            return;
+        }
         if (global != null && (mods == null || mods.length() == 0)) {
             if (!automation.performGlobalAction(global)) throw new Server.Coded("action_failed", key + " did not run");
             return;
@@ -182,7 +197,19 @@ final class Input {
         return KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
     }
 
+    private static java.lang.reflect.Method setDisplayId;
+
     private void inject(android.view.InputEvent e) {
+        if (display != 0) {
+            // A hidden screen's events must say so, or they land on the
+            // user's screen. No way to set it means no input at all.
+            try {
+                if (setDisplayId == null) setDisplayId = android.view.InputEvent.class.getMethod("setDisplayId", int.class);
+                setDisplayId.invoke(e, display);
+            } catch (ReflectiveOperationException failed) {
+                throw new Server.Coded("failed", "Could not address input to the hidden screen on this Android version");
+            }
+        }
         if (!automation.injectInputEvent(e, true)) throw new Server.Coded("failed", "The system rejected an injected input event");
     }
 

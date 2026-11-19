@@ -246,7 +246,8 @@ export class AndroidBackend extends EventEmitter {
   async request(method, params = {}, { timeout = 30_000 } = {}) {
     if (!this.child) await this.connect();
     if (!UNGATED.has(method)) await this.#gate(method, params);
-    const result = await this.#send(method, params, timeout);
+    // A cold start on a hidden screen can take tens of seconds on a slow device.
+    const result = await this.#send(method, params, method === "activate" ? Math.max(timeout, 60_000) : timeout);
     if (method === "listApps") for (const a of result) this.names.set(a.bundleId, a.name);
     if (method === "resolveApp") this.names.set(result.bundleId, result.name);
     return result;
@@ -265,7 +266,7 @@ export class AndroidBackend extends EventEmitter {
     const point = params.path?.[0] ?? (params.x != null ? [params.x, params.y] : null);
     const info = await this.#send(
       "inspect",
-      { pid: pkg, ...(point ? { x: point[0], y: point[1] } : {}), ...(Number.isInteger(params.index) ? { index: params.index } : {}) },
+      { pid: pkg, screen: params.screen, ...(point ? { x: point[0], y: point[1] } : {}), ...(Number.isInteger(params.index) ? { index: params.index } : {}) },
       10_000,
     );
     if (info.locked) await authorizeLocked(common);

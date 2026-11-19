@@ -104,9 +104,20 @@ export class App {
     return this.#view;
   }
 
+  // Android: which screen this handle works on. "hidden" is a private
+  // display only glovebox sees (Android 14+); "phone" is the phone's own
+  // screen, chosen with getApp(name, {foreground: true}) or the
+  // `androidScreen: "phone"` setting.
+  get screen() {
+    if (this.platform !== "android") return null;
+    if (this.foreground || this.#ctx.config.androidScreen === "phone" || !this.#backend.info?.hiddenScreen) return "phone";
+    return "hidden";
+  }
+
   async #call(method, params = {}) {
     this.#ctx.checkAbort();
-    return this.#backend.request(method, { pid: this.pid, ...params });
+    const screen = this.platform === "android" ? { screen: this.screen } : {};
+    return this.#backend.request(method, { pid: this.pid, ...screen, ...params });
   }
 
   async #act(action, detail, fn) {
@@ -431,7 +442,8 @@ export class App {
     await this.#activate();
     const result = await this.#call(method, params);
     // Android says how it got there (touch, keys, set-text).
-    this.lastRoute = result?.route ? `foreground (${result.route})` : "foreground";
+    const where = this.screen === "hidden" ? "hidden screen" : "foreground";
+    this.lastRoute = result?.route ? `${where} (${result.route})` : where;
   }
 
   // Moves the drawn agent cursor to a screen point above the app's window.

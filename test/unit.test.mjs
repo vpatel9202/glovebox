@@ -184,6 +184,27 @@ test("gb.device binds getApp to that device and keeps handles apart", async () =
   assert.deepEqual(calls.map(([p, m]) => `${p}:${m}`), ["macos:resolveApp", "android:resolveApp", "android:resolveApp"]);
 });
 
+test("Android handles use the hidden screen unless told otherwise", async () => {
+  const { createApi } = await import("../src/api.mjs");
+  const sent = [];
+  const device = (hiddenScreen) => ({
+    platform: "android",
+    label: "Phone",
+    info: { hiddenScreen },
+    async request(method, params) {
+      sent.push(params);
+      return { name: params.query, bundleId: params.query, pid: params.query, running: true };
+    },
+  });
+  const make = (dev, config = {}) => createApi({ backend: {}, device: () => dev, config, checkAbort() {}, log() {}, out: { text() {} } });
+  const modern = device(true);
+  assert.equal((await make(modern).device().getApp("com.a")).screen, "hidden");
+  assert.equal((await make(modern).device().getApp("com.b", { foreground: true })).screen, "phone");
+  assert.equal((await make(modern, { androidScreen: "phone" }).device().getApp("com.c")).screen, "phone");
+  // Before Android 14 there is no hidden screen.
+  assert.equal((await make(device(false)).device().getApp("com.d")).screen, "phone");
+});
+
 test("device approval asks first for sensitive apps and never blocks outright", async () => {
   const { authorize, authorizeLocked, isAskFirst } = await import("../src/approval.mjs");
   const asked = [];

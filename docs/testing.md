@@ -98,8 +98,33 @@ the fixture's approval skipped (ask-first apps and a locked phone still ask):
 6. `scroll` moves the list past its first row.
 7. The screenshot is in the same pixel space as clicks.
 8. `Back` leaves the app, and the next read fails with `not_visible`.
-9. `js_reset` drops the binding.
+9. On the hidden screen (the default on Android 14+): `lastRoute` says
+   `hidden screen`, the phone's top-focused display did not change, and on an
+   emulator a hash of the phone's screen (status and navigation bars cropped)
+   is the same before and after. On a physical phone the hash is reported,
+   not checked, since the user may be using it. Only hashes are kept.
+10. `js_reset` drops the binding.
+11. `getApp(..., {foreground: true})` taps the fixture on the phone's own
+    screen (it shows there for a moment, then `Back`).
 
 Failure details print only the fixture's labels and error codes, never other
-screen content. Passed on the API 36 emulator (three runs in a row) and on a
-Galaxy S24 Ultra (One UI 9, Android 17) over wireless debugging.
+screen content. On an emulator, the phone's screen is first set to a static
+settings page, since the home screen's app suggestions change after any
+launch.
+
+Passed (2026-11-18) on the API 34, 35, 36 and 37 emulators and on a Galaxy
+S24 Ultra (One UI 9, Android 17) over wireless debugging. Alongside it, three
+probes ran on each emulator (scripts not in the repo):
+- The user has the fixture open on the phone's screen with "user" typed in
+  its focused field and the keyboard up; the agent opens its own copy on a
+  hidden screen and types there. The user's copy keeps "user", stays in
+  front, and keeps focus.
+- `kill -9` of the server removes every hidden screen and its tasks; top
+  focus stays on the phone's screen.
+- With the phone asleep, opening, reading, tapping and a screenshot on a
+  hidden screen work (glovebox wakes it).
+
+Emulator notes: a fresh boot can show a System UI "not responding" dialog,
+and the Play Store image runs at a load average of 20 to 50 for several
+minutes after boot. Both fail the smoke for reasons outside glovebox; wait,
+or dismiss the dialog first.

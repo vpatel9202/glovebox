@@ -135,8 +135,13 @@ as a length only).
 ## Android
 
 Reads, screenshots, clicks, keys, typing, scrolling, swipes and long presses
-work. Input goes to the phone's screen (the app is brought forward first);
-a hidden-screen route is planned.
+work. On Android 14 (API 34) and later each app runs on its own **hidden
+screen**: a private display only glovebox sees. The phone's own screen keeps
+focus and shows what the user had open, the keyboard stays hidden, and the
+hidden screen and everything on it close when the session ends. `lastRoute`
+starts with `hidden screen`. `gb.device(...).getApp(name, {foreground: true})`
+(or `"androidScreen": "phone"` in the config) works on the phone's own screen
+instead, as on older Android versions.
 
 Approval uses the same `approval`, `allow` and `deny` settings as macOS, with
 a dialog on the Mac (zenity on Linux). Nothing is blocked outright: apps and
@@ -157,10 +162,21 @@ await clock.getAXState();
 - The phone's whole screen is the app's one window (`window 0`). A read shows
   the app and anything on top of it: dialogs, sheets, the keyboard, system
   prompts. The status and navigation bars are left out.
-- An app can only be read while it is on the screen. `getApp` never launches
-  or brings an app forward; a read of an app that is not showing fails with
-  `not_visible`. Call `app.activate()` first, which takes over the phone's
-  screen.
+- `getApp` never launches an app. Call `app.activate()` first: it opens the
+  app on its hidden screen (or, on the phone's screen route, brings it
+  forward there). Until then a read fails with `not_visible`. A copy the user
+  has open on the phone's screen is a separate task and stays as it is.
+- If an app on a hidden screen moves itself to the phone's own screen (some
+  sign-in and system screens do), glovebox stops with `moved_to_phone_screen`
+  rather than follow it.
+- `HomeScreen`, `Recents`, `Notifications` and `QuickSettings` act on the
+  phone's own screen, so on a hidden screen they fail with
+  `phone_screen_only`; `Back` works on both.
+- While the agent works on a hidden screen, the phone stays awake (screen
+  dimmed) until a minute after the last action: an asleep phone runs nothing
+  on a hidden screen. A sleeping phone is woken.
+- Opening an app on a hidden screen counts as using it: the phone's launcher
+  may list it in its suggested or recent apps.
 - `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
 - `click(index)` presses the element through accessibility; `click([x, y])`
   taps. `rightClick` and `app.longPress(target, {ms})` press and hold.

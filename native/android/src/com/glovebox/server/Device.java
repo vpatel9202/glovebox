@@ -49,6 +49,9 @@ final class Device {
     private UiAutomation automation;
     private String connectError;
     final Tree tree = new Tree();
+    // Hidden screens by app (package), made on first use.
+    private final Map<String, Hidden> hidden = new HashMap<>();
+    private HandlerThread frames;
 
     Device() {
         context = systemContext();
@@ -63,6 +66,21 @@ final class Device {
     }
 
     void close() {
+        try {
+            if (awake != null && awake.isHeld()) awake.release();
+        } catch (Throwable ignored) {
+            // Exiting anyway; the lock goes with the process.
+        }
+        synchronized (hidden) {
+            for (Hidden h : hidden.values()) {
+                try {
+                    h.release();
+                } catch (Throwable ignored) {
+                    // Exiting anyway; the display goes with the process.
+                }
+            }
+            hidden.clear();
+        }
         if (automation == null) return;
         try {
             Method disconnect = UiAutomation.class.getDeclaredMethod("disconnect");
@@ -89,23 +107,25 @@ final class Device {
                 return listApps();
             case "resolveApp":
                 return resolveApp(p.getString("query"));
-            case "isActive":
-                return new JSONObject().put("active", p.optString("pid").equals(topPackage()));
+            case "isActive": {
+                int d = displayFor(p, false);
+                if (d > DEFAULT_DISPLAY) return new JSONObject().put("active", onHidden(p.getString("pid"), d));
+                return new JSONObject().put("active", d >= 0 && p.optString("pid").equals(topPackage(d)));
+            }
             case "activate":
-                activate(p.getString("pid"));
-                return new JSONObject();
+                return activate(p.getString("pid"), displayFor(p, true));
             case "windows":
-                return windows(p.getString("pid"));
+                return windows(p.getString("pid"), displayOrThrow(p));
             case "axTree":
-                return axTree(p);
+                return axTree(p, displayOrThrow(p));
             case "elementFrame":
                 return new JSONObject().put("frame", Tree.frame(tree.node(p.getInt("index"))));
             case "actionNames":
                 return new JSONObject().put("actions", Tree.actions(tree.node(p.getInt("index"))));
             case "hitTest":
-                return hitTest(p.getString("pid"), p.getDouble("x"), p.getDouble("y"));
+                return hitTest(p.getString("pid"), displayOrThrow(p), p.getDouble("x"), p.getDouble("y"));
             case "screenshot":
-                return screenshot(p);
+                return screenshot(p, displayOrThrow(p));
             case "keys":
             case "type":
             case "click":
@@ -148,7 +168,7 @@ final class Device {
     }
 
     private JSONObject hello() throws Exception {
-        Point size = displaySize();
+        Point size = displaySize(DEFAULT_DISPLAY);
         return new JSONObject()
                 .put("version", Server.VERSION)
                 .put("platform", "android")
@@ -160,7 +180,73 @@ final class Device {
                 .put("display", new JSONArray().put(size.x).put(size.y))
                 .put("accessibility", automation != null)
                 .putOpt("error", connectError)
+                .put("hiddenScreen", Build.VERSION.SDK_INT >= Hidden.MIN_SDK)
                 .put("background", new JSONObject());
+    }
+
+    // ---- screens
+
+    // The display a request targets: 0 (the phone's screen) unless it asks
+    // for the app's hidden screen. -1 if that screen does not exist yet and
+    // `create` is false.
+    private int displayFor(JSONObject p, boolean create) throws Exception {
+        if (!"hidden".equals(p.optString("screen"))) return DEFAULT_DISPLAY;
+        if (Build.VERSION.SDK_INT < Hidden.MIN_SDK) {
+            throw new Server.Coded("hidden_unavailable", "The hidden screen needs Android 14 (API 34) or later");
+        }
+        keepAwake();
+        String pkg = p.getString("pid");
+        synchronized (hidden) {
+            Hidden h = hidden.get(pkg);
+            if (h != null) return h.id;
+            if (!create) return -1;
+            if (frames == null) {
+                frames = new HandlerThread("glovebox-frames");
+                frames.start();
+            }
+            Point size = displaySize(DEFAULT_DISPLAY);
+            int dpi = context.getResources().getDisplayMetrics().densityDpi;
+            h = new Hidden(context, pkg, size.x, size.y, dpi, new android.os.Handler(frames.getLooper()));
+            hidden.put(pkg, h);
+            return h.id;
+        }
+    }
+
+    private int displayOrThrow(JSONObject p) throws Exception {
+        int d = displayFor(p, false);
+        if (d < 0) {
+            throw new Server.Coded("not_visible", p.optString("pid") + " is not open on its hidden screen yet. Call app.activate() first.");
+        }
+        return d;
+    }
+
+    // While the phone sleeps nothing on a hidden screen runs: launches wait
+    // and reads hang. So hidden-screen work wakes the phone (screen dimmed)
+    // and keeps it awake until a minute after the last request.
+    private android.os.PowerManager.WakeLock awake;
+
+    @SuppressWarnings("deprecation")
+    private void keepAwake() {
+        try {
+            android.os.PowerManager pm = (android.os.PowerManager) context.getSystemService(Context.POWER_SERVICE);
+            if (awake == null) {
+                awake = pm.newWakeLock(android.os.PowerManager.SCREEN_DIM_WAKE_LOCK | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP, "glovebox:hidden-screen");
+                awake.setReferenceCounted(false);
+            }
+            boolean wasAsleep = !pm.isInteractive();
+            awake.acquire(60_000);
+            for (int i = 0; wasAsleep && i < 20 && !pm.isInteractive(); i++) sleep(100);
+            if (wasAsleep) sleep(300); // let the displays resume
+        } catch (Throwable e) {
+            // No wake lock: the request runs and may stall if the phone sleeps.
+        }
+    }
+
+    private Hidden hiddenById(int d) {
+        synchronized (hidden) {
+            for (Hidden h : hidden.values()) if (h.id == d) return h;
+        }
+        return null;
     }
 
     // ---- apps
@@ -181,7 +267,7 @@ final class Device {
 
     private JSONArray listApps() throws Exception {
         PackageManager pm = context.getPackageManager();
-        String top = topPackage();
+        String top = topPackage(DEFAULT_DISPLAY);
         Map<String, String> seen = new HashMap<>();
         for (ResolveInfo r : launchables()) {
             String pkg = r.activityInfo.packageName;
@@ -200,7 +286,7 @@ final class Device {
     private JSONObject resolveApp(String query) throws Exception {
         String q = query.startsWith("pid:") ? query.substring(4) : query;
         PackageManager pm = context.getPackageManager();
-        String top = topPackage();
+        String top = topPackage(DEFAULT_DISPLAY);
         String lower = q.toLowerCase(Locale.ROOT);
         ResolveInfo partial = null;
         for (ResolveInfo r : launchables()) {
@@ -213,21 +299,41 @@ final class Device {
         throw new Server.Coded("not_found", "No installed app matches \"" + query + "\"");
     }
 
-    private void activate(String pkg) throws Exception {
+    private JSONObject activate(String pkg, int d) throws Exception {
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
         if (launch == null || launch.getComponent() == null) throw new Server.Coded("not_found", pkg + " has no launcher activity");
         String component = launch.getComponent().flattenToShortString();
-        // -W waits for the launch to finish, which a cold start needs.
-        Process proc = new ProcessBuilder("am", "start", "-W", "--display", String.valueOf(DEFAULT_DISPLAY), "-n", component)
-                .redirectErrorStream(true).start();
+        if (d != DEFAULT_DISPLAY) {
+            // Already open there: nothing to do (a second launch would add a task).
+            if (onHidden(pkg, d)) return screenInfo(d);
+            Hidden h = hiddenById(d);
+            if (h != null) h.onPhoneAtStart = onPhone(pkg);
+        }
+        // -W waits for the launch to finish, which a cold start needs. Not on a
+        // hidden screen: while the phone sleeps -W never returns, though the
+        // launch itself goes ahead; the window wait below covers it.
+        List<String> cmd = new ArrayList<>(java.util.Arrays.asList("am", "start", "--display", String.valueOf(d)));
+        if (d == DEFAULT_DISPLAY) cmd.add(2, "-W");
+        // On a hidden screen, a task of its own (NEW_TASK | MULTIPLE_TASK), so
+        // a copy the user has open on the phone's screen stays there.
+        if (d != DEFAULT_DISPLAY) cmd.addAll(java.util.Arrays.asList("-f", "0x18000000"));
+        cmd.addAll(java.util.Arrays.asList("-n", component));
+        Process proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         proc.getInputStream().readAllBytes();
         proc.waitFor();
         // The task is on top before its window reaches the accessibility
         // window list; wait for both, so the next read finds the app.
-        for (int i = 0; i < 50; i++) {
-            if (pkg.equals(topPackage())) {
+        // A cold start on a fresh hidden screen can take many seconds on a
+        // slow device; bound the wait by time, not by tries.
+        long deadline = android.os.SystemClock.uptimeMillis() + (d == DEFAULT_DISPLAY ? 5_000 : 25_000);
+        while (android.os.SystemClock.uptimeMillis() < deadline) {
+            if (pkg.equals(topPackage(d)) || d != DEFAULT_DISPLAY) {
                 try {
-                    if (!appWindows(pkg).isEmpty()) return;
+                    List<AccessibilityWindowInfo> shown = appWindows(pkg, d);
+                    if (!shown.isEmpty()) {
+                        settleBounds(pkg, d);
+                        return screenInfo(d);
+                    }
                 } catch (Server.Coded notYet) {
                     // not_visible until the window shows up
                 }
@@ -235,6 +341,47 @@ final class Device {
             Thread.sleep(100);
         }
         throw new Server.Coded("activate_failed", pkg + " did not come to the front");
+    }
+
+    // The open animation scales the window up from its icon (long on
+    // Samsung); bounds read during it are wrong. Wait until they hold still.
+    private void settleBounds(String pkg, int d) {
+        Rect last = null;
+        long deadline = android.os.SystemClock.uptimeMillis() + 3_000;
+        int still = 0;
+        while (still < 3 && android.os.SystemClock.uptimeMillis() < deadline) {
+            List<AccessibilityWindowInfo> shown;
+            try {
+                shown = appWindows(pkg, d);
+            } catch (Server.Coded gone) {
+                return;
+            }
+            Rect now = new Rect();
+            shown.get(shown.size() - 1).getBoundsInScreen(now);
+            still = now.equals(last) ? still + 1 : 0;
+            last = now;
+            sleep(100);
+        }
+    }
+
+    private boolean onHidden(String pkg, int d) {
+        for (AccessibilityWindowInfo w : displayWindows(d)) {
+            if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) return true;
+        }
+        return false;
+    }
+
+    private boolean onPhone(String pkg) {
+        for (AccessibilityWindowInfo w : displayWindows(DEFAULT_DISPLAY)) {
+            if (pkg.equals(windowPackage(w))) return true;
+        }
+        return false;
+    }
+
+    private JSONObject screenInfo(int d) throws Exception {
+        if (d == DEFAULT_DISPLAY) return new JSONObject().put("screen", "phone");
+        Hidden h = hiddenById(d);
+        return new JSONObject().put("screen", "hidden").put("displayId", d).put("imeHidden", h != null && h.imeHidden);
     }
 
     // ---- windows
@@ -268,15 +415,17 @@ final class Device {
     // The app in front: the package that started the top task (its base
     // activity), so an app's screens that belong to another package (Settings'
     // search, a share sheet, a sign-in flow) still count as that app.
-    private String topPackage() {
-        String base = topTaskBase();
-        if (base != null) return base;
-        return topWindowPackage();
+    private String topPackage(int d) {
+        if (d == DEFAULT_DISPLAY) {
+            String base = topTaskBase();
+            if (base != null) return base;
+        }
+        return topWindowPackage(d);
     }
 
-    private String topWindowPackage() {
+    private String topWindowPackage(int d) {
         if (automation == null) return null;
-        for (AccessibilityWindowInfo w : displayWindows(DEFAULT_DISPLAY)) {
+        for (AccessibilityWindowInfo w : displayWindows(d)) {
             if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
                 String pkg = windowPackage(w);
                 if (pkg != null) return pkg;
@@ -301,9 +450,12 @@ final class Device {
     // window above it (dialogs, sheets, the keyboard, system prompts), minus the
     // status and navigation bars. Top first. When `pkg`'s task is in front, its
     // top window counts even if another package drew it.
-    List<AccessibilityWindowInfo> appWindows(String pkg) {
-        List<AccessibilityWindowInfo> all = displayWindows(DEFAULT_DISPLAY);
-        boolean taskInFront = pkg.equals(topTaskBase());
+    // On a hidden screen everything is the app's own task, whatever package
+    // drew it; if the app is gone from it and showing on the phone's screen
+    // instead, that is an error, never a quiet switch to the user's screen.
+    List<AccessibilityWindowInfo> appWindows(String pkg, int d) {
+        List<AccessibilityWindowInfo> all = displayWindows(d);
+        boolean taskInFront = d != DEFAULT_DISPLAY || pkg.equals(topTaskBase());
         int appIndex = -1;
         for (int i = 0; i < all.size(); i++) {
             AccessibilityWindowInfo w = all.get(i);
@@ -313,10 +465,21 @@ final class Device {
                 break;
             }
         }
+        if (appIndex < 0 && d != DEFAULT_DISPLAY) {
+            Hidden h = hiddenById(d);
+            // Moved: on the phone's screen now, and not already there when
+            // glovebox opened it (the user's own copy does not count).
+            if (h != null && !h.onPhoneAtStart && onPhone(pkg)) {
+                throw new Server.Coded("moved_to_phone_screen", pkg + " is showing on the phone's own screen, not on glovebox's hidden screen"
+                        + " (it may have opened a sign-in or system screen there). glovebox stopped rather than follow it; check the phone,"
+                        + " then call app.activate() to start again on the hidden screen.");
+            }
+            throw new Server.Coded("not_visible", pkg + " has closed on its hidden screen. Call app.activate() to open it again.");
+        }
         if (appIndex < 0) {
             throw new Server.Coded("not_visible", pkg + " is not on the screen. Bring it forward with app.activate(), then read again.");
         }
-        Point size = displaySize();
+        Point size = displaySize(d);
         List<AccessibilityWindowInfo> shown = new ArrayList<>();
         for (int i = 0; i <= appIndex; i++) {
             AccessibilityWindowInfo w = all.get(i);
@@ -335,14 +498,14 @@ final class Device {
         return thin && edge;
     }
 
-    private JSONArray windows(String pkg) throws Exception {
-        List<AccessibilityWindowInfo> shown = appWindows(pkg);
+    private JSONArray windows(String pkg, int d) throws Exception {
+        List<AccessibilityWindowInfo> shown = appWindows(pkg, d);
         AccessibilityWindowInfo app = shown.get(shown.size() - 1);
-        Point size = displaySize();
+        Point size = displaySize(d);
         CharSequence title = app.getTitle();
         JSONObject w = new JSONObject()
                 .put("index", 0)
-                .put("windowId", DEFAULT_DISPLAY)
+                .put("windowId", d)
                 .put("title", title == null ? pkg : title.toString())
                 .put("frame", new JSONArray().put(0).put(0).put(size.x).put(size.y))
                 .put("scale", 1)
@@ -352,21 +515,21 @@ final class Device {
         return new JSONArray().put(w);
     }
 
-    private JSONObject axTree(JSONObject p) throws Exception {
+    private JSONObject axTree(JSONObject p, int d) throws Exception {
         String pkg = p.getString("pid");
-        List<AccessibilityWindowInfo> shown = appWindows(pkg);
+        List<AccessibilityWindowInfo> shown = appWindows(pkg, d);
         AccessibilityWindowInfo app = shown.get(shown.size() - 1);
         CharSequence title = app.getTitle();
         Tree.Walk walk = tree.walk(shown, p.optInt("maxNodes", 800), p.optInt("maxDepth", 40), p.optInt("maxText", 200), p.optBoolean("keyboard", false));
         return new JSONObject()
-                .put("window", new JSONObject().put("windowId", DEFAULT_DISPLAY).put("title", title == null ? pkg : title.toString()))
+                .put("window", new JSONObject().put("windowId", d).put("title", title == null ? pkg : title.toString()))
                 .put("nodes", walk.nodes)
                 .put("truncated", walk.truncated);
     }
 
-    private JSONObject hitTest(String pkg, double x, double y) throws Exception {
+    private JSONObject hitTest(String pkg, int d, double x, double y) throws Exception {
         AccessibilityNodeInfo hit = null;
-        for (AccessibilityWindowInfo w : appWindows(pkg)) {
+        for (AccessibilityWindowInfo w : appWindows(pkg, d)) {
             AccessibilityNodeInfo root = w.getRoot();
             if (root == null) continue;
             Rect b = new Rect();
@@ -390,6 +553,8 @@ final class Device {
     // the phone is locked.
     private JSONObject inspect(JSONObject p) throws Exception {
         String pkg = null;
+        int d = displayFor(p, false);
+        if (d >= 0 && d != DEFAULT_DISPLAY) appWindows(p.getString("pid"), d); // throws moved_to_phone_screen
         if (p.has("index")) {
             try {
                 CharSequence c = tree.node(p.getInt("index")).getPackageName();
@@ -397,9 +562,9 @@ final class Device {
             } catch (Server.Coded ignored) {
                 // A stale index fails later, in the action itself.
             }
-        } else if (p.has("x") && automation != null) {
+        } else if (p.has("x") && automation != null && d >= 0) {
             int x = (int) p.getDouble("x"), y = (int) p.getDouble("y");
-            for (AccessibilityWindowInfo w : displayWindows(DEFAULT_DISPLAY)) {
+            for (AccessibilityWindowInfo w : displayWindows(d)) {
                 Rect b = new Rect();
                 w.getBoundsInScreen(b);
                 if (b.contains(x, y)) {
@@ -407,10 +572,10 @@ final class Device {
                     break;
                 }
             }
-        } else if (automation != null) {
-            AccessibilityNodeInfo focus = automation.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+        } else if (automation != null && d >= 0) {
+            AccessibilityNodeInfo focus = inputFocus(d);
             if (focus != null && focus.getPackageName() != null) pkg = focus.getPackageName().toString();
-            if (pkg == null) pkg = topWindowPackage();
+            if (pkg == null) pkg = topWindowPackage(d);
         }
         boolean locked = false;
         try {
@@ -440,9 +605,11 @@ final class Device {
     private JSONObject input(String method, JSONObject p) throws Exception {
         requireAutomation();
         if ("background".equals(p.optString("mode"))) {
-            throw new Server.Coded("background_unavailable", "Android input goes to the phone's screen for now");
+            throw new Server.Coded("background_unavailable", "Android input goes to the app's screen (hidden or the phone's)");
         }
+        int d = displayOrThrow(p);
         if (input == null) input = new Input(automation);
+        input.display = d;
         switch (method) {
             case "keys": {
                 JSONArray chords = p.getJSONArray("chords");
@@ -453,7 +620,7 @@ final class Device {
                 return Input.ok("keys");
             }
             case "type":
-                return type(p.getString("text"));
+                return type(p.getString("text"), d);
             case "click": {
                 float x = (float) p.getDouble("x"), y = (float) p.getDouble("y");
                 if ("right".equals(p.optString("button"))) input.longPress(x, y, 0);
@@ -466,7 +633,7 @@ final class Device {
             case "scroll": {
                 // dy/dx are lines (positive dy: content moves up, as a wheel
                 // scrolls down). One line is 48 dp of finger travel.
-                Point size = displaySize();
+                Point size = displaySize(d);
                 float line = 48f * context.getResources().getDisplayMetrics().density;
                 float x = (float) p.getDouble("x"), y = (float) p.getDouble("y");
                 float tx = clamp(x - (float) p.optDouble("dx", 0) * line, 1, size.x - 2);
@@ -490,8 +657,20 @@ final class Device {
     // Text into the focused field. First the field's own set-text action
     // (no keyboard, any characters), spliced at the selection and read back;
     // if the field is not editable or does not keep it, key events.
-    private JSONObject type(String text) throws Exception {
-        AccessibilityNodeInfo field = automation.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+    // The focused input field on display `d`, found from that display's own
+    // windows: the global input focus may be a field on the user's screen.
+    private AccessibilityNodeInfo inputFocus(int d) {
+        for (AccessibilityWindowInfo w : displayWindows(d)) {
+            AccessibilityNodeInfo root = w.getRoot();
+            if (root == null) continue;
+            AccessibilityNodeInfo focus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+            if (focus != null) return focus;
+        }
+        return null;
+    }
+
+    private JSONObject type(String text, int d) throws Exception {
+        AccessibilityNodeInfo field = inputFocus(d);
         if (field != null && field.isEditable()) {
             boolean hint = Build.VERSION.SDK_INT >= 26 && field.isShowingHintText();
             String before = field.getText() == null || hint ? "" : field.getText().toString();
@@ -524,10 +703,17 @@ final class Device {
 
     // ---- screenshots
 
-    private JSONObject screenshot(JSONObject p) throws Exception {
+    private JSONObject screenshot(JSONObject p, int d) throws Exception {
         requireAutomation();
-        Bitmap full = automation.takeScreenshot();
-        if (full == null) throw new Server.Coded("no_window", "The screen could not be captured (a secure window, or the screen is off)");
+        Bitmap full;
+        if (d == DEFAULT_DISPLAY) {
+            full = automation.takeScreenshot();
+            if (full == null) throw new Server.Coded("no_window", "The screen could not be captured (a secure window, or the screen is off)");
+        } else {
+            Hidden h = hiddenById(d);
+            full = h == null ? null : h.frame();
+            if (full == null) throw new Server.Coded("no_window", "The hidden screen has not drawn anything yet; try again in a moment");
+        }
         int width = p.optInt("width", full.getWidth());
         int height = p.optInt("height", full.getHeight());
         Bitmap scaled = width == full.getWidth() && height == full.getHeight() ? full : Bitmap.createScaledBitmap(full, width, height, true);
@@ -578,7 +764,11 @@ final class Device {
         }
     }
 
-    Point displaySize() {
+    Point displaySize(int d) {
+        if (d != DEFAULT_DISPLAY) {
+            Hidden h = hiddenById(d);
+            if (h != null) return new Point(h.width, h.height);
+        }
         Point size = new Point();
         DisplayManager dm = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
         Display display = dm == null ? null : dm.getDisplay(DEFAULT_DISPLAY);

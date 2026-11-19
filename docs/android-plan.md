@@ -249,6 +249,18 @@ emulator end to end over MCP.
 
 Default or opt-in, depending on Gate A.
 
+**Status (2026-11-18): single-session hidden screen done, and the default on
+API 34+.** Each app handle gets its own display (flags `0x1fdcb`, keyboard
+policy `hide`), launched as its own task (NEW_TASK | MULTIPLE_TASK). Input,
+focus lookup, `Back` and screenshots target that display, with no fallback
+to display 0. A move to display 0 stops with `moved_to_phone_screen`.
+Teardown removes the display's tasks, then the display. A dim-screen wake
+lock covers hidden work, because nothing on a hidden screen runs while the
+phone sleeps. Two findings changed the plan: `am start -W` never returns
+while the phone sleeps, and parallel sessions need a shared server, since a
+phone allows one shell automation connection. That shared server is still
+open.
+
 - One display per session, created with scrcpy's per-API flag choices and
   destroyed with its content on teardown, so agent apps never land on the
   user's screen.
