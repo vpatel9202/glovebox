@@ -95,9 +95,45 @@ final class Device {
         thread.start();
         try {
             automation = connect(thread.getLooper());
+            automation.setOnAccessibilityEventListener(this::onEvent);
         } catch (Throwable e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             connectError = cause.getClass().getSimpleName() + ": " + cause.getMessage();
+        }
+    }
+
+    // ---- change events, for waitForChange
+
+    private final List<Object[]> waiters = new ArrayList<>(); // {package, latch}
+
+    private volatile int eventCount;
+    private volatile String lastEvent = "";
+
+    private void onEvent(android.view.accessibility.AccessibilityEvent e) {
+        CharSequence pkg = e.getPackageName();
+        eventCount++;
+        lastEvent = pkg + " " + android.view.accessibility.AccessibilityEvent.eventTypeToString(e.getEventType());
+        synchronized (waiters) {
+            for (Object[] w : waiters) {
+                if (pkg == null || pkg.toString().equals(w[0])) ((java.util.concurrent.CountDownLatch) w[1]).countDown();
+            }
+        }
+    }
+
+    // Blocks until the app sends an accessibility event (its content,
+    // windows or text changed) or `timeout` ms pass.
+    private JSONObject waitEvent(String pkg, long timeout) throws Exception {
+        java.util.concurrent.CountDownLatch latch = new java.util.concurrent.CountDownLatch(1);
+        Object[] w = {pkg, latch};
+        synchronized (waiters) {
+            waiters.add(w);
+        }
+        try {
+            return new JSONObject().put("event", latch.await(Math.max(0, Math.min(timeout, 30_000)), java.util.concurrent.TimeUnit.MILLISECONDS));
+        } finally {
+            synchronized (waiters) {
+                waiters.remove(w);
+            }
         }
     }
 
@@ -208,6 +244,8 @@ final class Device {
             }
             case "inspect":
                 return inspect(p);
+            case "waitEvent":
+                return waitEvent(p.getString("pid"), p.optLong("timeout", 1000));
             case "cursor":
                 return new JSONObject().put("enabled", false);
             case "forget":
@@ -218,6 +256,16 @@ final class Device {
                 return createDisplay(p);
             case "_displayTree":
                 return displayTree(p);
+            case "_events":
+                return new JSONObject().put("count", eventCount).put("last", lastEvent)
+                        .put("types", automation.getServiceInfo().eventTypes).put("flags", automation.getServiceInfo().flags);
+            case "_tapDisplay": {
+                // Test-only: a tap on any display, as if from outside the session.
+                Input input = new Input(automation);
+                input.display = p.getInt("display");
+                input.tap((float) p.getDouble("x"), (float) p.getDouble("y"), 1);
+                return new JSONObject();
+            }
             case "_removeRecents":
                 return removeRecents(p.getString("pkg"));
             default:

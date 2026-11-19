@@ -272,7 +272,12 @@ export class App {
         this.#waitBase = { ...base, value: base.pixels ? settled.hash : await current() };
         return { changed: true, ms: Date.now() - started, stable: settled.stable };
       }
-      await new Promise((r) => setTimeout(r, interval));
+      // Android: sleep until the app reports a change, not a fixed interval.
+      if (this.platform === "android" && !base.pixels) {
+        await this.#call("waitEvent", { timeout: Math.min(2_000, Math.max(1, timeout - (Date.now() - started))) });
+      } else {
+        await new Promise((r) => setTimeout(r, interval));
+      }
     }
     return { changed: false, ms: Date.now() - started };
   }
