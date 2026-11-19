@@ -35,10 +35,14 @@ export const paths = {
 
 export const DEFAULTS = {
   // ask: native dialog on first use of each app. allowlist: only apps in `allow`.
-  // allow-all: no prompts (explicit opt-in; blocked apps still need `allow`).
+  // allow-all: no prompts, except for ask-first apps (terminals, System
+  // Settings, password managers, ...), which always ask unless on `allow`.
+  // Nothing is blocked outright.
   approval: "ask",
   allow: [],
   deny: [],
+  // More apps (bundle ids, packages) that always ask, on top of the defaults.
+  askFirst: [],
   // background: input reaches apps without focusing them (falls back to
   // foreground when the app or macOS can't take it). foreground: always front.
   input: "background",

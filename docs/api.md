@@ -161,8 +161,10 @@ windows).
 ## Approval and stopping
 
 The first time a session touches an app, the user sees a dialog: Allow for
-This Session, Always Allow, or Deny. Terminals, password managers, and System
-Settings are blocked unless the user runs `glovebox allow <app>`. If a script
+This Session, Always Allow, or Deny. Nothing is blocked: terminals, password
+managers, System Settings and messaging apps always ask, even under
+`allow-all`, unless the user runs `glovebox allow <app>`. A dialog nobody
+answers denies after two minutes (`denied`). If a script
 brought an app forward and the user switches away, the script stops with a
 "Stopped: ..." message. Background scripts keep running while the user works in
 other apps. Escape stops any script, but only when the user has granted Input

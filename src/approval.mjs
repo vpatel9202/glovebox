@@ -49,9 +49,10 @@ export const ASK_FIRST = [
   "com.dashlane",
 ];
 
-export function isAskFirst(pkg) {
+export function isAskFirst(pkg, config = {}) {
   const id = String(pkg).toLowerCase();
-  return ASK_FIRST.some((entry) => (entry.endsWith(".") || entry.endsWith(":") ? id.startsWith(entry) : id === entry));
+  const extra = (config.askFirst ?? []).map((e) => String(e).toLowerCase());
+  return [...ASK_FIRST, ...extra].some((entry) => (entry.endsWith(".") || entry.endsWith(":") ? id.startsWith(entry) : id === entry));
 }
 
 function matches(list, pkg, name) {
@@ -111,7 +112,7 @@ export async function authorize({ pkg, name, client, device, approved, reason, p
     approved.add(pkg);
     return;
   }
-  const askFirst = isAskFirst(pkg);
+  const askFirst = isAskFirst(pkg, config);
   if (!askFirst && config.approval === "allow-all") {
     approved.add(pkg);
     return;
