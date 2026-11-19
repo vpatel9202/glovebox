@@ -158,6 +158,109 @@ windows).
   run an accessibility action such as `"Show Menu"` or `"Increment"`.
 - `app.activate()` brings the app to the front (rarely needed).
 
+## macOS: menus, windows, files, and the rest of the Mac
+
+Everything here works on the background route unless it says foreground.
+`glovebox smoke --macos` checks each item on the Glovebox Fixture test app.
+
+### Menus and pop-ups
+
+- `app.menus(path, {depth, emit})` prints the menu bar, or one menu
+  (`menus(["File"])`, `menus("Edit > Find")`), with each item's shortcut and
+  `disabled` / `checked` flags, and returns the items.
+- `app.menu(["File", "Export…"])` (or `"File > Export"`) presses a menu item
+  through accessibility. Titles match without case or a trailing `…`.
+  `lastRoute` is `menu`.
+- `app.pressKey("super+s")` in the background first looks for the menu item
+  with that shortcut and presses it (`lastRoute` says `menu "Save…"`): shortcut
+  keys sent to a background app never reach its menus. Keys with no menu item
+  go as keys.
+- `app.select(target, item)` opens a pop-up button or menu button and picks
+  `item` (a title, or a path into a submenu) in one step, so the menu is open
+  only for a moment and the user's typing never lands in it. `target` is an
+  index, a point, or a `find()` query: `select({id: "color"}, "Blue")`.
+- `app.contextMenu(target, item)` does the same with the element's context
+  menu (what a right-click shows).
+- Open pop-up and context menus show in reads, after the window.
+
+### Windows and apps
+
+- `app.window(i)` (default: the window reads use) has `move(x, y)` and
+  `resize(w, h)` in screen points, `minimize()`, `restore()` (also leaves
+  full screen), `raise()`, `zoom()`, `fullScreen(on)`, and `close()`. None of
+  them bring the app forward.
+- `app.quit({force})`, `app.hide()`, `app.unhide()`. `quit` returns
+  `{terminated: false}` when the app stays open to ask about unsaved changes;
+  its sheet shows in the next read.
+- `gb.quitLaunched()` quits the apps this session launched (not ones the
+  user had open) and returns `{quit, left}`.
+- A read says when windows opened or closed since the last one:
+  `(windows: window 1 "Untitled" opened; "Find" closed)`.
+- Form fields with a separate label (AppKit forms) are named by it:
+  `text field "Name"`.
+- An app with no windows (the Dock, a menu bar app) still reads: the read
+  shows what it has outside windows, in the main display's space.
+- Keys go to an open sheet (dialogs, save and open panels) while it is up.
+- Chromium browsers and Electron apps (Chrome, VS Code, Slack...) build their
+  web accessibility tree only for assistive technology; the first read turns
+  it on, so their pages and editors read like any other app.
+
+### Pointer
+
+- `app.hover(target)` moves the pointer onto a target for tooltips and hover
+  menus. AppKit tracks the real pointer, so this uses the foreground route
+  (the app comes forward and the real pointer moves); `{background: true}`
+  tries without, which web content in Chromium apps notices.
+- `app.press(target, {ms})` holds the button down (default 800 ms).
+- `app.click(target, {button: "middle"})`.
+- `app.pinch(target, {scale})` and `app.rotate(target, {degrees})` send
+  trackpad gestures (magnify, rotate) in the background.
+- A background click on a window that is not key inside its app makes it key
+  first, so the click is not spent focusing the window.
+
+### Text, files, and the clipboard
+
+- `app.paste(text)` pastes through the clipboard and puts the user's
+  clipboard back: faster than `typeText` for long text, and any characters.
+- `app.choosePath(path, {confirm})` fills in a showing open or save panel:
+  it goes to the folder (Cmd+Shift+G), sets the file name in a save panel,
+  and presses Open or Save unless `{confirm: false}`. Panels run in their own
+  macOS process that takes no background keys, so this is foreground.
+- `app.dropFiles(target, paths)` drags files from this Mac onto a target, as a
+  person would. Foreground: it uses the real pointer, then puts it back.
+  Asks first (`macos:files`).
+- `app.open(pathOrUrl)` opens a file or link in that app, in the background.
+- `gb.open(pathOrUrl, {app, activate})` opens it in the app that handles it
+  (or `app`) and returns that app's handle. Files ask first (`macos:files`).
+- `gb.clipboard.read()` returns `{text, files, image, types}`;
+  `gb.clipboard.write(text)` or `write({files: [paths]})`. Asks first
+  (`macos:clipboard`).
+
+### The whole Mac
+
+These are not one app, so each asks first under its own key.
+
+- `gb.displays()`: `[{index, frame, scale, main, name}]` in screen points.
+- `gb.windows({all})` prints and returns every window on screen, front to
+  back, with its owner `{app, pid, bundleId, title, frame, layer}`. Use it
+  to find a dialog you did not expect (a permission prompt, "downloaded from
+  the internet") and `gb.getApp("pid:N")` its owner. (`macos:screen`)
+- `gb.screenshot({display, format})` captures a whole display; `gb.ocr()`
+  reads its text, each with `screen` coordinates. (`macos:screen`)
+- `gb.menuExtras()` lists the menu bar's extras (Wi-Fi, battery, Control
+  Center, the clock, third-party icons) left to right; `gb.menuExtra(query)`
+  opens one and returns the app whose menu or panel opened: Control Center
+  reads as toggles and sliders. (`macos:system`)
+- `gb.notifications({keepOpen})` opens Notification Center, reads it
+  (`[{app, title, body, when, stacked, index}]`, newest first) and closes it.
+  The result's `center` handle acts on a notification by `index`.
+  (`macos:notifications`)
+- `gb.pressKey(keys)` and `gb.typeText(text)` go system-wide to whatever is
+  in front: `super+space` (Spotlight), `ctrl+Up` (Mission Control),
+  `super+shift+4`. `gb.spotlight(query, {open})` opens an app or file through
+  Spotlight. (`macos:system`)
+- The Dock is an app: `gb.getApp("Dock")`.
+
 ## Approval and stopping
 
 The first time a session touches an app, the user sees a dialog: Allow for
@@ -312,10 +415,13 @@ await clock.getAXState();
 ## Known limits
 
 - **Pop-up menus and your keyboard.** While a background app's pop-up menu is
-  open, macOS menu tracking is system-wide, so what you type goes to that app. A
-  word you type can land in its field. Keep the time the menu is open short: open
-  it and pick the item in one script, with no read in between. A dedicated
-  `app.select(popup, item)` is planned.
+  open, macOS menu tracking is system-wide, so what you type goes to that app.
+  `app.select()` and `app.contextMenu()` open and pick in one step; prefer
+  them to a click on the pop-up followed by a click on the item.
+- **Hover in the background.** AppKit apps see hover only from the real
+  pointer, so `hover()` is foreground by default.
+- **Open and save panels.** They take no background keys; `choosePath()`
+  brings the app forward.
 - **Window controls during background typing.** A target window can show active
   window controls while it receives background keys, even though your app stays
   frontmost and keeps your keyboard.

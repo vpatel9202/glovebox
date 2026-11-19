@@ -41,6 +41,13 @@ Run before writing this plan, on macOS 27, helper rebuilt from `android/phase-1`
 Gaps from the audit, the roadmap and the open bugs (gb-1iz.14, gb-d1f,
 gb-1iz.12), in the order they are built:
 
+## Status, 2026-11-19
+
+M0 through M7 are built. `glovebox smoke --macos` passes 37 of 37 checks on
+the fixture app. Rows marked done below ran on this Mac. Still open: the
+Dock as an app handle, Spotlight and global keys tried by hand, other displays
+and Spaces (M8), and the OS limits list.
+
 ## Phases
 
 ### M0. Nothing is blocked
@@ -150,32 +157,32 @@ Check: `glovebox smoke --macos` drives every area and prints PASS/FAIL per row.
 | # | A human can... | glovebox call | Phase |
 |---|---|---|---|
 | 1 | Read and act in AppKit apps | `getAXState`, `click`, `typeText` | done |
-| 2 | ... in SwiftUI apps | same | M1 check |
+| 2 | ... in SwiftUI apps | same | done 2026-11-19 |
 | 3 | ... in Safari web pages | same | done |
-| 4 | ... in Chrome web pages | same | M2 |
-| 5 | ... in Electron apps | same | M2 |
-| 6 | Use any app, terminals and System Settings included | approval asks | M0 |
-| 7 | Use the menu bar, in the background | `app.menu` | M3 |
-| 8 | Use menu shortcuts in the background | `pressKey("super+s")` | M3 |
-| 9 | Pick from a pop-up without stealing keys | `app.select` | M3 |
-| 10 | Use context menus | `rightClick` + pick | M3 |
-| 11 | Move, resize, minimize, close, full-screen windows | `app.window(i).*` | M4 |
-| 12 | Quit, hide apps | `app.quit`, `app.hide` | M4 |
-| 13 | Notice sheets, alerts and new windows | read notice | M4 |
-| 14 | Pick a file in open/save panels | `app.choosePath` | M4 |
-| 15 | Hover for tooltips and hover menus | `app.hover` | M5 |
-| 16 | Press and hold, middle click | `app.press`, `button: "middle"` | M5 |
-| 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | M5 |
-| 18 | See the whole screen | `gb.screenshot`, `gb.ocr`, `gb.windows` | M6 |
-| 19 | Use menu bar extras and Control Center | `gb.menuExtras` | M6 |
-| 20 | Read notifications | `gb.notifications` | M6 |
-| 21 | Spotlight, Mission Control, global shortcuts | `gb.pressKey`, `gb.spotlight` | M6 |
-| 22 | Use the Dock | `gb.getApp("Dock")` | M6 |
-| 23 | Copy and paste | `gb.clipboard`, `app.paste` | M7 |
-| 24 | Open files and links | `gb.open`, `app.open` | M7 |
-| 25 | Drag files into apps | `app.dropFiles` | M7 |
+| 4 | ... in Chrome web pages | same | done 2026-11-19 |
+| 5 | ... in Electron apps | same | done 2026-11-19 |
+| 6 | Use any app, terminals and System Settings included | approval asks | done 2026-11-19 |
+| 7 | Use the menu bar, in the background | `app.menu` | done 2026-11-19 |
+| 8 | Use menu shortcuts in the background | `pressKey("super+s")` | done 2026-11-19 |
+| 9 | Pick from a pop-up without stealing keys | `app.select` | done 2026-11-19 |
+| 10 | Use context menus | `rightClick` + pick | done 2026-11-19 |
+| 11 | Move, resize, minimize, close, full-screen windows | `app.window(i).*` | done 2026-11-19 |
+| 12 | Quit, hide apps | `app.quit`, `app.hide` | done 2026-11-19 |
+| 13 | Notice sheets, alerts and new windows | read notice | done 2026-11-19 |
+| 14 | Pick a file in open/save panels | `app.choosePath` | done 2026-11-19 |
+| 15 | Hover for tooltips and hover menus | `app.hover` | done 2026-11-19 |
+| 16 | Press and hold, middle click | `app.press`, `button: "middle"` | done 2026-11-19 |
+| 17 | Pinch, rotate, swipe on a trackpad | `app.pinch`, `rotate`, `swipe` | done 2026-11-19 |
+| 18 | See the whole screen | `gb.screenshot`, `gb.ocr`, `gb.windows` | done 2026-11-19 |
+| 19 | Use menu bar extras and Control Center | `gb.menuExtras` | done 2026-11-19 |
+| 20 | Read notifications | `gb.notifications` | done 2026-11-19 |
+| 21 | Spotlight, Mission Control, global shortcuts | `gb.pressKey`, `gb.spotlight` | partial: Cmd+Space opens Spotlight; typing into it untested with nobody at the Mac |
+| 22 | Use the Dock | `gb.getApp("Dock")` | done 2026-11-19 (read) |
+| 23 | Copy and paste | `gb.clipboard`, `app.paste` | done 2026-11-19 |
+| 24 | Open files and links | `gb.open`, `app.open` | done 2026-11-19 |
+| 25 | Drag files into apps | `app.dropFiles` | done 2026-11-19 |
 | 26 | Work on other displays and Spaces | reads and `restore` | M8 |
-| 27 | Type any text (accents, emoji, CJK) | `typeText`, `paste` | M1 check |
+| 27 | Type any text (accents, emoji, CJK) | `typeText`, `paste` | done 2026-11-19 |
 | 28 | Respond to system dialogs (permission prompts) | `gb.windows` + `getApp` | M6 |
 | 29 | Read canvases and remote desktops | `ocr`, screenshots | done |
 
