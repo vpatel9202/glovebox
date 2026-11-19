@@ -69,10 +69,8 @@ benchmark. Effort: S is small, M is medium.
    `app.text()` return data without printing.
 2. **A read that waits for change.** Done: `app.waitForChange()` and
    `app.settle()`.
-3. **Checks inside the script.** An `expect` helper lets one call chain
-   several steps, stop at the first failed check, and print state on failure
-   or error. Per-action tools cannot do this. Saves 0.5-1 round trip per task
-   and per error. S.
+3. **Checks inside the script.** Done: `app.expect(query)` waits for an
+   element, and on failure prints the window and stops the call.
 4. **Outline for large trees.** Done: over 250 elements a read drops
    offscreen elements and shows the tree level by level, with `(+N inside)`
    on lines that hide more; `{full: true}` prints everything.
