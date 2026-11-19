@@ -869,6 +869,7 @@ export class App {
       if (isPoint(target)) {
         const [x, y] = await this.#screenPoint(target);
         const hit = await this.#call("hitTest", { x, y });
+        if (hit.foreign) throw new Error(`${describeTarget(target)} is covered by ${hit.app ?? "another app"} (pid ${hit.pid})`);
         if (hit.index == null) throw new Error(`No element at ${describeTarget(target)}`);
         index = hit.index;
       } else if (!Number.isInteger(target)) {
@@ -1294,7 +1295,10 @@ function macSystem(ctx, gbRef) {
       let bundleId;
       if (options.app) bundleId = (await backend.request("resolveApp", { query: String(options.app) })).bundleId;
       ctx.log({ app: bundleId ?? "default", action: "open", target: String(target) });
+      const runningBefore = new Set((await backend.request("listApps")).filter((a) => a.running).map((a) => a.pid));
       const info = await backend.request("open", { target: String(target), bundleId, activate: options.activate === true });
+      // An app this opened counts as launched, so quitLaunched() closes it.
+      if (!runningBefore.has(info.pid)) (backend.launched ??= new Set()).add(info.pid);
       await new Promise((r) => setTimeout(r, 400));
       return gbRef().getApp(`pid:${info.pid}`);
     },
