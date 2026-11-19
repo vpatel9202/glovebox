@@ -316,7 +316,7 @@ async function main() {
       writeUserConfig({ approval: mode });
       process.stdout.write(`approval: ${mode}\n`);
       if (mode === "allow-all") {
-        process.stdout.write("Warning: agents can now control any app without asking, except blocked apps (terminals, password managers, System Settings).\n");
+        process.stdout.write("Warning: agents can now control any app without asking, except ask-first apps (terminals, password managers, System Settings, messages), which still ask.\n");
       }
       return;
     }

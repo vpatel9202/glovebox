@@ -49,7 +49,7 @@ not move. If an app ignores it, pass `{foreground: true}` to that action.
 `help()` prints the full API; `help("scroll")` prints one part.
 
 Approval: the user may see a dialog the first time you touch an app. If a
-call fails with "denied" or "blocked", tell the user what you need and why;
+call fails with "denied", tell the user what you need and why;
 do not look for a way around it. If a result starts with "Stopped:" (the user
 switched away or pressed Escape), stop GUI work and ask before continuing. Call `js_reset` when the session is
 stuck or a binding should be dropped.

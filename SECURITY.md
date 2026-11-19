@@ -9,11 +9,17 @@ computer. Treat it with the same care as giving someone remote control.
   shows a dialog: Allow for This Session, Always Allow, or Deny. The check runs
   inside Glovebox Helper, the process that holds the macOS permissions, so
   scripts cannot skip it.
-- **Blocked apps.** Apps that can run commands or hold secrets are refused,
-  and never offered in a dialog, unless you add them with `glovebox allow`
-  (see the list below). An agent with terminal access could otherwise use the
-  GUI to run commands its sandbox would not allow. An app on the `deny` list
-  is refused even if it is also allowed.
+- **Ask-first apps.** Nothing is blocked outright: you decide. Apps that can
+  run commands, hold secrets, send messages, or change system settings always
+  show the dialog, even under `approval: "allow-all"`, unless you add them
+  with `glovebox allow` (see the list below). The dialog says why. An agent
+  with terminal access could use the GUI to run commands its sandbox would
+  not allow, so approve a terminal only when you mean to. Surfaces that are
+  not one app (the whole screen, the clipboard, notifications, the Dock and
+  menu bar, opening files) are ask first too. An app on the `deny` list is
+  refused even if it is also allowed.
+- **Unanswered dialogs deny.** A dialog nobody answers denies after two
+  minutes, so an unattended agent cannot wait on it forever.
 - **Taking over stops a script.** If a script had to bring an app forward and
   you switch away, the script stops instead of taking focus back. A script
   working in the background keeps running while you use other apps, so switching
@@ -34,29 +40,36 @@ computer. Treat it with the same care as giving someone remote control.
 - **Local only.** Nothing is sent over the network. The helper listens on a
   Unix socket that only your user can open.
 
-## Blocked apps
+## Ask-first apps
 
-This is the full default list, from `blockedByDefault` in
+This is the full default list, from `askFirstByDefault` in
 `native/macos/GloveboxHelper.swift`. Bundle ids are matched case-insensitively.
-`glovebox allow <name or bundle id>` unlocks one.
+`glovebox allow <name or bundle id>` skips the dialog for one; `askFirst` in
+`config.json` adds more.
 
 | Kind | Bundle ids |
 |---|---|
-| Terminals | `com.apple.terminal`, `com.googlecode.iterm2`, `com.mitchellh.ghostty`, `dev.warp.warp-stable`, `com.github.wez.wezterm`, `org.alacritty`, `net.kovidgoyal.kitty`, `org.tabby`, `co.zeit.hyper` |
-| System settings | `com.apple.systempreferences` |
+| Terminals | `com.apple.terminal`, `com.googlecode.iterm2`, `com.mitchellh.ghostty`, `dev.warp.warp-stable`, `com.github.wez.wezterm`, `org.alacritty`, `net.kovidgoyal.kitty`, `org.tabby`, `co.zeit.hyper`, `com.cmuxterm.app`, `com.termius.mac` |
+| Scripting | `com.apple.scripteditor2`, `com.apple.automator`, `com.apple.shortcuts` |
+| System and security prompts | `com.apple.systempreferences`, `com.apple.installer`, `com.apple.securityagent`, `com.apple.coreservices.uiagent`, `com.apple.usernotificationcenter`, `com.apple.appstore` |
 | Password managers | `com.apple.keychainaccess`, `com.apple.passwords`, `com.1password.1password`, `com.agilebits.onepassword7`, `com.bitwarden.desktop`, `com.lastpass.lastpassmacdesktop` |
-| Scripting | `com.apple.scripteditor2`, `com.apple.automator` |
-| Glovebox itself | `io.github.vpatel9202.glovebox.helper` |
+| Messages and calls | `com.apple.mobilesms`, `com.apple.facetime`, `com.apple.mail` |
+| Not one app | `macos:screen`, `macos:clipboard`, `macos:notifications`, `macos:system`, `macos:files` |
 
-Order of checks for each app: `deny`, then `allow`, then this list, then the
-`approval` mode.
+Order of checks for each app: `deny`, then `allow`, then this list (ask), then
+the `approval` mode.
+
+One target is refused: Glovebox Helper itself
+(`io.github.vpatel9202.glovebox.helper`). Its windows are the approval
+dialogs, and an agent that could press them would approve itself.
 
 ## What does not
 
 - Code running as your user can edit `~/.glovebox/config.json` and approve
   apps for itself, or talk to the helper directly. glovebox does not defend
   against malware already running as you.
-- `approval: "allow-all"` removes the dialogs for every non-blocked app.
+- `approval: "allow-all"` removes the dialogs for every app that is not ask
+  first.
   Use it only when you trust every agent you attach.
 - An approved app is approved for everything in it. Allowing a browser lets
   the agent use every site you are signed in to.
@@ -68,7 +81,7 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
 - Scripts have no `require`, `fs`, or dynamic `import`, and see an empty
   `process.env`. That limits a script to the `gb` API and approved apps, but an
   approved app can still reach whatever that app can reach. Finder is not on the
-  blocked list, and approving it lets an agent read or change any file Finder
+  ask-first list, and approving it lets an agent read or change any file Finder
   can.
 - glovebox does not screen app or page content for prompt injection. Text an
   agent reads in an approved app can try to steer it.

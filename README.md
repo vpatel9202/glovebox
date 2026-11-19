@@ -165,9 +165,10 @@ OpenAI's actual runtime and already have the ChatGPT app (lcu).
 ## Safety
 
 The first time a session touches an app, you get a dialog: Allow for This
-Session, Always Allow, or Deny. Terminals, password managers, System Settings,
-and a few others are blocked unless you run `glovebox allow <bundle id>`; the
-list is in [SECURITY.md](SECURITY.md#blocked-apps). A script that had to bring
+Session, Always Allow, or Deny. Nothing is blocked outright. Terminals,
+password managers, System Settings, messaging apps, and a few others always
+ask, even under `allow-all`, unless you run `glovebox allow <bundle id>`; the
+list is in [SECURITY.md](SECURITY.md#ask-first-apps). A script that had to bring
 an app forward stops if you switch away. Scripts running in the background keep
 going while you use other apps, and Escape stops any script if you grant Input
 Monitoring. Every action is

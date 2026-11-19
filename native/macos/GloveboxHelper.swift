@@ -20,7 +20,7 @@ import Foundation
 import ScreenCaptureKit
 import UniformTypeIdentifiers
 
-let helperVersion = "0.3.1"
+let helperVersion = "0.4.0"
 // Marks events we synthesize so the Escape watcher ignores them.
 let syntheticMarker: Int64 = 0x676C_6F76
 
@@ -394,7 +394,9 @@ func axTree(_ params: [String: Any]) throws -> [String: Any] {
     let maxDepth = params.int("maxDepth") ?? 40
     let maxText = params.int("maxText") ?? 160
     let includeMenus = params.bool("menus") ?? false
-    let (window, windowIndex) = try targetWindow(pid, params)
+    enableWebAccessibility(pid)
+    let windowless = axWindows(pid).isEmpty
+    let (window, windowIndex): (AXUIElement, Int) = windowless ? (AXUIElementCreateApplication(pid_t(pid)), -1) : try targetWindow(pid, params)
     let t = table(pid)
     var nodes: [[String: Any]] = []
     var truncated = false
@@ -431,6 +433,11 @@ func axTree(_ params: [String: Any]) throws -> [String: Any] {
         else if let f = focusedElement, CFEqual(f, element) { node["focused"] = true }
         if let selected = v(12) as? Bool, selected { node["selected"] = true }
         if let s = v(13) as? String, !s.isEmpty { node["id"] = s }
+        // A field labeled by a separate text element (AppKit forms) takes its label.
+        if node["title"] == nil && node["desc"] == nil, let labelElement: AXUIElement = axAttr(element, kAXTitleUIElementAttribute) {
+            let text = (axAttr(labelElement, kAXValueAttribute) as String?) ?? (axAttr(labelElement, kAXTitleAttribute) as String?)
+            if let t = stringify(text?.trimmingCharacters(in: CharacterSet(charactersIn: ": ")), limit: maxText) { node["desc"] = t }
+        }
         var names: CFArray?
         if AXUIElementCopyActionNames(element, &names) == .success, let actions = names as? [String] {
             let useful = actions.filter { $0 != "AXScrollToVisible" && $0 != "AXShowDefaultUI" && $0 != "AXShowAlternateUI" }
@@ -451,9 +458,21 @@ func axTree(_ params: [String: Any]) throws -> [String: Any] {
     }
 
     AXUIElementSetMessagingTimeout(appElement, 2.0)
-    visit(window, 0)
+    if windowless {
+        // An app with no windows (the Dock, a menu bar app): read what it has.
+        for child in axChildren(appElement) where axRole(child) != kAXMenuBarRole { visit(child, 0) }
+        if let extras: AXUIElement = axAttr(appElement, kAXExtrasMenuBarAttribute) { visit(extras, 0) }
+    } else {
+        visit(window, 0)
+        // Open pop-up and context menus are the app's own children, outside the window.
+        for child in axChildren(appElement) where axRole(child) == kAXMenuRole { visit(child, 0) }
+    }
     if includeMenus, let bar: AXUIElement = axAttr(appElement, kAXMenuBarAttribute) {
         visit(bar, 0)
+    }
+    if windowless {
+        let screen = displaysInfo().first?["frame"] ?? [0, 0, 0, 0]
+        return ["window": ["index": -1, "title": "(no window)", "frame": screen, "scale": Double(NSScreen.screens.first?.backingScaleFactor ?? 2)], "nodes": nodes, "truncated": truncated]
     }
     guard let frame = axFrame(window) else { throw HelperError("Window has no frame", code: "no_window") }
     var windowInfo: [String: Any] = [
@@ -713,7 +732,8 @@ func click(_ params: [String: Any]) throws -> [String: Any] {
         up?.flags = f
         post(down)
         // An NSButton's mouseDown polls for the matching up; too tight a gap races it.
-        usleep(28000)
+        // holdMs keeps the button down (press and hold).
+        usleep(useconds_t(max(28, params.int("holdMs") ?? 28)) * 1000)
         post(up)
         usleep(count > 1 ? 80000 : 30000)
     }
@@ -1004,6 +1024,17 @@ func focusIsInside(pid: pid_t, windowId: UInt32) -> Bool {
     return false
 }
 
+// The window id of a sheet attached to window `parent`, if one is open.
+func sheetWindowId(pid: pid_t, parent: UInt32) -> UInt32? {
+    for w in axWindows(Int(pid)) {
+        guard let frame = axFrame(w), cgWindowID(pid: Int(pid), frame: frame) == Int(parent) else { continue }
+        for child in axChildren(w) where axRole(child) == "AXSheet" {
+            if let f = axFrame(child), let id = cgWindowID(pid: Int(pid), frame: f) { return UInt32(id) }
+        }
+    }
+    return nil
+}
+
 // Runs `body` with input routed to the background app named in params, and
 // restores the user's frontmost app if the target took focus anyway.
 func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throws -> [String: Any]) throws -> [String: Any] {
@@ -1012,7 +1043,10 @@ func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throw
         throw HelperError("Background input is unavailable on this macOS (private SkyLight functions missing).", code: "background_unavailable")
     }
     let pid = pid_t(try params.requireInt("pid"))
-    let windowId = UInt32(try params.requireInt("windowId"))
+    var windowId = UInt32(try params.requireInt("windowId"))
+    // An open sheet (save and open panels, dialogs) is its own window and
+    // takes the keys while it is up.
+    if kind == .keys, let sheet = sheetWindowId(pid: pid, parent: windowId) { windowId = sheet }
     guard let bounds = cgWindowBounds(windowId) else { throw HelperError("Window \(windowId) is gone", code: "no_window") }
     let front = NSWorkspace.shared.frontmostApplication
     var keyed = true
@@ -1022,9 +1056,16 @@ func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throw
             throw HelperError("Could not make the window key in the background; use foreground mode for this app.", code: "background_unconfirmed")
         }
     } else if let psn = SkyLight.psn(pid: pid, windowId: windowId) {
-        // Target-only focus record so AppKit routes the click to this window.
-        SkyLight.send(SkyLight.focusRecord(windowId, focus: true), to: psn)
-        usleep(50000)
+        // A window that is not key inside its app takes the first click as
+        // "focus this window" and drops it, so make it key first (unless an
+        // edit field inside it already has focus, which that would end).
+        if keyWindowId(pid) != windowId && !focusIsInside(pid: pid, windowId: windowId) && params.bool("keyFirst") != false {
+            _ = makeWindowKey(pid: pid, windowId: windowId, settle: 60_000)
+        } else {
+            // Target-only focus record so AppKit routes the click to this window.
+            SkyLight.send(SkyLight.focusRecord(windowId, focus: true), to: psn)
+            usleep(50000)
+        }
     }
     let route = BackgroundRoute(pid: pid, windowId: windowId, origin: bounds.origin, localLocation: params.string("windowLocation") != "screen")
     backgroundRoute = route
@@ -1041,6 +1082,633 @@ func withInputRoute(_ params: [String: Any], _ kind: InputKind, _ body: () throw
     result["route"] = route.chromium ? "background-skylight" : "background"
     result["focusRestored"] = restored
     return result
+}
+
+// MARK: - Chromium and Electron accessibility
+//
+// Chromium builds its web accessibility tree only for assistive technology.
+// Electron listens for AXManualAccessibility, Chrome for
+// AXEnhancedUserInterface. Set once per process, then wait for the tree.
+
+var webAXEnabled = Set<Int>()
+
+func countNodes(_ root: AXUIElement, limit: Int = 400) -> Int {
+    var count = 0
+    var stack = [root]
+    while let e = stack.popLast(), count < limit {
+        count += 1
+        if let kids: [AXUIElement] = axAttr(e, kAXChildrenAttribute) { stack.append(contentsOf: kids) }
+    }
+    return count
+}
+
+func enableWebAccessibility(_ pid: Int) {
+    if webAXEnabled.contains(pid) { return }
+    webAXEnabled.insert(pid)
+    guard bundleUsesChromium(pid_t(pid)) else { return }
+    let app = AXUIElementCreateApplication(pid_t(pid))
+    AXUIElementSetMessagingTimeout(app, 2.0)
+    let window: AXUIElement? = axAttr(app, kAXFocusedWindowAttribute) ?? axWindows(pid).first
+    let before = window.map { countNodes($0) } ?? 0
+    AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+    func grew() -> Bool {
+        guard let w = window else { return true }
+        return countNodes(w) > before + 10
+    }
+    for _ in 0..<15 { if grew() { return }; usleep(100_000) }
+    // Chrome itself (not Electron) answers the older attribute.
+    AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+    for _ in 0..<20 { if grew() { return }; usleep(100_000) }
+}
+
+// MARK: - Menus
+
+func normalizeTitle(_ s: String) -> String {
+    var t = s.trimmingCharacters(in: .whitespaces).lowercased()
+    while t.hasSuffix("…") || t.hasSuffix(".") { t.removeLast() }
+    return t.trimmingCharacters(in: .whitespaces)
+}
+
+func axChildren(_ e: AXUIElement) -> [AXUIElement] { axAttr(e, kAXChildrenAttribute) ?? [] }
+
+func axRole(_ e: AXUIElement) -> String { (axAttr(e, kAXRoleAttribute) as String?) ?? "" }
+
+func axTitle(_ e: AXUIElement) -> String {
+    (axAttr(e, kAXTitleAttribute) as String?).flatMap { $0.isEmpty ? nil : $0 }
+        ?? (axAttr(e, kAXDescriptionAttribute) as String?) ?? ""
+}
+
+// The items of a menu bar item or menu item: the children of its AXMenu child.
+func menuItems(of e: AXUIElement) -> [AXUIElement] {
+    if axRole(e) == kAXMenuRole { return axChildren(e) }
+    for child in axChildren(e) where axRole(child) == kAXMenuRole { return axChildren(child) }
+    return []
+}
+
+let modifierNames: [(Int, String)] = [(4, "ctrl"), (2, "alt"), (1, "shift")]
+
+func shortcutText(_ e: AXUIElement) -> String? {
+    let char: String? = axAttr(e, kAXMenuItemCmdCharAttribute)
+    let virtual: Int? = axAttr(e, kAXMenuItemCmdVirtualKeyAttribute)
+    let glyph: Int? = axAttr(e, kAXMenuItemCmdGlyphAttribute)
+    guard (char != nil && !(char!.isEmpty)) || virtual != nil || glyph != nil else { return nil }
+    let mods: Int = axAttr(e, kAXMenuItemCmdModifiersAttribute) ?? 0
+    var parts = modifierNames.filter { mods & $0.0 != 0 }.map { $0.1 }
+    if mods & 8 == 0 { parts.append("super") }
+    var key = char ?? ""
+    if key.isEmpty, let v = virtual, let name = keyCodes.first(where: { Int($0.value) == v && $0.key.count > 1 })?.key { key = name }
+    if key.isEmpty { return nil }
+    if key.count == 1 { key = key.lowercased() }
+    return (parts + [key]).joined(separator: "+")
+}
+
+func menuItemInfo(_ e: AXUIElement, table t: ElementTable, depth: Int) -> [String: Any] {
+    var info: [String: Any] = ["index": t.index(of: e), "title": axTitle(e), "role": axRole(e)]
+    if let enabled: Bool = axAttr(e, kAXEnabledAttribute), !enabled { info["disabled"] = true }
+    if let mark: String = axAttr(e, kAXMenuItemMarkCharAttribute), !mark.isEmpty { info["checked"] = true }
+    if let s = shortcutText(e) { info["shortcut"] = s }
+    let items = menuItems(of: e)
+    if !items.isEmpty {
+        info["submenu"] = depth > 0 ? items.map { menuItemInfo($0, table: t, depth: depth - 1) } : items.count
+    }
+    return info
+}
+
+func menuBar(_ pid: Int) throws -> AXUIElement {
+    let app = AXUIElementCreateApplication(pid_t(pid))
+    AXUIElementSetMessagingTimeout(app, 3.0)
+    guard let bar: AXUIElement = axAttr(app, kAXMenuBarAttribute) else {
+        throw HelperError("The app has no menu bar", code: "not_found")
+    }
+    return bar
+}
+
+func findMenuPath(_ pid: Int, _ path: [String]) throws -> AXUIElement {
+    var current = try menuBar(pid)
+    var level = axChildren(current)
+    for (depth, want) in path.enumerated() {
+        let w = normalizeTitle(want)
+        guard let next = level.first(where: { normalizeTitle(axTitle($0)) == w })
+                ?? level.first(where: { normalizeTitle(axTitle($0)).hasPrefix(w) }) else {
+            let names = level.map { axTitle($0) }.filter { !$0.isEmpty }
+            let where_ = depth == 0 ? "the menu bar" : "\"\(path[depth - 1])\""
+            throw HelperError("No menu item \"\(want)\" in \(where_). It has: \(names.joined(separator: ", "))", code: "not_found")
+        }
+        current = next
+        level = menuItems(of: next)
+    }
+    return current
+}
+
+func menuList(_ params: [String: Any]) throws -> [String: Any] {
+    let pid = try params.requireInt("pid")
+    let t = table(pid)
+    let path = (params["path"] as? [String]) ?? []
+    let depth = params.int("depth") ?? (path.isEmpty ? 1 : 2)
+    if path.isEmpty {
+        let bar = try menuBar(pid)
+        return ["items": axChildren(bar).map { menuItemInfo($0, table: t, depth: depth) }]
+    }
+    let item = try findMenuPath(pid, path)
+    return ["items": menuItems(of: item).map { menuItemInfo($0, table: t, depth: depth - 1) }, "title": axTitle(item)]
+}
+
+func menuPress(_ params: [String: Any]) throws -> [String: Any] {
+    let pid = try params.requireInt("pid")
+    guard let path = params["path"] as? [String], !path.isEmpty else { throw HelperError("menu needs a path such as [\"File\", \"Save\"]", code: "bad_request") }
+    let item = try findMenuPath(pid, path)
+    if let enabled: Bool = axAttr(item, kAXEnabledAttribute), !enabled {
+        throw HelperError("\"\(path.joined(separator: " > "))\" is disabled right now.", code: "action_failed")
+    }
+    if !menuItems(of: item).isEmpty { throw HelperError("\"\(path.last!)\" is a submenu; name one of its items.", code: "bad_request") }
+    let err = AXUIElementPerformAction(item, kAXPressAction as CFString)
+    if err != .success && err != .cannotComplete { throw HelperError("Pressing the menu item failed (AXError \(err.rawValue))", code: "action_failed") }
+    return ["title": axTitle(item), "route": "menu"]
+}
+
+// Finds the menu item whose shortcut is the chord and presses it. Menu
+// shortcuts sent as keys to a background app never reach its menus.
+func menuShortcut(_ params: [String: Any]) throws -> [String: Any] {
+    let pid = try params.requireInt("pid")
+    guard var key = params.string("key") else { throw HelperError("missing key", code: "bad_request") }
+    var mods = Set((params["mods"] as? [String]) ?? [])
+    if let base = shifted[key] { key = base; mods.insert("shift") }
+    if key.count == 1, key != key.lowercased() { mods.insert("shift") }
+    let wantKey = key.count == 1 ? key.lowercased() : key
+    let bar = try menuBar(pid)
+    var stack = axChildren(bar).filter { normalizeTitle(axTitle($0)) != "apple" }
+    var seen = 0
+    while let e = stack.popLast(), seen < 3000 {
+        seen += 1
+        let items = menuItems(of: e)
+        if !items.isEmpty { stack.append(contentsOf: items); continue }
+        guard let s = shortcutText(e) else { continue }
+        var parts = s.split(separator: "+").map(String.init)
+        var k = parts.removeLast()
+        var have = Set(parts)
+        if let base = shifted[k] { k = base; have.insert("shift") }
+        if k.count == 1, k != k.lowercased() { have.insert("shift"); k = k.lowercased() }
+        // A menu's "A" with Shift prints as uppercase; letters compare case-free.
+        guard k.lowercased() == wantKey.lowercased(), have == mods else { continue }
+        if let enabled: Bool = axAttr(e, kAXEnabledAttribute), !enabled { return ["found": true, "pressed": false, "title": axTitle(e)] }
+        let err = AXUIElementPerformAction(e, kAXPressAction as CFString)
+        return ["found": true, "pressed": err == .success || err == .cannotComplete, "title": axTitle(e)]
+    }
+    return ["found": false]
+}
+
+// Opens an element's menu (a pop-up button, menu button, or any element with
+// a context menu) and picks an item, in one call: the menu is open only for
+// the moment between the two, so the user's typing never lands in it.
+func selectMenuItem(_ params: [String: Any]) throws -> [String: Any] {
+    let pid = try params.requireInt("pid")
+    let t = table(pid)
+    let element = try t.element(try params.requireInt("index"))
+    guard let path = params["path"] as? [String], !path.isEmpty else { throw HelperError("select needs an item title", code: "bad_request") }
+    let role = axRole(element)
+    let app = AXUIElementCreateApplication(pid_t(pid))
+    func openMenus() -> [AXUIElement] {
+        (axChildren(element) + axChildren(app)).filter { axRole($0) == kAXMenuRole }
+    }
+    var actions: CFArray?
+    AXUIElementCopyActionNames(element, &actions)
+    let names = (actions as? [String]) ?? []
+    let useShowMenu = params.bool("context") == true || !(role == kAXPopUpButtonRole || role == kAXMenuButtonRole) || !names.contains(kAXPressAction)
+    let open = useShowMenu ? kAXShowMenuAction : kAXPressAction
+    if !names.contains(open) { throw HelperError("Element \(params.int("index")!) has no menu (\(role) has: \(names.joined(separator: ", ")))", code: "action_failed") }
+    AXUIElementPerformAction(element, open as CFString)
+    var menu: AXUIElement?
+    for _ in 0..<40 {
+        if let m = openMenus().first { menu = m; break }
+        usleep(25_000)
+    }
+    guard var level = menu.map({ axChildren($0) }) else { throw HelperError("The menu did not open", code: "action_failed") }
+    var target: AXUIElement?
+    for (depth, want) in path.enumerated() {
+        let w = normalizeTitle(want)
+        guard let item = level.first(where: { normalizeTitle(axTitle($0)) == w }) ?? level.first(where: { normalizeTitle(axTitle($0)).hasPrefix(w) }) else {
+            let titles = level.map { axTitle($0) }.filter { !$0.isEmpty }
+            if let m = menu { AXUIElementPerformAction(m, kAXCancelAction as CFString) }
+            throw HelperError("No item \"\(want)\"\(depth > 0 ? " in \"\(path[depth - 1])\"" : ""). The menu has: \(titles.joined(separator: ", "))", code: "not_found")
+        }
+        target = item
+        level = menuItems(of: item)
+    }
+    let err = AXUIElementPerformAction(target!, kAXPressAction as CFString)
+    // Wait for the menu to close, so the next action does not hit it.
+    for _ in 0..<40 {
+        if openMenus().isEmpty { break }
+        usleep(25_000)
+    }
+    if err != .success && err != .cannotComplete { throw HelperError("Picking the item failed (AXError \(err.rawValue))", code: "action_failed") }
+    return ["title": axTitle(target!), "route": "accessibility"]
+}
+
+// MARK: - Windows and apps
+
+func windowAction(_ params: [String: Any]) throws -> [String: Any] {
+    let pid = try params.requireInt("pid")
+    let (window, index) = try targetWindow(pid, params)
+    let op = params.string("op") ?? ""
+    func set(_ attr: String, _ value: CFTypeRef) throws {
+        let err = AXUIElementSetAttributeValue(window, attr as CFString, value)
+        if err != .success { throw HelperError("Setting \(attr) failed (AXError \(err.rawValue)); the window may not allow it.", code: "action_failed") }
+    }
+    func press(_ attr: String) throws {
+        guard let button: AXUIElement = axAttr(window, attr) else { throw HelperError("The window has no \(attr.replacingOccurrences(of: "AX", with: "").lowercased())", code: "action_failed") }
+        AXUIElementPerformAction(button, kAXPressAction as CFString)
+    }
+    switch op {
+    case "move":
+        var p = CGPoint(x: try params.requireDouble("x"), y: try params.requireDouble("y"))
+        try set(kAXPositionAttribute, AXValueCreate(.cgPoint, &p)!)
+    case "resize":
+        var s = CGSize(width: try params.requireDouble("width"), height: try params.requireDouble("height"))
+        try set(kAXSizeAttribute, AXValueCreate(.cgSize, &s)!)
+    case "minimize": try set(kAXMinimizedAttribute, kCFBooleanTrue)
+    case "restore":
+        if (axAttr(window, kAXMinimizedAttribute) as Bool?) == true { try set(kAXMinimizedAttribute, kCFBooleanFalse) }
+        if (axAttr(window, "AXFullScreen") as Bool?) == true { try set("AXFullScreen", kCFBooleanFalse) }
+        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+    case "raise": AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+    case "close": try press(kAXCloseButtonAttribute)
+    case "zoom": try press(kAXZoomButtonAttribute)
+    case "fullScreen": try set("AXFullScreen", (params.bool("on") ?? true) ? kCFBooleanTrue : kCFBooleanFalse)
+    default: throw HelperError("Unknown window operation \(op)", code: "bad_request")
+    }
+    usleep(250_000)
+    return ["index": index]
+}
+
+func appAction(_ params: [String: Any]) throws -> [String: Any] {
+    let pid = try params.requireInt("pid")
+    let app = try runningApp(pid)
+    switch params.string("op") ?? "" {
+    case "hide": DispatchQueue.main.sync { _ = app.hide() }
+    case "unhide": DispatchQueue.main.sync { _ = app.unhide() }
+    case "quit", "forceQuit":
+        let force = params.string("op") == "forceQuit"
+        DispatchQueue.main.sync { _ = force ? app.forceTerminate() : app.terminate() }
+        for _ in 0..<50 {
+            if app.isTerminated { tables[pid] = nil; return ["terminated": true] }
+            usleep(100_000)
+        }
+        // A "save changes?" sheet, for one, keeps the app open.
+        return ["terminated": false]
+    default: throw HelperError("Unknown app operation", code: "bad_request")
+    }
+    return [:]
+}
+
+// MARK: - Pointer extras
+
+func hover(_ params: [String: Any]) throws -> [String: Any] {
+    let point = CGPoint(x: try params.requireDouble("x"), y: try params.requireDouble("y"))
+    // A few moves, so tracking areas see the pointer enter and then rest.
+    for dx in [-6.0, -3.0, 0.0] {
+        let e = CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved, mouseCursorPosition: CGPoint(x: point.x + dx, y: point.y), mouseButton: .left)
+        if let route = backgroundRoute, let event = e {
+            // Tracking areas in a background AppKit window see moves only on
+            // the SkyLight route; post both, as scrolls do.
+            event.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            route.postScroll(event)
+        } else {
+            post(e)
+        }
+        usleep(40_000)
+    }
+    return [:]
+}
+
+// Trackpad gestures as gesture events (type 29), the form AppKit turns into
+// magnify and rotate events. Field numbers are CoreGraphics' private ones,
+// as used by MiddleClick, Swish and other trackpad tools.
+func gesture(_ params: [String: Any]) throws -> [String: Any] {
+    let point = CGPoint(x: try params.requireDouble("x"), y: try params.requireDouble("y"))
+    let kind = params.string("kind") ?? "magnify"
+    let amount = params.double("amount") ?? 1
+    let steps = max(2, params.int("steps") ?? 10)
+    let ms = params.int("ms") ?? 400
+    let hidType: Int64
+    switch kind {
+    case "magnify": hidType = 8   // kIOHIDEventTypeZoom
+    case "rotate": hidType = 5    // kIOHIDEventTypeRotation
+    case "smartMagnify": hidType = 22
+    default: throw HelperError("Unknown gesture \(kind)", code: "bad_request")
+    }
+    post(CGEvent(mouseEventSource: eventSource, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left))
+    usleep(30_000)
+    func event(phase: Int64, value: Double) -> CGEvent? {
+        guard let e = CGEvent(source: eventSource) else { return nil }
+        e.location = point
+        e.setIntegerValueField(CGEventField(rawValue: 55)!, value: 29)   // event type: gesture
+        e.setIntegerValueField(CGEventField(rawValue: 110)!, value: hidType)
+        if kind == "magnify" { e.setDoubleValueField(CGEventField(rawValue: 113)!, value: value) }
+        if kind == "rotate" { e.setDoubleValueField(CGEventField(rawValue: 114)!, value: value) }
+        e.setIntegerValueField(CGEventField(rawValue: 132)!, value: phase)
+        return e
+    }
+    if kind == "smartMagnify" {
+        post(event(phase: 0, value: 0))
+        return [:]
+    }
+    // Magnify: amount is the total scale change (1 doubles: 0.1 per step of 10).
+    // Rotate: amount is degrees.
+    let per = amount / Double(steps)
+    post(event(phase: 1, value: 0))
+    usleep(useconds_t(ms * 1000 / steps))
+    for _ in 0..<steps {
+        post(event(phase: 2, value: per))
+        usleep(useconds_t(ms * 1000 / steps))
+    }
+    post(event(phase: 4, value: 0))
+    return [:]
+}
+
+// MARK: - Whole screen
+
+func displaysInfo() -> [[String: Any]] {
+    guard let primary = NSScreen.screens.first else { return [] }
+    return NSScreen.screens.enumerated().map { i, s in
+        let f = s.frame
+        // Top-left origin, like every other frame here.
+        let top = CGRect(x: f.minX, y: primary.frame.height - f.maxY, width: f.width, height: f.height)
+        let id = (s.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.intValue ?? 0
+        return ["index": i, "displayId": id, "frame": rectJSON(top), "scale": Double(s.backingScaleFactor), "main": s == NSScreen.main, "name": s.localizedName]
+    }
+}
+
+func allWindows(_ params: [String: Any]) -> [[String: Any]] {
+    let onScreen = params.bool("all") != true
+    let options: CGWindowListOption = onScreen ? [.optionOnScreenOnly, .excludeDesktopElements] : [.optionAll, .excludeDesktopElements]
+    guard let info = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return [] }
+    var out: [[String: Any]] = []
+    for w in info {
+        guard let id = w[kCGWindowNumber as String] as? Int, let pid = w[kCGWindowOwnerPID as String] as? Int,
+              let b = w[kCGWindowBounds as String] as? [String: Any], let rect = CGRect(dictionaryRepresentation: b as CFDictionary),
+              rect.width >= 2, rect.height >= 2 else { continue }
+        let alpha = (w[kCGWindowAlpha as String] as? Double) ?? 1
+        if alpha == 0 { continue }
+        var entry: [String: Any] = [
+            "windowId": id, "pid": pid, "app": (w[kCGWindowOwnerName as String] as? String) ?? "",
+            "frame": rectJSON(rect), "layer": (w[kCGWindowLayer as String] as? Int) ?? 0,
+            "onScreen": (w[kCGWindowIsOnscreen as String] as? Bool) ?? false,
+        ]
+        if let title = w[kCGWindowName as String] as? String, !title.isEmpty { entry["title"] = title }
+        if let id = NSRunningApplication(processIdentifier: pid_t(pid))?.bundleIdentifier { entry["bundleId"] = id }
+        out.append(entry)
+    }
+    return out
+}
+
+func screenCapture(_ params: [String: Any]) throws -> [String: Any] {
+    let displayIndex = params.int("display") ?? 0
+    let screens = NSScreen.screens
+    guard displayIndex >= 0 && displayIndex < screens.count else { throw HelperError("No display \(displayIndex)", code: "bad_request") }
+    let displayId = (screens[displayIndex].deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? CGMainDisplayID()
+    let width = try params.requireInt("width"), height = try params.requireInt("height")
+    let format = params.string("format") ?? "png"
+    let quality = params.double("quality") ?? 0.8
+    let done = DispatchSemaphore(value: 0)
+    var captured: CGImage?
+    var failure: Error?
+    Task {
+        do {
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            guard let display = content.displays.first(where: { $0.displayID == displayId }) else { throw HelperError("Display not capturable", code: "no_window") }
+            // Leave out the helper's own windows (the agent cursor).
+            let own = content.windows.filter { $0.owningApplication?.processID == getpid() }
+            let filter = SCContentFilter(display: display, excludingWindows: own)
+            let config = SCStreamConfiguration()
+            config.width = width
+            config.height = height
+            config.showsCursor = params.bool("cursor") ?? false
+            if let r = params["region"] as? [Double], r.count == 4 { config.sourceRect = CGRect(x: r[0], y: r[1], width: r[2], height: r[3]) }
+            captured = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
+        } catch { failure = error }
+        done.signal()
+    }
+    if done.wait(timeout: .now() + 15) == .timedOut { throw HelperError("Screen capture timed out") }
+    if let error = failure as? HelperError { throw error }
+    if let error = failure { throw HelperError("Screen capture failed: \(error.localizedDescription)") }
+    guard let image = captured else { throw HelperError("Screen capture returned nothing") }
+    let data = try encode(image, format: format, quality: quality)
+    return ["data": data.base64EncodedString(), "width": image.width, "height": image.height, "mimeType": format == "jpeg" ? "image/jpeg" : "image/png"]
+}
+
+// Menu bar extras (status items) of every running app, with Control Center's
+// and the clock among them. Indices are in the owning app's element table.
+func menuExtras(_ params: [String: Any]) -> [[String: Any]] {
+    var out: [[String: Any]] = []
+    for app in NSWorkspace.shared.runningApplications where !app.isTerminated {
+        let pid = Int(app.processIdentifier)
+        if pid == Int(getpid()) { continue }
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(element, 0.25)
+        guard let bar: AXUIElement = axAttr(element, kAXExtrasMenuBarAttribute) else { continue }
+        for item in axChildren(bar) {
+            var entry: [String: Any] = ["pid": pid, "app": app.localizedName ?? "", "index": table(pid).index(of: item)]
+            if let id = app.bundleIdentifier { entry["bundleId"] = id }
+            let title = axTitle(item)
+            if !title.isEmpty { entry["title"] = title }
+            if let help: String = axAttr(item, kAXHelpAttribute), !help.isEmpty { entry["help"] = help }
+            if let ident: String = axAttr(item, kAXIdentifierAttribute), !ident.isEmpty { entry["id"] = ident }
+            if let frame = axFrame(item) { entry["frame"] = rectJSON(frame) }
+            out.append(entry)
+        }
+    }
+    return out.sorted { (($0["frame"] as? [Double])?.first ?? 0) < (($1["frame"] as? [Double])?.first ?? 0) }
+}
+
+// Keys to whatever is frontmost (Spotlight, Mission Control, screenshots):
+// the system-wide route, posted at the HID level.
+func systemKeys(_ params: [String: Any]) throws -> [String: Any] {
+    keyTargetPid = nil
+    backgroundRoute = nil
+    if params["chords"] != nil { return try pressKeys(params) }
+    return try typeText(params)
+}
+
+// MARK: - Clipboard
+
+func pasteboardSnapshot() -> [[NSPasteboard.PasteboardType: Data]] {
+    (NSPasteboard.general.pasteboardItems ?? []).map { item in
+        var d: [NSPasteboard.PasteboardType: Data] = [:]
+        for type in item.types { if let data = item.data(forType: type) { d[type] = data } }
+        return d
+    }
+}
+
+func pasteboardRestore(_ snapshot: [[NSPasteboard.PasteboardType: Data]]) {
+    let pb = NSPasteboard.general
+    pb.clearContents()
+    let items = snapshot.map { entry -> NSPasteboardItem in
+        let item = NSPasteboardItem()
+        for (type, data) in entry { item.setData(data, forType: type) }
+        return item
+    }
+    if !items.isEmpty { pb.writeObjects(items) }
+}
+
+var stashedPasteboard: [[NSPasteboard.PasteboardType: Data]]?
+
+func clipboard(_ params: [String: Any]) throws -> [String: Any] {
+    let pb = NSPasteboard.general
+    switch params.string("op") ?? "read" {
+    case "read":
+        var out: [String: Any] = ["types": (pb.types ?? []).map { $0.rawValue }, "changeCount": pb.changeCount]
+        if let s = pb.string(forType: .string) { out["text"] = s }
+        if let urls = pb.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty {
+            out["files"] = urls.map { $0.path }
+        }
+        if pb.data(forType: .png) != nil || pb.data(forType: .tiff) != nil { out["image"] = true }
+        return out
+    case "write":
+        pb.clearContents()
+        if let files = params["files"] as? [String] {
+            pb.writeObjects(files.map { URL(fileURLWithPath: $0) as NSURL })
+        } else {
+            pb.setString(params.string("text") ?? "", forType: .string)
+        }
+        return ["changeCount": pb.changeCount]
+    default: throw HelperError("Unknown clipboard operation", code: "bad_request")
+    }
+}
+
+// For app.paste: put text on the clipboard, keeping the user's contents to
+// put back afterwards. The user's clipboard never leaves the helper.
+func pasteStash(_ params: [String: Any]) throws -> [String: Any] {
+    let pb = NSPasteboard.general
+    switch params.string("op") ?? "stash" {
+    case "stash":
+        if stashedPasteboard == nil { stashedPasteboard = pasteboardSnapshot() }
+        pb.clearContents()
+        pb.setString(params.string("text") ?? "", forType: .string)
+    case "restore":
+        if let s = stashedPasteboard { pasteboardRestore(s) }
+        stashedPasteboard = nil
+    default: throw HelperError("Unknown paste operation", code: "bad_request")
+    }
+    return [:]
+}
+
+// MARK: - Opening files and links
+
+func openTarget(_ connection: Connection, _ params: [String: Any]) throws -> [String: Any] {
+    guard let target = params.string("target"), !target.isEmpty else { throw HelperError("open needs a path or URL", code: "bad_request") }
+    let url: URL
+    if target.hasPrefix("/") || target.hasPrefix("~") {
+        url = URL(fileURLWithPath: (target as NSString).expandingTildeInPath)
+        guard FileManager.default.fileExists(atPath: url.path) else { throw HelperError("No file at \(url.path)", code: "not_found") }
+    } else if let u = URL(string: target), u.scheme != nil {
+        url = u
+    } else {
+        throw HelperError("\(target) is neither an absolute path nor a URL with a scheme", code: "bad_request")
+    }
+    var appURL: URL?
+    if let id = params.string("bundleId") {
+        appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)
+        if appURL == nil { throw HelperError("No app with bundle id \(id)", code: "not_found") }
+    } else {
+        appURL = NSWorkspace.shared.urlForApplication(toOpen: url)
+    }
+    guard let handler = appURL, let bundle = Bundle(url: handler), let handlerId = bundle.bundleIdentifier else {
+        throw HelperError("No app opens \(target)", code: "not_found")
+    }
+    let name = (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String) ?? handler.deletingPathExtension().lastPathComponent
+    if url.isFileURL { try authorize(connection, bundleId: "macos:files", name: "files on this Mac", reason: "It wants to open \(url.path) in \(name).") }
+    try authorize(connection, bundleId: handlerId, name: name)
+    let config = NSWorkspace.OpenConfiguration()
+    config.activates = params.bool("activate") ?? false
+    let done = DispatchSemaphore(value: 0)
+    var opened: NSRunningApplication?
+    var failure: Error?
+    NSWorkspace.shared.open([url], withApplicationAt: handler, configuration: config) { app, error in
+        opened = app; failure = error; done.signal()
+    }
+    if done.wait(timeout: .now() + 20) == .timedOut { throw HelperError("Timed out opening \(target)") }
+    if let error = failure { throw HelperError("Opening failed: \(error.localizedDescription)") }
+    guard let app = opened else { throw HelperError("Opening returned no app") }
+    return appInfo(app)
+}
+
+// MARK: - Dropping files
+//
+// A file drag needs a drag source in some process. The helper shows a small
+// window holding the files, presses on it, drags to the target and lets go.
+// This uses the real pointer (foreground route) and puts it back afterwards.
+
+final class DragSourceView: NSView, NSDraggingSource {
+    var files: [URL] = []
+    var finished = DispatchSemaphore(value: 0)
+    func draggingSession(_ session: NSDraggingSession, sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .copy }
+    func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) { finished.signal() }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.systemPurple.withAlphaComponent(0.6).setFill()
+        bounds.fill()
+    }
+    override func mouseDown(with event: NSEvent) {
+        let items = files.map { url -> NSDraggingItem in
+            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+            item.setDraggingFrame(NSRect(x: 0, y: 0, width: 32, height: 32), contents: NSWorkspace.shared.icon(forFile: url.path))
+            return item
+        }
+        beginDraggingSession(with: items, event: event, source: self)
+    }
+}
+
+func dropFiles(_ params: [String: Any]) throws -> [String: Any] {
+    guard let paths = params["paths"] as? [String], !paths.isEmpty else { throw HelperError("dropFiles needs paths", code: "bad_request") }
+    let urls = paths.map { URL(fileURLWithPath: ($0 as NSString).expandingTildeInPath) }
+    for u in urls where !FileManager.default.fileExists(atPath: u.path) { throw HelperError("No file at \(u.path)", code: "not_found") }
+    let to = CGPoint(x: try params.requireDouble("x"), y: try params.requireDouble("y"))
+    let saved = CGEvent(source: nil)?.location ?? to
+    var window: NSWindow?
+    var view: DragSourceView?
+    var start = CGPoint.zero
+    DispatchQueue.main.sync {
+        guard let primary = NSScreen.screens.first else { return }
+        // Near the target but not on it, so the drag has somewhere to travel.
+        let size: CGFloat = 40
+        let sx = max(primary.frame.minX + 4, to.x - 160), sy = max(30, to.y - 120)
+        start = CGPoint(x: sx + size / 2, y: sy + size / 2)
+        let w = NSWindow(contentRect: NSRect(x: sx, y: primary.frame.height - sy - size, width: size, height: size), styleMask: .borderless, backing: .buffered, defer: false)
+        w.level = .floating
+        w.isOpaque = false
+        w.title = "glovebox drag source"
+        let v = DragSourceView(frame: NSRect(x: 0, y: 0, width: size, height: size))
+        v.files = urls
+        w.contentView = v
+        w.orderFrontRegardless()
+        window = w
+        view = v
+    }
+    defer {
+        DispatchQueue.main.sync { window?.orderOut(nil) }
+        CGWarpMouseCursorPosition(saved)
+    }
+    guard let source = view else { throw HelperError("Could not create the drag source") }
+    usleep(150_000)
+    func mouse(_ type: CGEventType, _ p: CGPoint) {
+        let e = CGEvent(mouseEventSource: eventSource, mouseType: type, mouseCursorPosition: p, mouseButton: .left)
+        e?.setIntegerValueField(.mouseEventClickState, value: 1)
+        e?.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+        e?.post(tap: .cghidEventTap)
+    }
+    mouse(.mouseMoved, start)
+    usleep(80_000)
+    mouse(.leftMouseDown, start)
+    usleep(120_000)
+    let steps = 30
+    for s in 1...steps {
+        let t = CGFloat(s) / CGFloat(steps)
+        mouse(.leftMouseDragged, CGPoint(x: start.x + (to.x - start.x) * t, y: start.y + (to.y - start.y) * t))
+        usleep(16_000)
+    }
+    usleep(250_000)
+    mouse(.leftMouseUp, to)
+    let ended = source.finished.wait(timeout: .now() + 3) == .success
+    return ["route": "foreground", "ended": ended]
 }
 
 // MARK: - Agent cursor
@@ -1346,16 +2014,39 @@ func refreshStatusMenu() {
 let gloveboxHome: String = ProcessInfo.processInfo.environment["GLOVEBOX_HOME"] ?? (NSHomeDirectory() + "/.glovebox")
 let configPath = gloveboxHome + "/config.json"
 
-// Apps that can run arbitrary commands, hold secrets, or change system
-// security. These are never offered in a dialog; only an explicit `allow`
-// entry in config.json unlocks one.
-let blockedByDefault: Set<String> = [
+// Apps that can run arbitrary commands, hold secrets, send messages, or change
+// system settings. Nothing is blocked: these ask first, even under allow-all,
+// and an explicit `allow` entry skips the dialog. `askFirst` in config.json
+// adds more. Entries ending in ":" or "." match by prefix.
+let askFirstByDefault: [String] = [
+    // Terminals and scripting
     "com.apple.terminal", "com.googlecode.iterm2", "com.mitchellh.ghostty", "dev.warp.warp-stable",
     "com.github.wez.wezterm", "org.alacritty", "net.kovidgoyal.kitty", "org.tabby", "co.zeit.hyper",
-    "com.apple.systempreferences", "com.apple.keychainaccess", "com.apple.passwords",
+    "com.apple.scripteditor2", "com.apple.automator", "com.apple.shortcuts", "com.cmuxterm.app", "com.termius.mac",
+    // System control, installs and security prompts
+    "com.apple.systempreferences", "com.apple.installer", "com.apple.securityagent",
+    "com.apple.coreservices.uiagent", "com.apple.usernotificationcenter", "com.apple.appstore",
+    // Secrets
+    "com.apple.keychainaccess", "com.apple.passwords",
     "com.1password.1password", "com.agilebits.onepassword7", "com.bitwarden.desktop", "com.lastpass.lastpassmacdesktop",
-    "com.apple.scripteditor2", "com.apple.automator", "io.github.vpatel9202.glovebox.helper",
+    // Messages and calls
+    "com.apple.mobilesms", "com.apple.facetime", "com.apple.mail",
+    // Surfaces that are not one app: macos:screen, macos:clipboard, macos:notifications,
+    // macos:system (Dock, menu bar, Spotlight, global keys), macos:files
+    "macos:",
 ]
+
+// The helper's own windows are the approval dialogs. Driving them would let an
+// agent approve itself, so this is the one target glovebox refuses.
+let helperBundleId = "io.github.vpatel9202.glovebox.helper"
+
+func isAskFirst(_ bundleId: String, _ config: [String: Any]) -> Bool {
+    let id = bundleId.lowercased()
+    let extra = ((config["askFirst"] as? [String]) ?? []).map { $0.lowercased() }
+    return (askFirstByDefault + extra).contains { e in
+        (e.hasSuffix(":") || e.hasSuffix(".")) ? id.hasPrefix(e) : id == e
+    }
+}
 
 func readConfig() -> [String: Any] {
     guard let data = FileManager.default.contents(atPath: configPath),
@@ -1381,19 +2072,25 @@ func persistAllow(_ bundleId: String) {
 
 enum Choice { case session, always, deny }
 
-func askUser(client: String, app: String, bundleId: String) -> Choice {
+func askUser(client: String, app: String, bundleId: String, reason: String? = nil) -> Choice {
     var choice = Choice.deny
     DispatchQueue.main.sync {
         let alert = NSAlert()
         alert.messageText = "Allow \(client) to control \(app)?"
-        alert.informativeText = "An agent using glovebox wants to click, type, and read the screen in \(app) (\(bundleId)). Every action is logged in \(gloveboxHome)/actions.log. Press Escape any time to stop a running script."
+        let what = bundleId.hasPrefix("macos:") ? app : "\(app) (\(bundleId))"
+        alert.informativeText = "An agent using glovebox wants to click, type, and read the screen in \(what).\(reason.map { " \($0)" } ?? "") Every action is logged in \(gloveboxHome)/actions.log. Press Escape any time to stop a running script. This dialog denies on its own after 2 minutes."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Allow for This Session")
         alert.addButton(withTitle: "Always Allow")
         alert.addButton(withTitle: "Deny")
         NSApp.activate(ignoringOtherApps: true)
         alert.window.level = .floating
-        switch alert.runModal() {
+        // Nobody may be at the Mac: give up (Deny) after two minutes.
+        let timer = Timer(timeInterval: 120, repeats: false) { _ in NSApp.abortModal() }
+        RunLoop.main.add(timer, forMode: .modalPanel)
+        let response = alert.runModal()
+        timer.invalidate()
+        switch response {
         case .alertFirstButtonReturn: choice = .session
         case .alertSecondButtonReturn: choice = .always
         default: choice = .deny
@@ -1402,8 +2099,11 @@ func askUser(client: String, app: String, bundleId: String) -> Choice {
     return choice
 }
 
-func authorize(_ connection: Connection, bundleId: String, name: String) throws {
+func authorize(_ connection: Connection, bundleId: String, name: String, reason: String? = nil) throws {
     if connection.approved.contains(bundleId) { return }
+    if bundleId.lowercased() == helperBundleId {
+        throw HelperError("Glovebox Helper's own windows are its approval dialogs; an agent cannot drive them.", code: "denied")
+    }
     let config = readConfig()
     let allow = (config["allow"] as? [String]) ?? []
     let deny = (config["deny"] as? [String]) ?? []
@@ -1415,28 +2115,44 @@ func authorize(_ connection: Connection, bundleId: String, name: String) throws 
         connection.approved.insert(bundleId)
         return
     }
-    if blockedByDefault.contains(bundleId.lowercased()) {
-        throw HelperError("\(name) is blocked by default because it can run commands or holds secrets. To allow it anyway, run: glovebox allow \(bundleId)", code: "blocked")
-    }
-    switch mode {
-    case "allow-all":
+    let askFirst = isAskFirst(bundleId, config)
+    if !askFirst && mode == "allow-all" {
         connection.approved.insert(bundleId)
-    case "allowlist":
-        throw HelperError("\(name) is not in the allowlist. Run: glovebox allow \"\(name)\"", code: "not_allowed")
-    default:
-        switch askUser(client: connection.client, app: name, bundleId: bundleId) {
-        case .session: connection.approved.insert(bundleId)
-        case .always: connection.approved.insert(bundleId); persistAllow(bundleId)
-        case .deny: throw HelperError("The user denied access to \(name).", code: "denied")
-        }
+        return
+    }
+    if mode == "allowlist" {
+        throw HelperError("\(name) is not in the allowlist. Run: glovebox allow \"\(bundleId)\"", code: "not_allowed")
+    }
+    let why = reason ?? (askFirst ? "\(name) can run commands, hold secrets, send messages, or change system settings, so glovebox always asks first." : nil)
+    switch askUser(client: connection.client, app: name, bundleId: bundleId, reason: why) {
+    case .session: connection.approved.insert(bundleId)
+    case .always: connection.approved.insert(bundleId); persistAllow(bundleId)
+    case .deny: throw HelperError("The user denied access to \(name) (or nobody answered within 2 minutes). Ask the user; `glovebox allow \(bundleId)` skips the dialog.", code: "denied")
     }
 }
 
 // Methods that only read the app list or the helper's own state.
-let ungatedMethods: Set<String> = ["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor"]
+let ungatedMethods: Set<String> = ["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor", "displays"]
+// Methods with no app of their own: each asks under a macos: key.
+let systemMethods: [String: (String, String)] = [
+    "screenCapture": ("macos:screen", "the whole screen"),
+    "allWindows": ("macos:screen", "the list of every window on screen"),
+    "menuExtras": ("macos:system", "the menu bar and Control Center"),
+    "systemKeys": ("macos:system", "system-wide keys (Spotlight, Mission Control, shortcuts)"),
+    "clipboard": ("macos:clipboard", "the clipboard"),
+]
 
 func gate(_ connection: Connection, _ method: String, _ params: [String: Any]) throws {
     if ungatedMethods.contains(method) { return }
+    if let (key, name) = systemMethods[method] {
+        try authorize(connection, bundleId: key, name: name)
+        return
+    }
+    // Authorizes the app that handles the file or link itself.
+    if method == "open" { return }
+    if method == "dropFiles" {
+        try authorize(connection, bundleId: "macos:files", name: "files on this Mac", reason: "It wants to drag files into an app.")
+    }
     if method == "launch" {
         let bundleId = params.string("bundleId") ?? params.string("path").flatMap { Bundle(path: $0)?.bundleIdentifier } ?? ""
         let name = params.string("name") ?? bundleId
@@ -1478,6 +2194,23 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
     case "isActive": return ["active": try runningApp(try params.requireInt("pid")).isActive]
     case "windows": return windowsInfo(try params.requireInt("pid"))
     case "axTree": return try axTree(params)
+    case "menus": return try menuList(params)
+    case "menuPress": return try menuPress(params)
+    case "menuShortcut": return try menuShortcut(params)
+    case "selectMenuItem": return try selectMenuItem(params)
+    case "windowAction": return try windowAction(params)
+    case "appAction": return try appAction(params)
+    case "hover": return try withInputRoute(params, .mouse) { try hover(params) }
+    case "gesture": return try withInputRoute(params, .mouse) { try gesture(params) }
+    case "displays": return displaysInfo()
+    case "allWindows": return allWindows(params)
+    case "screenCapture": return try screenCapture(params)
+    case "menuExtras": return menuExtras(params)
+    case "systemKeys": return try systemKeys(params)
+    case "clipboard": return try clipboard(params)
+    case "pasteStash": return try pasteStash(params)
+    case "open": return try openTarget(connection, params)
+    case "dropFiles": return try dropFiles(params)
     case "hitTest": return try hitTest(params)
     case "elementFrame": return try elementFrame(params)
     case "performAction": return try performAction(params)
