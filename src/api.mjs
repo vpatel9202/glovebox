@@ -813,6 +813,15 @@ export function createApi(ctx) {
           }
           return list;
         },
+        // Copies a file from this computer to the phone (default the
+        // Download folder) where apps can pick it, and returns {path, bytes}.
+        // Each file asks first.
+        async push(localPath, options = {}) {
+          ctx.checkAbort();
+          const result = await backend.push(localPath, options);
+          ctx.log({ app: "android:files", action: "push", device: backend.label, path: result.path, bytes: result.bytes });
+          return result;
+        },
         platform: backend.platform,
         serial: serial ?? null,
         toString: () => `Device(${backend.label})`,

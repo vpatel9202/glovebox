@@ -90,6 +90,9 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   can show messages and one-time codes from any app, so it asks first even
   under `allow-all` (approval key `android:notifications`), and each read
   is logged.
+- **Files.** Scripts cannot read files, but `phone.push(path)` copies a file
+  from this computer to the phone, so each file asks first, naming the path
+  and size, and each copy is logged.
 - **Locked phones.** The server can reach apps behind the lock screen (a
   hidden screen runs even while the phone is locked), so acting on, or
   reading a hidden screen of, a phone locked with a PIN, pattern, password or

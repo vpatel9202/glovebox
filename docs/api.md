@@ -244,6 +244,11 @@ await clock.getAXState();
   always asks first (approval key `android:notifications`; `glovebox allow
   android:notifications` skips the dialog, `glovebox revoke` restores it),
   and each read is logged.
+- `phone.push(localPath, {to})` copies a file from this computer to the
+  phone (default `/sdcard/Download/`; a `to` ending in `/` keeps the name)
+  and returns `{path, bytes}`; apps' file and photo pickers list it right
+  away. Scripts cannot read files otherwise, so each file asks first (once
+  per session), and each copy is logged.
 - `phone.open(url)` opens a link in the app that handles it (the user's
   default, else the first; a note lists the others) on that app's hidden
   screen and returns its handle; `{foreground: true}` uses the phone's own

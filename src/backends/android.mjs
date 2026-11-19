@@ -344,6 +344,36 @@ export class AndroidBackend extends EventEmitter {
     });
   }
 
+  // Copies a file from this computer to the phone (default: Download) and
+  // has the media index pick it up, so apps' file and photo pickers show
+  // it. Scripts cannot read files otherwise, so each file asks first.
+  async push(localPath, { to = "/sdcard/Download/" } = {}) {
+    const local = path.resolve(String(localPath));
+    let stat;
+    try {
+      stat = fs.statSync(local);
+    } catch {
+      throw codedError(`No file at ${local}`, "not_found");
+    }
+    if (!stat.isFile()) throw codedError(`${local} is not a file`, "bad_request");
+    if (!this.child) await this.connect();
+    const size = stat.size < 1 << 20 ? `${Math.ceil(stat.size / 1024)} KB` : `${(stat.size / (1 << 20)).toFixed(1)} MB`;
+    await authorize({
+      client: this.client,
+      device: this.label,
+      approved: this.approved,
+      pkg: `file:${local}`,
+      name: path.basename(local),
+      reason: `This copies ${local} (${size}) from this computer to the phone, where apps can read it.`,
+      ...(this.prompt ? { prompt: this.prompt } : {}),
+    });
+    const remote = to.endsWith("/") ? `${to}${path.basename(local)}` : to;
+    await adb(["-s", this.transport, "push", local, remote], { timeout: 300_000 });
+    const quoted = `'${remote.replace(/'/g, "'\\''")}'`;
+    await adb(["-s", this.transport, "shell", `content call --uri content://media --method scan_file --arg ${quoted}`]).catch(() => {});
+    return { path: remote, bytes: stat.size };
+  }
+
   // Leaves the phone's broker; it closes this session's hidden screens.
   close() {
     const conn = this.child;

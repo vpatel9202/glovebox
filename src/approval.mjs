@@ -10,7 +10,7 @@ import { loadConfig, paths, writeUserConfig, readUserConfig } from "./config.mjs
 const execFileAsync = promisify(execFile);
 
 // Packages that always ask (unless on `allow`). Matched exactly, or by prefix
-// for entries ending in ".".
+// for entries ending in "." or ":".
 export const ASK_FIRST = [
   // Purchases, installs, permissions, accounts and passkeys
   "com.android.vending",
@@ -37,6 +37,8 @@ export const ASK_FIRST = [
   "com.authy.authy",
   // Reading the notification shade (messages and one-time codes show there)
   "android:notifications",
+  // Copying a file from this computer to the phone ("file:<path>")
+  "file:",
   // Wallets and password managers
   "com.google.android.apps.walletnfcrel",
   "com.samsung.android.spay",
@@ -49,7 +51,7 @@ export const ASK_FIRST = [
 
 export function isAskFirst(pkg) {
   const id = String(pkg).toLowerCase();
-  return ASK_FIRST.some((entry) => (entry.endsWith(".") ? id.startsWith(entry) : id === entry));
+  return ASK_FIRST.some((entry) => (entry.endsWith(".") || entry.endsWith(":") ? id.startsWith(entry) : id === entry));
 }
 
 function matches(list, pkg, name) {
