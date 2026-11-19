@@ -347,6 +347,23 @@ final class Device {
                         .put("types", automation.getServiceInfo().eventTypes).put("flags", automation.getServiceInfo().flags);
             case "notifications":
                 return notifications(p.optInt("max", 50));
+            case "_nodeInfo": {
+                // Test-only: raw fields of an element, for probes.
+                AccessibilityNodeInfo n = tree().node(p.getInt("index"));
+                JSONObject o = new JSONObject().put("text", String.valueOf(n.getText())).put("desc", String.valueOf(n.getContentDescription()))
+                        .put("hint", Build.VERSION.SDK_INT >= 26 ? String.valueOf(n.getHintText()) : "").put("children", n.getChildCount())
+                        .put("clickable", n.isClickable()).put("visible", n.isVisibleToUser());
+                Bundle x = n.getExtras();
+                JSONObject extras = new JSONObject();
+                if (x != null) for (String k : x.keySet()) extras.put(k, String.valueOf(x.get(k)));
+                o.put("extras", extras);
+                JSONArray kids = new JSONArray();
+                for (int i = 0; i < n.getChildCount(); i++) {
+                    AccessibilityNodeInfo c = n.getChild(i);
+                    if (c != null) kids.put(new JSONObject().put("text", String.valueOf(c.getText())).put("desc", String.valueOf(c.getContentDescription())).put("visible", c.isVisibleToUser()).put("cls", String.valueOf(c.getClassName())));
+                }
+                return o.put("kids", kids);
+            }
             case "_tapDisplay": {
                 // Test-only: a tap on any display, as if from outside the session.
                 Input input = new Input(automation);
@@ -1112,6 +1129,14 @@ final class Device {
 
     private JSONObject type(String text, int d, Input input) throws Exception {
         AccessibilityNodeInfo field = inputFocus(d);
+        // Right after a tap the field may not have focus yet (web pages move
+        // it a moment later, and later still on a busy phone); look again,
+        // fresh, for up to 1.5 s.
+        for (int i = 0; i < 15 && (field == null || !field.isEditable()); i++) {
+            sleep(100);
+            clearAccessibilityCache();
+            field = inputFocus(d);
+        }
         if (field != null && field.isEditable()) {
             boolean hint = Build.VERSION.SDK_INT >= 26 && field.isShowingHintText();
             String before = field.getText() == null || hint ? "" : field.getText().toString();

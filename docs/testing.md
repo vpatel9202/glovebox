@@ -176,3 +176,17 @@ the phone dozing and its screen off at the start:
   top focus stayed on display 0.
 - Two sessions starting at the same moment share one broker, which exits
   ten seconds after both end, leaving no socket, display or package.
+
+### Emulator run, 2026-11-19
+
+After Phase 4 and the usability work, `smoke --android` (now also covering
+the code screen, the web screen with `glovebox é 😀 日本` typed into it,
+and pinch and rotate) passes on API 34, 35, 36 and 37. The run found:
+- Typing right after tapping a web field failed on a freshly booted API 37
+  emulator: the page gave the field focus late. typeText now waits up to
+  1.5 s for a focused field.
+- WebView 124 (API 35) exposes no HTML ids, so the smoke finds the web
+  page's output line by its text.
+- On API 37 (the Play Store image) the "phone's screen did not change"
+  check failed in two runs out of three; when it fails, the smoke now
+  reports the changed region.

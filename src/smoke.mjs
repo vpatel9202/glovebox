@@ -164,6 +164,19 @@ JSON.stringify({ afterClick, afterDrag, before, afterScroll, route: te.lastRoute
 // long press, drag and scroll in a label. The fixture is installed for the
 // run and removed after it unless `keep`. Failure details print only the
 // fixture's own labels and error codes, never other screen content.
+// Where two display-0 captures differ, as "in [x0,y0]-[x1,y1] (n px)".
+function changedBox(a, b) {
+  if (!a.body || !b.body || a.body.length !== b.body.length) return "";
+  let x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1, n = 0;
+  for (let i = 0; i < a.body.length; i += 4) {
+    if (a.body[i] === b.body[i] && a.body[i + 1] === b.body[i + 1] && a.body[i + 2] === b.body[i + 2]) continue;
+    const p = i / 4, x = p % a.w, y = Math.floor(p / a.w) + a.top;
+    n++;
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+  }
+  return n ? `in [${x0},${y0}]-[${x1},${y1}] (${n} px)` : "";
+}
+
 export async function runAndroidSmoke({ serial, keep = false } = {}) {
   const { FIXTURE_APK, FIXTURE_PACKAGE, resolveSerial, adb } = await import("./backends/android.mjs");
   const results = [];
@@ -202,7 +215,9 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
       const w = raw.readUInt32LE(0), h = raw.readUInt32LE(4);
       const header = raw.length - w * h * 4;
       const crypto = await import("node:crypto");
-      hash = crypto.createHash("sha1").update(raw.subarray(header + Math.floor(h * 0.08) * w * 4, header + Math.floor(h * 0.92) * w * 4)).digest("hex");
+      const body = raw.subarray(header + Math.floor(h * 0.08) * w * 4, header + Math.floor(h * 0.92) * w * 4);
+      hash = crypto.createHash("sha1").update(body).digest("hex");
+      return { focus, hash, body, w, top: Math.floor(h * 0.08) };
     } catch {}
     return { focus, hash };
   };
@@ -280,17 +295,26 @@ JSON.stringify({ got, back: Boolean(await fx.find({ role: "button", label: "Tap 
 
     const web = await run(`
 await fx.click((await fx.find({ role: "button", label: "Web screen" })).index);
+let heading, link, greet;
+try {
 await sleep(1000);
-const heading = (await fx.find({ role: "heading" }))?.label;
+heading = (await fx.find({ role: "heading" }))?.label;
 await fx.click((await fx.find({ role: "link" })).index);
-const link = (await fx.find({ id: "out" }))?.label;
+// The output line, by its text: older WebViews expose no HTML ids.
+const out = async () => (await fx.find({ role: "text", label: /^(nothing yet|link tapped|hello)/ }))?.label;
+link = await out();
 await fx.click((await fx.find({ role: "text field" })).index);
 await fx.typeText("glovebox é 😀 日本");
 await fx.click((await fx.find({ role: "button", label: "Greet" })).index);
-const greet = (await fx.find({ id: "out" }))?.label;
-await fx.pressKey("Back");
-await sleep(400);
-if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
+greet = await out();
+} catch (e) {
+  greet = "error: " + e.message.split("\\n")[0];
+} finally {
+  // Back to the main screen even after a failure, so later steps still run.
+  await fx.pressKey("Back");
+  await sleep(400);
+  if (/window "keyboard/.test(await tree())) await fx.pressKey("Back");
+}
 JSON.stringify({ heading, link, greet, back: Boolean(await fx.find({ role: "button", label: "Tap me" })) });`);
     step("web content reads (heading, link)", web.heading === "Web fixture", web.error ?? `heading ${web.heading}`);
     step("web link, typing and button work", web.link === "link tapped" && web.greet === "hello glovebox é 😀 日本" && web.back === true, web.error ?? `${web.link} / ${web.greet} / back ${web.back}`);
@@ -346,7 +370,7 @@ JSON.stringify({ code });`);
       const after = await watch();
       step("the phone's screen kept focus", after.focus === before.focus, `top focused display ${before.focus} -> ${after.focus}`);
       // An emulator's screen holds still; a phone's can change under the user.
-      if (emulator) step("the phone's screen did not change", after.hash != null && after.hash === before.hash, "display 0 changed");
+      if (emulator) step("the phone's screen did not change", after.hash != null && after.hash === before.hash, `display 0 changed ${changedBox(before, after)}`);
       else process.stdout.write(`info  the phone's screen ${after.hash === before.hash ? "did not change" : "changed (the user, a notification, or glovebox)"}\n`);
     }
 

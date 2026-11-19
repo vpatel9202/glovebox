@@ -25,7 +25,7 @@ const REMOTE_DEX = "/data/local/tmp/glovebox-server.dex";
 const SERVER_CLASS = "com.glovebox.server.Server";
 
 // Methods that only read the app list or the server's own state.
-const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp", "resolveIntent", "forget", "cursor", "inspect", "waitEvent", "waitQuiet", "_createDisplay", "_displayTree", "_removeRecents", "_tapDisplay", "_events"]);
+const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp", "resolveIntent", "forget", "cursor", "inspect", "waitEvent", "waitQuiet", "_createDisplay", "_displayTree", "_removeRecents", "_tapDisplay", "_events", "_nodeInfo"]);
 // Methods that act. Each checks the window it acts on and the lock screen.
 const ACTING = new Set(["activate", "keys", "type", "click", "scroll", "drag", "longPress", "touches", "performAction", "setValue", "focusElement", "selectText"]);
 
