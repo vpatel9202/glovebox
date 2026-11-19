@@ -167,6 +167,14 @@ export class App {
       const { accessibility } = await this.#backend.request("permissions", {});
       if (!accessibility) throw new Error("Accessibility permission is missing for the glovebox helper. Run: glovebox doctor");
       if (this.platform !== "macos") throw new Error(`${this.name} has no open windows`);
+      // A full-screen window whose Space is not showing is invisible to
+      // Accessibility; a person would switch to it.
+      const away = await this.#call("otherSpaceWindows").catch(() => []);
+      if (away.length) {
+        const error = new Error(`${this.name}'s window${away.length > 1 ? "s are" : " is"} on another Space (full screen or another desktop), where it can't be read. app.activate() switches there; app.window().restore() then leaves full screen.`);
+        error.code = "other_space";
+        throw error;
+      }
       // A windowless app (the Dock, a menu bar app, an app whose last window
       // closed): reads show what it has outside windows, in the main
       // display's space.

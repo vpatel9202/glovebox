@@ -504,6 +504,12 @@ export async function runMacSmoke({ keep = false, foreground = true } = {}) {
     await check("hover (foreground)", `await fx.hover([20, 20]); await fx.hover(${canvas})`, "canvas.enter");
     await check("open panel: choose a file (foreground)", `await fx.menu("File > Open…"); await sleep(1200); await fx.choosePath(${JSON.stringify(file)})`, "open", (e) => e.ok && e.path.endsWith("pick-me.txt"));
     await check("save panel: name and folder (foreground)", `await fx.menu("File > Save…"); await sleep(1200); await fx.choosePath(${JSON.stringify(path.join(dir, "named.txt"))})`, "save", (e) => e.ok && e.path.endsWith("named.txt"));
+    await check("full screen", `await fx.window().fullScreen(true); await sleep(2500)`, "window.fullscreen", (e) => e.on === true);
+    const away = await run(`await gb.pressKey("ctrl+Left"); await sleep(1500); let code = "read"; try { await fx.getAXState({emit: false}); } catch (e) { code = e.code; } code`);
+    step("a full-screen window on another Space says so (other_space)", /other_space/.test(away.text), away.text);
+    await check("activate switches to its Space; restore leaves full screen", `await fx.activate(); await sleep(1500); await fx.window().restore(); await sleep(2500)`, "window.fullscreen", (e) => e.on === false);
+    const mods = execFileSync("osascript", ["-l", "JavaScript", "-e", 'ObjC.import("AppKit"); $.NSEvent.modifierFlags']).toString().trim();
+    step("no modifier key left held down", mods === "0", `modifier flags ${mods}`);
     const shot = await run(`const s = await gb.screenshot({emit: false}); s.width + "x" + s.height`);
     step("whole-screen screenshot", !shot.isError && /\d+x\d+/.test(shot.text), shot.text);
     const wins = await run(`(await gb.windows({emit: false})).some((w) => w.bundleId === "${fixture.FIXTURE_BUNDLE_ID}")`);

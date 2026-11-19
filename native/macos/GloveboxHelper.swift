@@ -361,6 +361,22 @@ func windowsInfo(_ pid: Int) -> [[String: Any]] {
     return out
 }
 
+// Normal windows of the app that are not on screen and that Accessibility
+// does not list: on another Space, such as a full-screen window whose Space
+// is not showing.
+func otherSpaceWindows(_ pid: Int) -> [[String: Any]] {
+    let listed = Set(axWindows(pid).compactMap { w in axFrame(w).flatMap { cgWindowID(pid: pid, frame: $0) } })
+    return cgWindows(pid: pid).compactMap { w in
+        guard let id = w[kCGWindowNumber as String] as? Int, !listed.contains(id),
+              (w[kCGWindowIsOnscreen as String] as? Bool) != true,
+              let b = w[kCGWindowBounds as String] as? [String: Any],
+              let rect = CGRect(dictionaryRepresentation: b as CFDictionary), rect.width >= 160, rect.height >= 100 else { return nil }
+        var out: [String: Any] = ["windowId": id, "frame": rectJSON(rect)]
+        if let t = w[kCGWindowName as String] as? String, !t.isEmpty { out["title"] = t }
+        return out
+    }
+}
+
 // Picks the window an action should target: an explicit index, else focused, main, first.
 func targetWindow(_ pid: Int, _ params: [String: Any]) throws -> (AXUIElement, Int) {
     let windows = axWindows(pid)
@@ -583,6 +599,15 @@ func postKey(_ event: CGEvent?) {
     }
 }
 
+let modifierKeyCodes: [String: CGKeyCode] = ["ctrl": 59, "shift": 56, "alt": 58, "super": 55, "fn": 63]
+
+// Whether postKey sends to the system (the foreground route) rather than to a process.
+func postsToHID() -> Bool {
+    if backgroundRoute != nil { return false }
+    if let pid = keyTargetPid, let app = NSRunningApplication(processIdentifier: pid), !app.isActive { return false }
+    return true
+}
+
 func withKeyTarget<T>(_ params: [String: Any], _ body: () throws -> T) rethrows -> T {
     keyTargetPid = params.int("pid").map { pid_t($0) }
     defer { keyTargetPid = nil }
@@ -663,7 +688,25 @@ func pressKeys(_ params: [String: Any]) throws -> [String: Any] {
         let lower = key.count == 1 ? key.lowercased() : key
         if key.count == 1 && key != lower && !mods.contains("shift") { mods.append("shift") }
         if let code = keyCodes[lower] {
-            let f = flags(mods)
+            var f = flags(mods)
+            // Real arrow and navigation keys carry these; Mission Control's
+            // Ctrl+arrow shortcuts look for them.
+            if [123, 124, 125, 126].contains(code) { f.insert([.maskNumericPad, .maskSecondaryFn]) }
+            if [115, 116, 117, 119, 121, 114].contains(code) { f.insert(.maskSecondaryFn) }
+            // At the system level the modifiers go down and come back up as
+            // their own events; flags on the key alone leave them stuck down.
+            let hid = postsToHID()
+            let modCodes = mods.compactMap { modifierKeyCodes[$0] }
+            if hid {
+                var held: CGEventFlags = []
+                for (m, c) in zip(mods, modCodes) {
+                    held.insert(flags([m]))
+                    let e = CGEvent(keyboardEventSource: eventSource, virtualKey: c, keyDown: true)
+                    e?.flags = held
+                    postKey(e)
+                    usleep(6000)
+                }
+            }
             let down = CGEvent(keyboardEventSource: eventSource, virtualKey: code, keyDown: true)
             let up = CGEvent(keyboardEventSource: eventSource, virtualKey: code, keyDown: false)
             down?.flags = f
@@ -671,6 +714,16 @@ func pressKeys(_ params: [String: Any]) throws -> [String: Any] {
             postKey(down)
             usleep(8000)
             postKey(up)
+            if hid {
+                var held = flags(mods)
+                for (m, c) in zip(mods, modCodes).reversed() {
+                    held.remove(flags([m]))
+                    let e = CGEvent(keyboardEventSource: eventSource, virtualKey: c, keyDown: false)
+                    e?.flags = held
+                    postKey(e)
+                    usleep(6000)
+                }
+            }
         } else if mods.isEmpty {
             try typeText(["text": key])
         } else {
@@ -691,6 +744,9 @@ func typeText(_ params: [String: Any]) throws -> [String: Any] {
         let up = CGEvent(keyboardEventSource: eventSource, virtualKey: 0, keyDown: false)
         down?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
         up?.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: chunk)
+        // Never inherit modifiers that happen to be down: typed text is plain.
+        down?.flags = []
+        up?.flags = []
         postKey(down)
         usleep(4000)
         postKey(up)
@@ -701,9 +757,13 @@ func typeText(_ params: [String: Any]) throws -> [String: Any] {
         if scalar == "\n" || scalar == "\r" || scalar == "\t" {
             flush()
             let code: CGKeyCode = scalar == "\t" ? 48 : 36
-            postKey(CGEvent(keyboardEventSource: eventSource, virtualKey: code, keyDown: true))
+            let d = CGEvent(keyboardEventSource: eventSource, virtualKey: code, keyDown: true)
+            let u = CGEvent(keyboardEventSource: eventSource, virtualKey: code, keyDown: false)
+            d?.flags = []
+            u?.flags = []
+            postKey(d)
             usleep(8000)
-            postKey(CGEvent(keyboardEventSource: eventSource, virtualKey: code, keyDown: false))
+            postKey(u)
             usleep(20000)
             continue
         }
@@ -2293,6 +2353,7 @@ func handle(_ connection: Connection, _ method: String, _ params: [String: Any])
     case "activate": try activate(try params.requireInt("pid")); return [:]
     case "isActive": return ["active": try runningApp(try params.requireInt("pid")).isActive]
     case "windows": return windowsInfo(try params.requireInt("pid"))
+    case "otherSpaceWindows": return otherSpaceWindows(try params.requireInt("pid"))
     case "axTree": return try axTree(params)
     case "menus": return try menuList(params)
     case "menuPress": return try menuPress(params)
