@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 (2026-11-19)
 
 - Android: the npm package now includes the Android server and the two test
   apps, built in the release workflow from the tagged source with a pinned
