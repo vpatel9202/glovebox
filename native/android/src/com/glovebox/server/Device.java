@@ -162,6 +162,8 @@ final class Device {
                 return createDisplay(p);
             case "_displayTree":
                 return displayTree(p);
+            case "_removeRecents":
+                return removeRecents(p.getString("pkg"));
             default:
                 throw new Server.Coded("bad_request", "Unknown method " + method + " (not in this server version)");
         }
@@ -306,17 +308,30 @@ final class Device {
         if (d != DEFAULT_DISPLAY) {
             // Already open there: nothing to do (a second launch would add a task).
             if (onHidden(pkg, d)) return screenInfo(d);
+            // If the user has the app running, a second copy can take theirs:
+            // single-copy apps move their task over, and others (Chrome) close
+            // the older one. So a hidden screen opens only apps the user is
+            // not running; the phone's own screen is the other choice.
+            Map<Integer, Integer> mine = userTasks(pkg);
+            if (mine == null || !mine.isEmpty()) {
+                throw new Server.Coded("open_on_phone", pkg + " is running on the phone, and opening a second copy on glovebox's hidden screen"
+                        + " could close or take over the user's. Ask the user to close it (swipe it away in recent apps), or use"
+                        + " getApp(name, {foreground: true}) to work on the phone's screen.");
+            }
             Hidden h = hiddenById(d);
             if (h != null) h.onPhoneAtStart = onPhone(pkg);
         }
+        if (d == DEFAULT_DISPLAY) unlockScreen();
         // -W waits for the launch to finish, which a cold start needs. Not on a
         // hidden screen: while the phone sleeps -W never returns, though the
         // launch itself goes ahead; the window wait below covers it.
         List<String> cmd = new ArrayList<>(java.util.Arrays.asList("am", "start", "--display", String.valueOf(d)));
         if (d == DEFAULT_DISPLAY) cmd.add(2, "-W");
         // On a hidden screen, a task of its own (NEW_TASK | MULTIPLE_TASK), so
-        // a copy the user has open on the phone's screen stays there.
-        if (d != DEFAULT_DISPLAY) cmd.addAll(java.util.Arrays.asList("-f", "0x18000000"));
+        // a copy the user has open on the phone's screen stays there, kept out
+        // of the user's recent apps (EXCLUDE_FROM_RECENTS), even if the server
+        // dies before it can clean up.
+        if (d != DEFAULT_DISPLAY) cmd.addAll(java.util.Arrays.asList("-f", "0x18800000"));
         cmd.addAll(java.util.Arrays.asList("-n", component));
         Process proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         proc.getInputStream().readAllBytes();
@@ -343,6 +358,23 @@ final class Device {
         throw new Server.Coded("activate_failed", pkg + " did not come to the front");
     }
 
+    // The phone's screen behind a lock screen shows nothing launched there.
+    // A swipe-only lock screen guards nothing, so it is dismissed, as a
+    // person would swipe it away; a real lock stops with an error.
+    private void unlockScreen() throws Exception {
+        android.app.KeyguardManager km = (android.app.KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+        if (km == null || !km.isKeyguardLocked()) return;
+        if (km.isDeviceLocked()) {
+            throw new Server.Coded("locked", "The phone is locked. Ask the user to unlock it to work on the phone's screen"
+                    + " (the hidden screen works while it is locked).");
+        }
+        keepAwake();
+        Process proc = new ProcessBuilder("wm", "dismiss-keyguard").redirectErrorStream(true).start();
+        proc.getInputStream().readAllBytes();
+        proc.waitFor();
+        for (int i = 0; i < 20 && km.isKeyguardLocked(); i++) sleep(100);
+    }
+
     // The open animation scales the window up from its icon (long on
     // Samsung); bounds read during it are wrong. Wait until they hold still.
     private void settleBounds(String pkg, int d) {
@@ -362,6 +394,45 @@ final class Device {
             last = now;
             sleep(100);
         }
+    }
+
+    // `pkg`'s running tasks outside glovebox's hidden screens, as task id to
+    // display id: the user's copies.
+    private Map<Integer, Integer> userTasks(String pkg) {
+        java.util.Set<Integer> ours = new java.util.HashSet<>();
+        synchronized (hidden) {
+            for (Hidden h : hidden.values()) ours.add(h.id);
+        }
+        Map<Integer, Integer> all = tasksOf(pkg);
+        if (all == null) return null;
+        Map<Integer, Integer> out = new HashMap<>();
+        for (Map.Entry<Integer, Integer> e : all.entrySet()) {
+            if (!ours.contains(e.getValue())) out.put(e.getKey(), e.getValue());
+        }
+        return out;
+    }
+
+    // Every running task of `pkg`, task id to display id, including tasks
+    // kept out of recent apps (Chrome's first-run screen is one). Null if
+    // unknown.
+    @SuppressWarnings("deprecation")
+    private Map<Integer, Integer> tasksOf(String pkg) {
+        Map<Integer, Integer> out = new HashMap<>();
+        try {
+            android.app.ActivityManager am = (android.app.ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            for (android.app.ActivityManager.RunningTaskInfo info : am.getRunningTasks(200)) {
+                if (!taskOf(info, pkg)) continue;
+                out.put(info.getClass().getField("taskId").getInt(info), info.getClass().getField("displayId").getInt(info));
+            }
+            return out;
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    private static boolean taskOf(android.app.TaskInfo info, String pkg) {
+        return (info.baseActivity != null && pkg.equals(info.baseActivity.getPackageName()))
+                || (info.baseIntent != null && info.baseIntent.getComponent() != null && pkg.equals(info.baseIntent.getComponent().getPackageName()));
     }
 
     private boolean onHidden(String pkg, int d) {
@@ -553,8 +624,9 @@ final class Device {
     // the phone is locked.
     private JSONObject inspect(JSONObject p) throws Exception {
         String pkg = null;
-        int d = displayFor(p, false);
-        if (d >= 0 && d != DEFAULT_DISPLAY) appWindows(p.getString("pid"), d); // throws moved_to_phone_screen
+        int d = p.optBoolean("lockOnly") ? -1 : displayFor(p, false);
+        // Throws moved_to_phone_screen; an activate is what brings the app back.
+        if (d >= 0 && d != DEFAULT_DISPLAY && !"activate".equals(p.optString("for"))) appWindows(p.getString("pid"), d);
         if (p.has("index")) {
             try {
                 CharSequence c = tree.node(p.getInt("index")).getPackageName();
@@ -580,7 +652,9 @@ final class Device {
         boolean locked = false;
         try {
             android.app.KeyguardManager km = (android.app.KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
-            locked = km != null && km.isKeyguardLocked();
+            // Locked by a PIN, pattern, password or biometric; a swipe-only
+            // lock screen guards nothing, so it does not ask.
+            locked = km != null && km.isDeviceLocked();
         } catch (Throwable ignored) {
             // Unknown counts as unlocked; the action shows the lock screen if not.
         }
@@ -752,6 +826,21 @@ final class Device {
         JSONArray packages = new JSONArray();
         for (AccessibilityWindowInfo w : windows) packages.put(windowPackage(w));
         return new JSONObject().put("windows", windows.size()).put("packages", packages).put("nodes", walk.nodes);
+    }
+
+    // Test-only: clears an app's entries from recent apps, as swiping them
+    // away would, so a probe can start from a phone that never ran it.
+    private JSONObject removeRecents(String pkg) throws Exception {
+        Object atm = Class.forName("android.app.ActivityTaskManager").getMethod("getService").invoke(null);
+        Object slice = atm.getClass().getMethod("getRecentTasks", int.class, int.class, int.class).invoke(atm, 100, 0, 0);
+        int removed = 0;
+        for (Object t : (List<?>) slice.getClass().getMethod("getList").invoke(slice)) {
+            android.app.ActivityManager.RecentTaskInfo info = (android.app.ActivityManager.RecentTaskInfo) t;
+            if (!taskOf(info, pkg)) continue;
+            int id = info.getClass().getField("taskId").getInt(info);
+            if ((Boolean) atm.getClass().getMethod("removeTask", int.class).invoke(atm, id)) removed++;
+        }
+        return new JSONObject().put("removed", removed);
     }
 
     // ---- setup

@@ -87,13 +87,17 @@ Order of checks for each app: `deny`, then `allow`, then this list, then the
   settings, even under `allow-all`, and it asks again when one of them shows
   inside an app you already approved. It does not block an action you approve.
 - **Locked phones.** The server can reach apps behind the lock screen (a
-  hidden screen runs even while the phone is locked), so acting on a locked
-  phone asks once per session.
+  hidden screen runs even while the phone is locked), so acting on, or
+  reading a hidden screen of, a phone locked with a PIN, pattern, password or
+  biometric asks once per session. A swipe-only lock screen guards nothing
+  and does not ask.
 - **Hidden screens.** On Android 14 and later the agent's apps run on private
   displays that never take focus from the phone's screen and show no
   keyboard; input and typing are addressed to that display only and fail
-  rather than fall back to the user's screen. The displays and their apps are
-  destroyed when the session ends or the server dies. Hidden-screen work
+  rather than fall back to the user's screen. glovebox will not open an app
+  there that the user is running, since a second copy can close or take over
+  theirs. The displays and their apps are destroyed when the session ends or
+  the server dies, and never appear in the phone's recent apps. Hidden-screen work
   wakes the phone and keeps it awake until a minute after the last action.
 - **No socket.** The server talks only over the `adb shell` that started it,
   and exits when that connection closes.

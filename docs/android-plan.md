@@ -254,7 +254,9 @@ API 34+.** Each app handle gets its own display (flags `0x1fdcb`, keyboard
 policy `hide`), launched as its own task (NEW_TASK | MULTIPLE_TASK). Input,
 focus lookup, `Back` and screenshots target that display, with no fallback
 to display 0. A move to display 0 stops with `moved_to_phone_screen`.
-Teardown removes the display's tasks, then the display. A dim-screen wake
+Teardown removes the display's tasks, then the display. Apps the user is
+running are refused (`open_on_phone`), since a second copy can move or
+close the user's. A dim-screen wake
 lock covers hidden work, because nothing on a hidden screen runs while the
 phone sleeps. Two findings changed the plan: `am start -W` never returns
 while the phone sleeps, and parallel sessions need a shared server, since a

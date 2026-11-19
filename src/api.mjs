@@ -571,7 +571,11 @@ function appSurface(ctx, backend) {
         });
       }
       const existing = apps.get(info.pid);
-      if (existing) return existing;
+      if (existing) {
+        // On Android `foreground` picks the screen, so it can change later.
+        if (backend.platform === "android" && typeof options.foreground === "boolean") existing.foreground = options.foreground;
+        return existing;
+      }
       const app = new App(ctx, info, backend);
       apps.set(info.pid, app);
       if (options.foreground) app.foreground = true;

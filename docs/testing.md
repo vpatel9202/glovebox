@@ -115,10 +115,11 @@ launch.
 Passed (2026-11-18) on the API 34, 35, 36 and 37 emulators and on a Galaxy
 S24 Ultra (One UI 9, Android 17) over wireless debugging. Alongside it, three
 probes ran on each emulator (scripts not in the repo):
-- The user has the fixture open on the phone's screen with "user" typed in
-  its focused field and the keyboard up; the agent opens its own copy on a
-  hidden screen and types there. The user's copy keeps "user", stays in
-  front, and keeps focus.
+- The user has an app running on the phone's screen (the fixture with
+  "user" typed in its focused field, Clock, Chrome): opening it on a hidden
+  screen fails with `open_on_phone`, and the user's copy keeps its text, its
+  place and focus. (Before this rule, Clock's task moved to the hidden screen
+  and Chrome closed the user's tab task.)
 - `kill -9` of the server removes every hidden screen and its tasks; top
   focus stays on the phone's screen.
 - With the phone asleep, opening, reading, tapping and a screenshot on a

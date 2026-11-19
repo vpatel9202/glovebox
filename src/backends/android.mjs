@@ -20,7 +20,7 @@ const REMOTE_DEX = "/data/local/tmp/glovebox-server.dex";
 const SERVER_CLASS = "com.glovebox.server.Server";
 
 // Methods that only read the app list or the server's own state.
-const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor", "inspect", "_createDisplay", "_displayTree"]);
+const UNGATED = new Set(["hello", "ping", "permissions", "listApps", "resolveApp", "forget", "cursor", "inspect", "_createDisplay", "_displayTree", "_removeRecents"]);
 // Methods that act. Each checks the window it acts on and the lock screen.
 const ACTING = new Set(["activate", "keys", "type", "click", "scroll", "drag", "longPress", "performAction", "setValue", "focusElement", "selectText"]);
 
@@ -262,11 +262,18 @@ export class AndroidBackend extends EventEmitter {
     const common = { client: this.client, device: this.label, approved: this.approved, ...(this.prompt ? { prompt: this.prompt } : {}) };
     const name = this.names.get(pkg);
     await authorize({ ...common, pkg, name });
-    if (!ACTING.has(method)) return;
+    if (!ACTING.has(method)) {
+      // A hidden screen runs behind the lock screen, so reading it while the
+      // phone is locked asks too (once per session, like acting).
+      if (params.screen !== "hidden" || this.approved.has(`locked:${this.label}`)) return;
+      const info = await this.#send("inspect", { pid: pkg, screen: "hidden", lockOnly: true }, 10_000);
+      if (info.locked) await authorizeLocked(common);
+      return;
+    }
     const point = params.path?.[0] ?? (params.x != null ? [params.x, params.y] : null);
     const info = await this.#send(
       "inspect",
-      { pid: pkg, screen: params.screen, ...(point ? { x: point[0], y: point[1] } : {}), ...(Number.isInteger(params.index) ? { index: params.index } : {}) },
+      { pid: pkg, screen: params.screen, for: method, ...(point ? { x: point[0], y: point[1] } : {}), ...(Number.isInteger(params.index) ? { index: params.index } : {}) },
       10_000,
     );
     if (info.locked) await authorizeLocked(common);

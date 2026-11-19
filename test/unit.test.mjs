@@ -201,6 +201,11 @@ test("Android handles use the hidden screen unless told otherwise", async () => 
   assert.equal((await make(modern).device().getApp("com.a")).screen, "hidden");
   assert.equal((await make(modern).device().getApp("com.b", { foreground: true })).screen, "phone");
   assert.equal((await make(modern, { androidScreen: "phone" }).device().getApp("com.c")).screen, "phone");
+  // On Android, foreground also switches a handle that already exists.
+  const api = make(modern);
+  const first = await api.device().getApp("com.e");
+  assert.equal(await api.device().getApp("com.e", { foreground: true }), first);
+  assert.equal(first.screen, "phone");
   // Before Android 14 there is no hidden screen.
   assert.equal((await make(device(false)).device().getApp("com.d")).screen, "phone");
 });

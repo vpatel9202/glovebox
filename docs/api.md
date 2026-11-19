@@ -164,8 +164,16 @@ await clock.getAXState();
   prompts. The status and navigation bars are left out.
 - `getApp` never launches an app. Call `app.activate()` first: it opens the
   app on its hidden screen (or, on the phone's screen route, brings it
-  forward there). Until then a read fails with `not_visible`. A copy the user
-  has open on the phone's screen is a separate task and stays as it is.
+  forward there). Until then a read fails with `not_visible`.
+- A hidden screen opens only apps the user is not running. A second copy can
+  take the user's: single-copy apps (Clock) move their task over, and others
+  (Chrome) close the older one. So if the user has the app running,
+  `activate()` fails with `open_on_phone` and changes nothing; ask the user
+  to close it, or pass `{foreground: true}` to `getApp`, which also switches
+  an existing handle. While glovebox has a single-copy app on a hidden
+  screen, the user opening it on the phone shows nothing until the session
+  ends.
+- Hidden-screen apps stay out of the phone's recent apps.
 - If an app on a hidden screen moves itself to the phone's own screen (some
   sign-in and system screens do), glovebox stops with `moved_to_phone_screen`
   rather than follow it.
@@ -176,7 +184,10 @@ await clock.getAXState();
   dimmed) until a minute after the last action: an asleep phone runs nothing
   on a hidden screen. A sleeping phone is woken.
 - Opening an app on a hidden screen counts as using it: the phone's launcher
-  may list it in its suggested or recent apps.
+  may list it in its suggested apps.
+- On the phone's own screen, a swipe-only lock screen is dismissed; a phone
+  locked with a PIN, pattern or biometric fails with `locked` (the hidden
+  screen works while locked, after the one-time approval).
 - `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
 - `click(index)` presses the element through accessibility; `click([x, y])`
   taps. `rightClick` and `app.longPress(target, {ms})` press and hold.

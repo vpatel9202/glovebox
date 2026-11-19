@@ -209,6 +209,8 @@ export async function runAndroidSmoke({ serial, keep = false } = {}) {
   // An emulator's home screen updates its app suggestions after any launch,
   // hidden or not; a static settings page shows only what glovebox changes.
   if (emulator) {
+    await adb(["-s", transport, "shell", "input", "keyevent", "KEYCODE_WAKEUP"]).catch(() => {});
+    await adb(["-s", transport, "shell", "wm", "dismiss-keyguard"]).catch(() => {});
     await adb(["-s", transport, "shell", "am", "start", "-W", "-a", "android.settings.DEVICE_INFO_SETTINGS"]).catch(() => {});
     await new Promise((r) => setTimeout(r, 1500));
   }
