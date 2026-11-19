@@ -232,6 +232,13 @@ await clock.getAXState();
   locked with a PIN, pattern or biometric fails with `locked` (the hidden
   screen works while locked, after the one-time approval).
 - `query` is the app's label (`"Clock"`) or package (`"com.android.chrome"`).
+- `phone.open(url)` opens a link in the app that handles it (the user's
+  default, else the first; a note lists the others) on that app's hidden
+  screen and returns its handle; `{foreground: true}` uses the phone's own
+  screen. `phone.open({action, data, type, component, categories,
+  extras})` takes an intent instead, and `app.open(...)` sends one to a
+  given app, to jump straight to a screen. Approval is the same as opening
+  the app.
 - `click(index)` presses the element through accessibility; `click([x, y])`
   taps. `rightClick` and `app.longPress(target, {ms})` press and hold.
   `app.swipe(from, to, {ms})` moves a finger without a long press first (pagers,

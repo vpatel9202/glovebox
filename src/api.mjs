@@ -438,6 +438,17 @@ export class App {
     await this.#activate();
   }
 
+  // Android: opens a link or a specific screen of this app, on its screen
+  // (hidden by default): {action ("android.intent.action.VIEW"), data (a
+  // URL or URI), type, component ("pkg/.Activity"), categories, extras}.
+  async open(intent) {
+    if (this.platform !== "android") throw new Error("app.open() is for Android apps; use activate() on macOS");
+    const spec = typeof intent === "string" ? { data: intent } : intent;
+    return this.#act("open", { intent: spec.data ?? spec.component ?? spec.action }, async () => {
+      await this.#call("activate", { intent: spec });
+    });
+  }
+
   // Brings the app forward at most once per call. If it is no longer in front
   // later in the same call, the user switched away: stop rather than take
   // focus back from them.
@@ -747,6 +758,19 @@ export function createApi(ctx) {
       const backend = ctx.device(serial == null ? null : String(serial));
       const surface = appSurface(ctx, backend);
       return Object.assign(surface, {
+        // Opens a link (a URL string) or an intent spec in the app that
+        // handles it (the user's default, else the first), on that app's
+        // screen, and returns its handle. {foreground: true} uses the
+        // phone's own screen.
+        async open(target, options = {}) {
+          ctx.checkAbort();
+          const spec = typeof target === "string" ? { data: target } : target;
+          const info = await backend.request("resolveIntent", { intent: spec });
+          const app = await surface.getApp(info.bundleId, { foreground: options.foreground });
+          await app.open(spec);
+          if (info.alternatives?.length) ctx.out.text(`(opened in ${info.name}; also handled by ${info.alternatives.join(", ")})`);
+          return app;
+        },
         platform: backend.platform,
         serial: serial ?? null,
         toString: () => `Device(${backend.label})`,

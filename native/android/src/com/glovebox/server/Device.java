@@ -205,7 +205,9 @@ final class Device {
                 return new JSONObject().put("active", d >= 0 && p.optString("pid").equals(topPackage(d)));
             }
             case "activate":
-                return activate(p.getString("pid"), displayFor(p, true));
+                return activate(p.getString("pid"), displayFor(p, true), p.optJSONObject("intent"));
+            case "resolveIntent":
+                return resolveIntent(p.getJSONObject("intent"));
             case "windows":
                 return windows(p.getString("pid"), displayOrThrow(p));
             case "axTree":
@@ -425,13 +427,55 @@ final class Device {
         throw new Server.Coded("not_found", "No installed app matches \"" + query + "\"");
     }
 
-    private JSONObject activate(String pkg, int d) throws Exception {
-        Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
-        if (launch == null || launch.getComponent() == null) throw new Server.Coded("not_found", pkg + " has no launcher activity");
-        String component = launch.getComponent().flattenToShortString();
+    // An intent spec from the host: {action, data, type, component, package,
+    // categories: [], extras: {key: string | number | boolean}}.
+    private Intent intentFrom(JSONObject spec) throws Exception {
+        Intent intent = new Intent(spec.optString("action", Intent.ACTION_VIEW));
+        String data = spec.optString("data", null), type = spec.optString("type", null);
+        if (data != null && type != null) intent.setDataAndType(android.net.Uri.parse(data), type);
+        else if (data != null) intent.setData(android.net.Uri.parse(data));
+        else if (type != null) intent.setType(type);
+        if (spec.has("component")) intent.setComponent(android.content.ComponentName.unflattenFromString(spec.getString("component")));
+        if (spec.has("package")) intent.setPackage(spec.getString("package"));
+        JSONArray cats = spec.optJSONArray("categories");
+        if (cats != null) for (int i = 0; i < cats.length(); i++) intent.addCategory(cats.getString(i));
+        if (intent.getCategories() == null || intent.getCategories().isEmpty()) intent.addCategory(Intent.CATEGORY_DEFAULT);
+        return intent;
+    }
+
+    // The app an intent opens: the user's default for it, else the only
+    // handler, else the first, with the others listed.
+    private JSONObject resolveIntent(JSONObject spec) throws Exception {
+        Intent intent = intentFrom(spec);
+        PackageManager pm = context.getPackageManager();
+        List<ResolveInfo> all = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
+        if (all.isEmpty()) throw new Server.Coded("not_found", "No app opens " + intent.toUri(0));
+        ResolveInfo preferred = pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY);
+        ResolveInfo pick = preferred != null && !"android".equals(preferred.activityInfo.packageName) ? preferred : all.get(0);
+        JSONArray others = new JSONArray();
+        for (ResolveInfo r : all) if (!r.activityInfo.packageName.equals(pick.activityInfo.packageName)) others.put(r.activityInfo.packageName);
+        String pkg = pick.activityInfo.packageName;
+        return appInfo(pkg, String.valueOf(pick.loadLabel(pm)), topPackage(DEFAULT_DISPLAY))
+                .put("component", new android.content.ComponentName(pkg, pick.activityInfo.name).flattenToShortString())
+                .put("alternatives", others);
+    }
+
+    private JSONObject activate(String pkg, int d, JSONObject intentSpec) throws Exception {
+        String component;
+        if (intentSpec != null) {
+            component = null;
+        } else {
+            Intent launch = context.getPackageManager().getLaunchIntentForPackage(pkg);
+            if (launch == null || launch.getComponent() == null) throw new Server.Coded("not_found", pkg + " has no launcher activity");
+            component = launch.getComponent().flattenToShortString();
+        }
+        boolean alreadyHere = false;
         if (d != DEFAULT_DISPLAY) {
+            alreadyHere = onHidden(pkg, d);
             // Already open there: nothing to do (a second launch would add a task).
-            if (onHidden(pkg, d)) return screenInfo(d);
+            if (alreadyHere && intentSpec == null) return screenInfo(d);
+        }
+        if (d != DEFAULT_DISPLAY && !alreadyHere) {
             refuseSecondCopy(pkg);
             Hidden h = hiddenById(d);
             if (h != null) h.onPhoneAtStart = onPhone(pkg);
@@ -458,8 +502,30 @@ final class Device {
         // a copy the user has open on the phone's screen stays there, kept out
         // of the user's recent apps (EXCLUDE_FROM_RECENTS), even if the server
         // dies before it can clean up.
-        if (d != DEFAULT_DISPLAY) cmd.addAll(java.util.Arrays.asList("-f", "0x18800000"));
-        cmd.addAll(java.util.Arrays.asList("-n", component));
+        // (An intent into an app already open there goes into its task: no
+        // MULTIPLE_TASK.)
+        if (d != DEFAULT_DISPLAY) cmd.addAll(java.util.Arrays.asList("-f", alreadyHere ? "0x10800000" : "0x18800000"));
+        if (intentSpec == null) {
+            cmd.addAll(java.util.Arrays.asList("-n", component));
+        } else {
+            Intent intent = intentFrom(intentSpec);
+            if (intent.getComponent() == null && intent.getPackage() == null) intent.setPackage(pkg);
+            cmd.addAll(java.util.Arrays.asList("-a", intent.getAction()));
+            if (intent.getData() != null) cmd.addAll(java.util.Arrays.asList("-d", intent.getData().toString()));
+            if (intent.getType() != null) cmd.addAll(java.util.Arrays.asList("-t", intent.getType()));
+            for (String c : intent.getCategories()) cmd.addAll(java.util.Arrays.asList("-c", c));
+            if (intent.getComponent() != null) cmd.addAll(java.util.Arrays.asList("-n", intent.getComponent().flattenToShortString()));
+            else cmd.add(intent.getPackage()); // am start's final argument may be a package
+            JSONObject extras = intentSpec.optJSONObject("extras");
+            if (extras != null) {
+                for (java.util.Iterator<String> it = extras.keys(); it.hasNext(); ) {
+                    String k = it.next();
+                    Object v = extras.get(k);
+                    String flag = v instanceof Boolean ? "--ez" : v instanceof Integer ? "--ei" : v instanceof Long ? "--el" : v instanceof Number ? "--ef" : "--es";
+                    cmd.addAll(java.util.Arrays.asList(flag, k, String.valueOf(v)));
+                }
+            }
+        }
         Process proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
         proc.getInputStream().readAllBytes();
         proc.waitFor();
