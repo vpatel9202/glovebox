@@ -72,6 +72,13 @@ await calc.getAXState();
   frame}`, with `frame` as `[x, y, w, h]` in image pixels. Use it to act in
   the same call: `await app.click((await app.find({role: "button", label:
   "Save"})).index)`.
+- `app.scrollTo(query, {container, dy, max})` scrolls until an element
+  matching `query` is fully in view and returns it, or `null` at the end of
+  the content: one call instead of a read-scroll-read loop. It scrolls the
+  largest list or scroll area unless `container` names one by index; on
+  Android each step is about a page, elsewhere `dy` lines (default 5). A
+  negative `dy` scrolls back. Labels match as substrings, so use a RegExp
+  such as `/^Row 3$/` for an exact label.
 - `app.nodes(options)` returns every element in that form, and
   `app.text(index)` the full text of one; reads cut text at 160 characters.
   Neither prints nor changes what the next read diffs against.

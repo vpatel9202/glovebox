@@ -350,23 +350,44 @@ export class App {
   // RegExp, and any flag (focused, selected, disabled, settable) as a boolean.
   // A string query matches `text`. Prints nothing.
   async find(query, options = {}) {
-    // Scripts run in their own realm, so their RegExps fail `instanceof`.
-    const isRegExp = (v) => Object.prototype.toString.call(v) === "[object RegExp]";
-    const q = typeof query === "string" || isRegExp(query) ? { text: query } : (query ?? {});
-    const test = (want, have) => {
-      if (want == null) return true;
-      if (have == null) return false;
-      return isRegExp(want) ? want.test(String(have)) : String(have).toLowerCase().includes(String(want).toLowerCase());
-    };
-    const matches = (n) =>
-      (q.role == null || (isRegExp(q.role) ? q.role.test(n.role) : n.role === String(q.role).toLowerCase())) &&
-      test(q.label, n.label) &&
-      test(q.id, n.id) &&
-      test(q.value, n.value) &&
-      (q.text == null || [n.label, n.value, n.placeholder, n.id, n.desc].some((v) => test(q.text, v))) &&
-      ["focused", "selected", "disabled", "settable"].every((f) => q[f] == null || Boolean(n[f]) === q[f]);
-    const all = (await this.nodes(options)).filter(matches);
+    const all = (await this.nodes(options)).filter(matcher(query));
     return options.all ? all : (all[0] ?? null);
+  }
+
+  // Scrolls until an element matching `query` (as find) is fully in view and
+  // returns it, or null at the end of the content. Scrolls the largest list
+  // or scroll area unless `container` (an index) names one. Each step moves
+  // about a page on Android, or `dy` lines elsewhere (default 5); a negative
+  // `dy` scrolls back. At most `max` steps (30).
+  async scrollTo(query, options = {}) {
+    const { container, dy = 5, max = 30, window } = options;
+    const match = matcher(query);
+    const visible = (n) => n.frame && n.frame[3] > 0 && n.frame[1] >= 0 && n.frame[1] + n.frame[3] <= this.#view.height && n.frame[0] >= 0 && n.frame[0] < this.#view.width;
+    let last = null;
+    for (let step = 0; step <= max; step++) {
+      const all = await this.nodes({ window });
+      const hit = all.find(match);
+      if (hit && visible(hit)) return hit;
+      const area = (n) => (n.frame ? n.frame[2] * n.frame[3] : 0);
+      const box = container != null ? all.find((n) => n.index === container) : all.filter((n) => /^(list|scroll area|table|outline|web area)$/.test(n.role)).sort((a, b) => area(b) - area(a))[0];
+      if (!box?.frame) throw new Error(`scrollTo: nothing to scroll in ${this.name}'s window; pass {container: index}`);
+      // The same elements as last time: the content stopped moving.
+      const now = all.map((n) => `${n.index}:${n.label ?? ""}:${n.frame?.[1] ?? ""}`).join("|");
+      if (now === last) return null;
+      last = now;
+      // An element found but cut off by the edge needs a nudge toward it.
+      const back = hit ? hit.frame[1] < 0 : dy < 0;
+      const [bx, by, bw, bh] = box.frame;
+      if (this.platform === "android") {
+        // A finger swipe over most of the list: a page per step, no fling.
+        const share = hit ? 0.25 : 0.6;
+        const [from, to] = [by + bh * (0.5 + share / 2), by + bh * (0.5 - share / 2)];
+        await this.swipe([bx + bw / 2, back ? to : from], [bx + bw / 2, back ? from : to], { ms: 300 });
+      } else {
+        await this.scroll([bx + bw / 2, by + bh / 2], hit ? (back ? -2 : 2) : dy);
+      }
+    }
+    return null;
   }
 
   // The full text of element `index` (its value, else its label): reads cut
@@ -694,6 +715,25 @@ function appSurface(ctx, backend) {
       return backend.request("permissions", {});
     },
   };
+}
+
+// A find() query as a predicate over nodes() records. Scripts run in their
+// own realm, so their RegExps fail `instanceof`.
+function matcher(query) {
+  const isRegExp = (v) => Object.prototype.toString.call(v) === "[object RegExp]";
+  const q = typeof query === "string" || isRegExp(query) ? { text: query } : (query ?? {});
+  const test = (want, have) => {
+    if (want == null) return true;
+    if (have == null) return false;
+    return isRegExp(want) ? want.test(String(have)) : String(have).toLowerCase().includes(String(want).toLowerCase());
+  };
+  return (n) =>
+    (q.role == null || (isRegExp(q.role) ? q.role.test(n.role) : n.role === String(q.role).toLowerCase())) &&
+    test(q.label, n.label) &&
+    test(q.id, n.id) &&
+    test(q.value, n.value) &&
+    (q.text == null || [n.label, n.value, n.placeholder, n.id, n.desc].some((v) => test(q.text, v))) &&
+    ["focused", "selected", "disabled", "settable"].every((f) => q[f] == null || Boolean(n[f]) === q[f]);
 }
 
 export function createApi(ctx) {

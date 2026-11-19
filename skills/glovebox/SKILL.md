@@ -32,7 +32,8 @@ The loop:
    `app.setValue(9, "text")`. Then read again in the same call. When you
    already know what you want, look it up silently in the same call instead
    of printing a read: `const ok = await app.find({role: "button", label:
-   "OK"}); await app.click(ok.index)`. `app.text(i)` gives a field's full text.
+   "OK"}); await app.click(ok.index)`. `app.text(i)` gives a field's full text, and `app.scrollTo(query)` scrolls a
+   list until the element shows.
 4. Take `app.getScreenshot()` only when the tree cannot tell you what you need
    (remote desktops such as Citrix, canvases, visual layout). Click with
    `[x, y]` pixels from that screenshot; they are the same pixels the image
