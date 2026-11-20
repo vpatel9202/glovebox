@@ -22,6 +22,10 @@
   Input Monitoring is asked only with `setup --input-monitoring`, so no
   unanswered prompt sits in front of the first test. The helper's
   `permissions` request takes `ask` (one permission) in place of `prompt`.
+  When macOS offers to quit and reopen the helper after a grant, either
+  answer works: setup no longer stops with "Nostrings Helper disconnected",
+  and a helper that keeps reporting the old answer is restarted so the grant
+  shows.
 - Docs: a new README, a porting guide in CONTRIBUTING, the axTree node
   fields in the protocol doc. Internal plans moved to `docs/internal` and
   out of the npm package.

@@ -373,3 +373,20 @@ test("conformance: the reference fake backend passes every check", async () => {
     backend.close();
   }
 });
+
+test("setup keeps waiting through a helper quit and restarts a helper stuck on the old answer", async () => {
+  const { waitForPermission } = await import("../src/permissions.mjs");
+  // "Quit & Reopen": one request fails, the next sees the grant.
+  let calls = 0;
+  const quitting = { close() {}, async request() { calls += 1; if (calls === 1) throw new Error("Nostrings Helper disconnected"); return { accessibility: true }; } };
+  assert.equal(await waitForPermission(quitting, (p) => p.accessibility, { pollMs: 1, restart: async () => {} }), true);
+  // "Later": the running helper says no until it is restarted.
+  let fresh = false;
+  let restarts = 0;
+  const stale = { close() {}, async request() { return { accessibility: fresh }; } };
+  const ok = await waitForPermission(stale, (p) => p.accessibility, { pollMs: 1, restartMs: 5, restart: async () => { restarts += 1; fresh = true; } });
+  assert.equal(ok, true);
+  assert.equal(restarts, 1);
+  // Never granted: gives up.
+  assert.equal(await waitForPermission(stale, () => false, { minutes: 0.0005, pollMs: 1, restartMs: 5, restart: async () => {} }), false);
+});

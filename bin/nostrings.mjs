@@ -104,7 +104,7 @@ async function doctor() {
             ? "ok    Background input available (apps stay in the background)"
             : `warn  Background input unavailable on this macOS; apps will be brought forward (${Object.entries(bg).filter(([, v]) => !v).map(([k]) => k).join(", ") || "old helper"})`,
         );
-        const perms = await backend.request("permissions", { prompt: false });
+        const perms = await backend.request("permissions", {});
         check(perms.accessibility, "Accessibility granted to Nostrings Helper", "System Settings > Privacy & Security > Accessibility: enable Nostrings Helper");
         check(perms.screenRecording, "Screen Recording granted to Nostrings Helper", "System Settings > Privacy & Security > Screen & System Audio Recording: enable Nostrings Helper, then run: nostrings setup --restart");
         // In testing, Escape only reached the helper with Input Monitoring.
@@ -131,14 +131,10 @@ async function doctor() {
   if (!ok) process.exitCode = 1;
 }
 
-// Polls the helper until `check(perms)` holds, or gives up after `minutes`.
 async function waitFor(backend, check, minutes = 5) {
-  const deadline = Date.now() + minutes * 60_000;
-  while (Date.now() < deadline) {
-    if (check(await backend.request("permissions", { prompt: false }))) return true;
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  return false;
+  const { waitForPermission } = await import("../src/permissions.mjs");
+  const helper = await import("../src/macos-helper.mjs");
+  return waitForPermission(backend, check, { minutes, restart: () => helper.quit() });
 }
 
 // Builds the helper if needed, then walks through the macOS permissions one
@@ -163,19 +159,20 @@ async function setup(flags) {
   }
 
   let backend = new MacBackend({ client: "nostrings setup" });
-  let perms = await backend.request("permissions", { prompt: false });
+  let perms = await backend.request("permissions", {});
   if (!perms.accessibility) {
     say('\n1/2 Accessibility: macOS is asking now. Turn on "Nostrings Helper" in');
-    say("    System Settings > Privacy & Security > Accessibility. Waiting...");
+    say("    System Settings > Privacy & Security > Accessibility. If macOS then offers");
+    say("    to quit and reopen it, either answer is fine. Waiting...");
     await backend.request("permissions", { ask: "accessibility" });
     if (!(await waitFor(backend, (p) => p.accessibility))) die("Timed out waiting for Accessibility. Run nostrings setup again.");
     say("    Accessibility granted.");
   }
-  perms = await backend.request("permissions", { prompt: false });
+  perms = await backend.request("permissions", {});
   if (!perms.screenRecording) {
     say('\n2/2 Screen Recording: macOS is asking now. Turn on "Nostrings Helper" in');
     say("    System Settings > Privacy & Security > Screen & System Audio Recording.");
-    say("    If macOS offers to quit and reopen it, accept. If no prompt appears, use + and add");
+    say("    If macOS offers to quit and reopen it, either answer is fine. If no prompt appears, use + and add");
     say(`    ${helper.appPath()} (press Cmd+Shift+G in the file picker). Waiting...`);
     await backend.request("permissions", { ask: "screenRecording" });
     if (!(await waitFor(backend, (p) => p.screenRecording))) die("Timed out waiting for Screen Recording. Run nostrings setup again.");
@@ -185,7 +182,7 @@ async function setup(flags) {
     await helper.quit();
     backend = new MacBackend({ client: "nostrings setup" });
   }
-  perms = await backend.request("permissions", { prompt: false });
+  perms = await backend.request("permissions", {});
   if (!perms.inputMonitoring && flags["input-monitoring"]) {
     say('\nInput Monitoring: macOS is asking now. Turn on "Nostrings Helper" in');
     say("    System Settings > Privacy & Security > Input Monitoring. Waiting...");
