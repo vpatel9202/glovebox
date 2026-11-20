@@ -472,8 +472,8 @@ await clock.getAXState();
 - **Window controls during background typing.** A target window can show active
   window controls while it receives background keys, even though your app stays
   frontmost and keeps your keyboard.
-- **One-node trees.** Remote desktops such as Citrix expose a single accessibility
-  node, so work there runs on screenshots and pixel clicks.
+- **One-node trees.** Remote desktops, canvases and games expose a single
+  accessibility node, so work there runs on `ocr()` and pixel clicks.
 
 ## Tips
 
@@ -482,8 +482,8 @@ await clock.getAXState();
 - Pick the cheapest read that answers the question: `find`/`nodes`/`text`
   (data, nothing printed), then `getAXState()` (a text diff), then `ocr()`
   (text, diffed on repeat), and a screenshot last (an image costs the most).
-- When a read shows one or two elements (Citrix, remote desktops, canvases,
-  games), the screen is drawn: read it with `app.ocr()` and click the centers
+- When a read shows one or two elements (remote desktops, virtual machines,
+  canvases, games), the screen is drawn: read it with `app.ocr()` and click the centers
   of its frames. Take a screenshot only to judge layout or visuals.
 - To collect a long list, loop scroll and `ocr({emit: false})` (or `find`)
   inside one call and return only the text you need, instead of one call per

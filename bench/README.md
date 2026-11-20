@@ -87,7 +87,7 @@ The tasks added for v2 each test one thing the first seven did not:
   call has room to.
 - `large-table`: 200 rows with random values per launch. nostrings's default
   read stops at 800 elements, so the Answer field is not in the first read.
-- `remote-desktop`: modeled on the 2026-10-29 Citrix field run. One
+- `remote-desktop`: modeled on a remote desktop client. One
   accessibility node, 11 pt text, the target row's Open button is off to the
   right (scroll, or the Right arrow), the record loads two seconds after Open,
   and an untitled tooltip panel takes key focus. The view takes the first

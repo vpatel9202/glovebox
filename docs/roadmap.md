@@ -22,8 +22,8 @@ init`, saved scripts, and the backend conformance check.
 5. **Benchmark again** once Windows and Linux exist: the published numbers
    are from 0.3.0 (then called glovebox) and cover macOS only.
 
-Open bug found by the 2026-10-29 Citrix field run: horizontal background
-scroll has not been tried in Citrix Viewer since the fix. (gb-1iz.12)
+Open bug: horizontal background scroll has not been tried in a remote
+desktop viewer since the fix. (gb-1iz.12)
 
 ## Token efficiency
 

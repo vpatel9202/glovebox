@@ -342,7 +342,7 @@ await __t.setValue(__i(/text field.*placeholder="Answer"/), ${JSON.stringify(exp
     teardown: quitFixture,
   },
   {
-    // Pixels only, like Citrix: small text, a row reached by scrolling right,
+    // Pixels only, like a remote desktop: small text, a row reached by scrolling right,
     // a record that loads two seconds after Open, and a tooltip panel that
     // takes key focus.
     id: "remote-desktop",

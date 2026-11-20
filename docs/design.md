@@ -15,7 +15,7 @@ median script about 130 characters), the properties that made that loop cheap:
 4. Screenshots are an explicit choice, never a side effect of an action.
 5. Clicks land in the same pixel space as the image the model saw.
 6. Pixel actions and element actions are both cheap, because some apps
-   (Citrix, canvases) expose a single accessibility node.
+   (remote desktops, canvases) expose a single accessibility node.
 7. No documentation dump in tool results, and no idle teardown that throws
    away bindings.
 

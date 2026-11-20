@@ -67,7 +67,7 @@ await clickMenu(app, "Edit", "Select All");
 await app.getAXState();
 ```
 
-## 4. Citrix, remote desktops and canvases: OCR, then click
+## 4. Remote desktops, virtual machines and canvases: OCR, then click
 
 Not yet run on a real machine. When a read shows one or two elements, the
 screen is drawn, so read its text with `app.ocr()` (text, not an image), and
@@ -75,7 +75,7 @@ click the center of the frame you want. Frames are in the window image's
 pixels, the same space clicks use.
 
 ```js
-const app = await ui.getApp("Citrix Viewer");     // any app with a near-empty tree
+const app = await ui.getApp("Remote Desktop");   // any app whose read shows one or two elements
 const text = await app.ocr({ emit: false });
 const save = text.find((t) => /^Save$/i.test(t.text));
 const [x, y, w, h] = save.frame;
@@ -83,7 +83,7 @@ await app.click([x + w / 2, y + h / 2]);
 await app.ocr();                                  // prints only what changed
 ```
 
-To pull every row out of a long scrolling list (an Epic column list, a
+To pull every row out of a long scrolling list (a table, a log, a
 report), do it in one call and return the rows, not a screenshot per page:
 
 ```js

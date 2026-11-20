@@ -37,7 +37,7 @@ The loop:
    `await app.expect({label: "Saved"})`; it stops the call and shows the
    window if the check fails.
 4. When the tree is empty or nearly so (a read shows one or two elements:
-   Citrix, remote desktops, canvases, games), the screen is drawn, not
+   remote desktops, virtual machines, canvases, games), the screen is drawn, not
    described. Use `app.ocr()`: text lines with `@x,y wxh` frames you can click
    (`[x + w/2, y + h/2]`), and a repeat call prints only what changed. Do not
    fall back to screenshots for reading text.

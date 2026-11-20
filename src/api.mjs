@@ -282,7 +282,7 @@ export class App {
       text += this.#notice;
       this.#notice = "";
     }
-    // A near-empty tree means the screen is drawn (Citrix, canvases): steer to
+    // A near-empty tree means the screen is drawn (remote desktops, canvases): steer to
     // OCR, which is text, not to screenshots, which are images.
     if (tree.nodes.length <= 2 && !text.includes(" — changes since last read") && !text.endsWith(" — no change.")) {
       text += "\n(only " + tree.nodes.length + " element" + (tree.nodes.length === 1 ? "" : "s") + ": this screen is drawn, not described. Use app.ocr() for its text with clickable positions; it costs far less than a screenshot, and repeat calls show only changes. Screenshot only to judge layout.)";

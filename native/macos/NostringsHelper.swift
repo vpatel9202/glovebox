@@ -827,7 +827,7 @@ func scroll(_ params: [String: Any]) throws -> [String: Any] {
         let sx: Int32 = i < abs(dx) ? (dx > 0 ? 1 : -1) : 0
         let e = CGEvent(scrollWheelEvent2Source: eventSource, units: .line, wheelCount: 2, wheel1: sy, wheel2: sx, wheel3: 0)
         e?.location = point
-        // Some clients (Citrix Viewer) read only the point and fixed-point
+        // Some clients (remote desktop viewers) read only the point and fixed-point
         // deltas, which the line-based constructor leaves at 0 for axis 2.
         if sx != 0 {
             e?.setIntegerValueField(.scrollWheelEventPointDeltaAxis2, value: Int64(sx) * 10)
