@@ -93,7 +93,11 @@ await calc.getAXState();
   (canvases, games, remote desktops; a read with two or fewer elements
   suggests it). Returns `[{text, confidence, frame}]` with the frame in
   image pixels, ready to click, and prints one line per text unless
-  `{emit: false}`. The first call builds the OCR tool with `swiftc` (about a
+  `{emit: false}`. A repeat call on the same window prints only text that is
+  new or moved and a count of what is gone (`{disableDiffing: true}` prints
+  everything); the returned array is always complete. Use it instead of a
+  screenshot whenever the question is "what does it say": it is text, so it
+  costs far less. The first call builds the OCR tool with `swiftc` (about a
   minute); later calls take well under a second. OCR text can be wrong
   (`0` read as `O`).
 - `app.windows()` lists windows with their frames and image size.
@@ -475,6 +479,12 @@ await clock.getAXState();
 
 - Bind each app once and reuse the handle; define helpers in the session.
 - Batch a whole step into one call: several actions, then one read.
-- Read the tree first. Use screenshots only when the tree has nothing useful
-  (remote desktops such as Citrix, canvases, games) or you need to see layout.
-- When the tree is a single node, work in pixels from the latest screenshot.
+- Pick the cheapest read that answers the question: `find`/`nodes`/`text`
+  (data, nothing printed), then `getAXState()` (a text diff), then `ocr()`
+  (text, diffed on repeat), and a screenshot last (an image costs the most).
+- When a read shows one or two elements (Citrix, remote desktops, canvases,
+  games), the screen is drawn: read it with `app.ocr()` and click the centers
+  of its frames. Take a screenshot only to judge layout or visuals.
+- To collect a long list, loop scroll and `ocr({emit: false})` (or `find`)
+  inside one call and return only the text you need, instead of one call per
+  page.

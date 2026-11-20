@@ -67,23 +67,41 @@ await clickMenu(app, "Edit", "Select All");
 await app.getAXState();
 ```
 
-## 4. Pixel fallback for Citrix and canvases
+## 4. Citrix, remote desktops and canvases: OCR, then click
 
-Not yet run on a real machine. When the tree is one node, take a screenshot,
-read coordinates off the image, and click `[x, y]`. Pixels are the
-screenshot's own: `(0, 0)` is the window's top-left corner.
+Not yet run on a real machine. When a read shows one or two elements, the
+screen is drawn, so read its text with `app.ocr()` (text, not an image), and
+click the center of the frame you want. Frames are in the window image's
+pixels, the same space clicks use.
 
 ```js
-const app = await ui.getApp("Citrix Viewer");   // any app with a one-node tree
-const shot = await app.getScreenshot();         // the image comes back in the result
-console.log(shot.width, shot.height);
-await app.click([412, 230]);                    // a point you read off the image
-await app.typeText("hello");
-await app.getScreenshot();                      // look again before the next step
+const app = await ui.getApp("Citrix Viewer");     // any app with a near-empty tree
+const text = await app.ocr({ emit: false });
+const save = text.find((t) => /^Save$/i.test(t.text));
+const [x, y, w, h] = save.frame;
+await app.click([x + w / 2, y + h / 2]);
+await app.ocr();                                  // prints only what changed
 ```
 
-Re-take the screenshot if the window was resized: a click outside the window
-image throws instead of landing in another app.
+To pull every row out of a long scrolling list (an Epic column list, a
+report), do it in one call and return the rows, not a screenshot per page:
+
+```js
+const seen = new Set(), rows = [];
+for (let page = 0; page < 30; page++) {
+  const before = seen.size;
+  for (const t of await app.ocr({ emit: false })) if (!seen.has(t.text)) { seen.add(t.text); rows.push(t.text); }
+  if (seen.size === before) break;               // nothing new: the end of the list
+  await app.scroll([400, 300], 5);               // a point inside the list
+  await app.settle();
+}
+rows;
+```
+
+Remote screens repaint late, so if a page comes back the same as the last,
+`await sleep(300)` before the next OCR. Take a screenshot only to check
+layout or visuals that text cannot show. Re-read after a resize: a click
+outside the window image throws instead of landing in another app.
 
 ## 5. Define a helper once, reuse it
 

@@ -26,6 +26,12 @@
   answer works: setup no longer stops with "Nostrings Helper disconnected",
   and a helper that keeps reporting the old answer is restarted so the grant
   shows.
+- Fewer screenshots on drawn screens (Citrix, remote desktops, canvases): a
+  repeat `app.ocr()` on the same window prints only text that is new or
+  moved. The tool description, skill, `help()` and recipes now rank reads by
+  token cost and send agents to `app.ocr()` instead of screenshots when a
+  read shows one or two elements, with a one-call recipe for pulling a long
+  scrolling list. Before, the Citrix guidance taught screenshots.
 - Docs: a new README, a porting guide in CONTRIBUTING, the axTree node
   fields in the protocol doc. Internal plans moved to `docs/internal` and
   out of the npm package.

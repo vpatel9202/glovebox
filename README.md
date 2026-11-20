@@ -50,8 +50,9 @@ await clock.getAXState();
   functions persist across calls, so one call can click, type, loop, check and
   read.
 - **Diffs, not screenshots.** The default read is the accessibility tree as
-  text; later reads show only changes. Screenshots, OCR and pixel clicks are
-  there when the tree is empty (Citrix, canvases).
+  text; later reads show only changes. When the tree is empty (Citrix,
+  canvases), `app.ocr()` reads the screen as text with clickable positions,
+  also diffed, so even remote desktops rarely need an image.
 - **Background by default.** Keys, clicks, drags and scrolls reach the app
   while you keep working in another one. On Android 14+ apps run on a hidden
   screen, so the phone's own screen is left alone.

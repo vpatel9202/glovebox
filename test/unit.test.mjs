@@ -390,3 +390,14 @@ test("setup keeps waiting through a helper quit and restarts a helper stuck on t
   // Never granted: gives up.
   assert.equal(await waitForPermission(stale, () => false, { minutes: 0.0005, pollMs: 1, restartMs: 5, restart: async () => {} }), false);
 });
+
+test("repeat OCR prints only new or moved text and counts what is gone", async () => {
+  const { ocrDiff } = await import("../src/api.mjs");
+  const a = ['"Name" @10,10 40x12', '"MRN" @10,30 30x12', '"Save" @200,300 40x16'];
+  assert.match(ocrDiff("H", a, a), /— no change\.$/);
+  const b = ['"Name" @10,10 40x12', '"MRN 12345" @10,30 70x12', '"Save" @200,300 40x16'];
+  const d = ocrDiff("H", a, b);
+  assert.match(d, /\+ "MRN 12345"/);
+  assert.match(d, /2 unchanged not shown, 1 gone/);
+  assert.doesNotMatch(d, /"Name"/);
+});

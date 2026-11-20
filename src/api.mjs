@@ -66,12 +66,32 @@ function hashImage(data) {
   return createHash("sha1").update(data).digest("hex");
 }
 
+// A repeat OCR of the same window prints only text that is new or has moved,
+// and how much is gone, the way reads print tree diffs. Lines are
+// `"text" @x,y wxh`, so a line that moved counts as new at its new place.
+export function ocrDiff(head, before, after) {
+  const left = new Map();
+  for (const l of before) left.set(l, (left.get(l) ?? 0) + 1);
+  const added = [];
+  for (const l of after) {
+    const n = left.get(l) ?? 0;
+    if (n) left.set(l, n - 1);
+    else added.push(l);
+  }
+  const gone = [...left.values()].reduce((a, b) => a + b, 0);
+  if (!added.length && !gone) return `${head} — no change.`;
+  const same = after.length - added.length;
+  const tail = [same && `${same} unchanged not shown`, gone && `${gone} gone`].filter(Boolean).join(", ");
+  return `${head} — changes since last OCR (+ new or moved${tail ? `; ${tail}` : ""}; {disableDiffing: true} prints all):\n${added.map((l) => `+ ${l}`).join("\n")}`;
+}
+
 export class App {
   #ctx;
   #backend;
   #view = null;
   #explicitWindow = false;
   #lastTrees = new Map(); // window id -> {lines, base, frames}: what the model last saw
+  #lastOcr = new Map(); // window id -> OCR lines the model last saw
   // What waitForChange compares against: the last printed read (or the state a
   // previous wait settled on), as {pixels, value, format, quality}.
   #waitBase = null;
@@ -262,9 +282,10 @@ export class App {
       text += this.#notice;
       this.#notice = "";
     }
-    // Once, on a full read: a diff of a near-empty tree needs no reminder.
+    // A near-empty tree means the screen is drawn (Citrix, canvases): steer to
+    // OCR, which is text, not to screenshots, which are images.
     if (tree.nodes.length <= 2 && !text.includes(" — changes since last read") && !text.endsWith(" — no change.")) {
-      text += "\n(few elements: this screen may be drawn, not described; app.ocr() reads its text with positions, or take a screenshot)";
+      text += "\n(only " + tree.nodes.length + " element" + (tree.nodes.length === 1 ? "" : "s") + ": this screen is drawn, not described. Use app.ocr() for its text with clickable positions; it costs far less than a screenshot, and repeat calls show only changes. Screenshot only to judge layout.)";
     }
     if (outline.offscreen || outline.deeper) {
       const left = [outline.offscreen && `${outline.offscreen} outside the window`, outline.deeper && `${outline.deeper} in folded levels`].filter(Boolean).join(", ");
@@ -477,7 +498,11 @@ export class App {
     const items = found.map((t) => ({ text: t.text, confidence: Math.round(t.confidence * 100) / 100, frame: [t.frame[0] * sx, t.frame[1] * sy, t.frame[2] * sx, t.frame[3] * sy].map(Math.round) }));
     if (options.emit !== false) {
       const lines = items.map((t) => `${JSON.stringify(t.text)} @${t.frame[0]},${t.frame[1]} ${t.frame[2]}x${t.frame[3]}`);
-      this.#ctx.out.text(`${this.name} — text in the screenshot (OCR) — image ${this.#view.width}x${this.#view.height}\n${lines.join("\n") || "(no text found)"}`);
+      const head = `${this.name} — text in the screenshot (OCR) — image ${this.#view.width}x${this.#view.height}`;
+      const key = this.#view.windowId ?? `#${this.#view.window}`;
+      const last = options.disableDiffing ? undefined : this.#lastOcr.get(key);
+      this.#ctx.out.text(last ? ocrDiff(head, last, lines) : `${head}\n${lines.join("\n") || "(no text found)"}`);
+      this.#lastOcr.set(key, lines);
     }
     return items;
   }
